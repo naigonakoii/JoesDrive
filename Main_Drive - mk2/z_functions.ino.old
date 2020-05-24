@@ -1,0 +1,1011 @@
+//********************************************************************* MPU6050 stuff *********************************************************************       
+
+void readMPU() {
+
+  
+    // if programming failed, don't try to do anything
+    if (!dmpReady) return;
+
+    // wait for MPU interrupt or extra packet(s) available
+    while (!mpuInterrupt && fifoCount < packetSize) {
+
+    }
+
+    // reset interrupt flag and get INT_STATUS byte
+    mpuInterrupt = false;
+    mpuIntStatus = mpu.getIntStatus();
+
+    // get current FIFO count
+    fifoCount = mpu.getFIFOCount();
+
+    // check for overflow (this should never happen unless our code is too inefficient)
+    if ((mpuIntStatus & 0x10) || fifoCount == 1024) {
+        // reset so we can continue cleanly
+        mpu.resetFIFO();
+        Serial.println(F("FIFO overflow!"));
+
+    // otherwise, check for DMP data ready interrupt (this should happen frequently)
+    } else if (mpuIntStatus & 0x02) {
+        // wait for correct available data length, should be a VERY short wait
+        while (fifoCount < packetSize) fifoCount = mpu.getFIFOCount();
+
+        // read a packet from FIFO
+        mpu.getFIFOBytes(fifoBuffer, packetSize);
+        
+        // track FIFO count here in case there is > 1 packet available
+        // (this lets us immediately read more without waiting for an interrupt)
+        fifoCount -= packetSize;
+
+        #ifdef OUTPUT_READABLE_YAWPITCHROLL
+            // display Euler angles in degrees
+            mpu.dmpGetQuaternion(&q, fifoBuffer);
+            mpu.dmpGetGravity(&gravity, &q);
+            mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+            
+            yaw = (ypr[0] * 180/M_PI);
+            pitch = (ypr[1] * 180/M_PI);
+            roll = (ypr[2] * 180/M_PI);
+        #endif
+    }
+}
+
+
+//********************************************************************* Read remote *********************************************************************       
+
+void readRemote() {
+
+    recvRemote();
+    if (newData == true) {
+        strcpy(tempChars, receivedChars);
+        parseRemoteData();
+        newData = false;
+    }
+}
+
+//********************************************************************* Read Dome *********************************************************************       
+
+void readDome() { 
+
+    recvDome();
+    if (newDataD == true) {
+        strcpy(tempCharsD, receivedCharsD);
+        parseDomeData();
+        newDataD = false;
+    }
+}
+
+//********************************************************************* Send Remote *********************************************************************       
+
+void sendRemote() {
+        
+        Serial1.print (F("<"));
+        Serial1.print (bodyVin);
+        Serial1.print (F(","));
+        Serial1.print (domeBatt);
+        Serial1.print (F(","));
+        Serial1.print (bodyStatus);
+        Serial1.print (F(">"));
+} 
+ 
+//********************************************************************* Send Dome *********************************************************************       
+
+void sendDome() {     
+        Serial3.print (F("<"));
+        Serial3.print (F(" "));
+        Serial3.print (F(","));
+        Serial3.print (PSI);
+        Serial3.print (F(","));
+        Serial3.print (but4);
+        Serial3.print (F(">"));
+} 
+ 
+//********************************************************************* BlueTooth enable *********************************************************************       
+
+    void BTenable() {
+        
+        BTstate = digitalRead(BTstatePin);
+
+        if(motorEnable == 0 && BTstate == 1) {          //if motor enable switch is on and BT connected, turn on the motor drivers          
+          autoDisableMotors();
+          digitalWrite(enablePinDome, HIGH);
+        }
+        else if (motorEnable == 1 || BTstate == 0) {    //if motor enable switch is off OR BT disconnected, turn off the motor drivers
+          digitalWrite(enablePin, LOW);
+          digitalWrite(enablePinDome, LOW);
+          autoDisableState = 0;
+          autoDisableDoubleCheck = 0;
+        }
+}
+
+//********************************************************************* Actual movement *********************************************************************
+
+void movement() {
+
+  debugRoutines();
+         if (motorEnable == 0 && BTstate == 1){
+
+          
+          unsigned long currentMillis = millis();
+          
+          sideTilt();
+          mainDrive();
+          domeTilt();
+          domeServoCheck();
+          
+    
+         } else {
+
+          turnOffAllTheThings();
+          
+         }
+} 
+
+//********************************************************************* Main Drive *********************************************************************
+
+    void mainDrive() {
+      joystickDrive = map(ch1, 0,512,(driveSpeed * -1), driveSpeed);  //Read joystick - change -55/55 to adjust for speed. 
+         
+        // moves through speedArray to match joystick. speedArray is set up to create an 's curve' for increasing/decreasing speed
+
+        
+        if ((joystickDrive > driveAccel) && (driveAccel >= 0)){         
+          driveAccel ++;
+          Setpoint3 = speedArray[constrain(abs(driveAccel),0, 110)];
+        } 
+        else if ((joystickDrive < driveAccel) && (driveAccel >= 0)) {
+          driveAccel --;
+          Setpoint3 = speedArray[constrain(abs(driveAccel),0, 110)];
+        }
+        else if ((joystickDrive > driveAccel) && (driveAccel <= 0)){
+          driveAccel ++;
+          Setpoint3 = (speedArray[constrain(abs(driveAccel),0, 110)] * -1);
+        } 
+        else if ((joystickDrive < driveAccel) && (driveAccel <= 0)) {
+          driveAccel --;
+          Setpoint3 = (speedArray[constrain(abs(driveAccel),0, 110)] * -1);
+        }
+    
+
+        Setpoint3 = constrain(Setpoint3, -55, 55);
+
+
+         Input3 = (pitch + pitchOffset) - domeTiltOffset; 
+         //domeTiltOffset used to keep the ball from rolling when dome is tilted front/back
+         
+         PID3.Compute();
+
+         if (Output3 >= 2)    //make BB8 roll
+            {
+            Output3a = abs(Output3);
+            analogWrite(drivePWM1, Output3a);   
+            analogWrite(drivePWM2, 0);
+            }
+         else if (Output3 < -2)  
+            { 
+            Output3a = abs(Output3);
+            analogWrite(drivePWM2, Output3a);  
+            analogWrite(drivePWM1, 0);
+            }
+
+    }
+
+
+//********************************************************************* Side to Side *********************************************************************
+
+
+
+
+//s2s left joystick goes from 0(LEFT) to 512(RIGHT)  
+//The IM roll should go DOWN as it tilts to the right, and UP as it tilts to the left
+//The side to side pot should go UP as the ball tilts left, and LOW as it tilts right
+//
+
+    void sideTilt() {
+         joystickS2S = map(constrain(ch2, 0 , 512), 0,512,-25,25); //- is  left, + is  right
+
+         // Setpoint will increase/decrease by 1 each time the code runs until it matches the joystick. This slows the side to side movement.  
+
+         if ((Setpoint2 > -2) && (Setpoint2 < 2) && (joystickS2S == 0)){
+          Setpoint2 = 0;
+         }
+         else if ((joystickS2S > Setpoint2) && (joystickS2S != Setpoint2)){
+          Setpoint2+=2;  
+         }
+         else if ((joystickS2S < Setpoint2) && (joystickS2S != Setpoint2)){
+          Setpoint2-=2;
+         }
+
+
+         S2Spot = map(analogRead(S2SpotPin), 0, 1024, -135,135);
+         Input2 = roll + rollOffset; 
+         Setpoint2 = constrain(Setpoint2, -30,30);
+         PID2.Compute();  //PID2 is used to control the 'servo' control of the side to side movement. 
+
+         Input1  = S2Spot + potOffsetS2S;
+         Setpoint1 = map(constrain(Output2, -30,30), -30, 30, 30, -30);
+         PID1.Compute();   //PID1 is for side to side stabilization
+        
+         if ((Output1 <= -1) && (Input1 > -32))   
+            {
+            Output1a = abs(Output1);
+            analogWrite(s2sPWM2, Output1a);   
+            analogWrite(s2sPWM1, 0);
+            }
+         else if ((Output1 >= 1) && (Input1 < 32))   
+            { 
+            Output1a = abs(Output1);
+            analogWrite(s2sPWM1, Output1a);  
+            analogWrite(s2sPWM2, 0);
+            } 
+         else
+            {
+            analogWrite(s2sPWM2, 0);  
+            analogWrite(s2sPWM1, 0);
+            }
+
+    }
+
+    
+//********************************************************************* Dome Tilt *********************************************************************      
+
+     void domeTilt(){   
+
+//The joystick will go from 0(Forward) to 512(Back). 
+//The pot will get HIGH as it moves back, and LOW as it moves forward
+//
+//
+
+        //speedDomeTilt offsets the dome based on the main drive to tilt it in the direction of movement. 
+        if (Setpoint3 < 3 && Setpoint3 > -3) {
+          speedDomeTilt = 0;
+        } else {
+          speedDomeTilt = Output3 / 15;
+        }
+
+
+         domeTiltPot = (map(analogRead(domeTiltPotPin), 0, 1024, -135, 135) + domeTiltPotOffset);
+         joystickDome = constrain(map(ch3, 0,512,17,-17), -17, 17) - speedDomeTilt;   // Reading the stick for angle -40 to 40
+         Input4  = domeTiltPot + (pitch + pitchOffset);
+         
+         if ((Setpoint4 > -1) && (Setpoint4 < 1) && (joystickDome == 0)){
+          Setpoint4 = 0;
+         }
+         else if ((joystickDome > Setpoint4) && (joystickDome != Setpoint4)){
+          Setpoint4 += easeDomeTilt;
+         }
+         else if ((joystickDome < Setpoint4) && (joystickDome != Setpoint4)){
+          Setpoint4 -= easeDomeTilt;
+         }
+         
+         Setpoint4 = constrain(Setpoint4, -17,17);
+
+
+
+         PID4.Compute();
+
+        
+         if (Output4 < -0 && domeTiltPot > -25)  
+            {
+            Output4a = abs(Output4);
+            analogWrite(domeTiltPWM2, Output4a);    
+            analogWrite(domeTiltPWM1, 0);
+            }
+         else if (Output4 >= 0 && domeTiltPot < 25)  
+            { 
+            Output4a = abs(Output4);
+            analogWrite(domeTiltPWM1, Output4a);  
+            analogWrite(domeTiltPWM2, 0);
+            } 
+         else
+            {
+            analogWrite(domeTiltPWM2, 0);  
+            analogWrite(domeTiltPWM1, 0);
+            }
+
+    }
+
+//********************************************************************* Dome spin *********************************************************************
+
+    void domeSpin() {
+
+        domeRotation = map(ch4, 0,512,-255,255);
+
+          if (domeRotation < 3 && domeRotation > -3 && currentDomeSpeed > -15 && currentDomeSpeed < 15) {
+            domeRotation = 0;
+            currentDomeSpeed = 0;
+          }
+
+        if ((domeRotation > currentDomeSpeed) && (currentDomeSpeed >= 0)){
+          currentDomeSpeed += easeDome ;
+        } 
+        else if ((domeRotation < currentDomeSpeed) && (currentDomeSpeed >= 0)){
+          currentDomeSpeed -= easeDome ;
+        } 
+        else if ((domeRotation > currentDomeSpeed) && (currentDomeSpeed <= 0)){
+          currentDomeSpeed += easeDome ;
+        } 
+        else if ((domeRotation < currentDomeSpeed) && (currentDomeSpeed <= 0)){
+          currentDomeSpeed -= easeDome ;
+        } 
+    
+ 
+          if ((currentDomeSpeed<=-20) && (BTstate ==1)){
+            currentDomeSpeed = constrain(currentDomeSpeed,-255,255);
+            analogWrite(domeSpinPWM2, 0);
+            analogWrite(domeSpinPWM1, abs(currentDomeSpeed));
+          }
+          else if ((currentDomeSpeed>=20) && (BTstate == 1)){
+            currentDomeSpeed = constrain(currentDomeSpeed,-255,255);
+            analogWrite(domeSpinPWM1, 0);
+            analogWrite(domeSpinPWM2, abs(currentDomeSpeed));
+          }
+          else {
+            analogWrite(domeSpinPWM1, 0);
+            analogWrite(domeSpinPWM2, 0);
+          }   
+    }
+
+
+//*********************************************************************          DISABLE DROID         *********************************************************************
+ 
+    void turnOffAllTheThings(){
+      //disables all PIDS and movement. This is to avoid any sudden jerks when re-enabling motors. 
+      
+        joystickS2S = 0;
+        Input2 = 0;
+        Setpoint2 = 0; 
+        Output2 = 0;
+        Input1 = 0;
+        Setpoint1 = 0;
+        Output1 = 0;
+        joystickDrive = 0;
+        driveAccel = 0;
+        Input3 = 0;
+        Setpoint3 = 0;
+        Output3 = 0;
+        joystickDome = 0;
+        Input4 = 0;
+        Setpoint4 = 0;
+        Output4 = 0;
+          
+    }
+
+//********************************************************************* Sound *********************************************************************
+
+    void sounds(){
+            
+        if (but2 == 0 && readPinState == 1 && BTstate ==1 && soundState ==0){   
+          randSoundPin = random(0, 5);
+          digitalWrite((soundPins[randSoundPin]), LOW);
+          soundState=1;
+       
+        }else if (but2 == 1) {
+          soundState=0;
+          digitalWrite((soundPins[0]), HIGH);
+          digitalWrite((soundPins[1]), HIGH);
+          digitalWrite((soundPins[2]), HIGH);
+          digitalWrite((soundPins[3]), HIGH);
+          digitalWrite((soundPins[4]), HIGH);
+        }
+          
+        if ((but3 == 0) && (readPinState == 1) && (BTstate ==1)){  
+          musicState = 1;
+          musicStateMillis = millis();
+          digitalWrite(soundpin6, LOW);
+          
+
+        }else if (but3 == 1) {
+          digitalWrite(soundpin6, HIGH);
+        }
+
+}
+
+//********************************************************************* Body Calibration *********************************************************************
+
+void bodyCalib() {          
+          if (but5 == 0){
+            timeRightSelect();
+          } else if (but5 == 1 || motorEnable == 0){
+            rSelectState = 0;
+          }
+
+          if (bodyStatus == 1){
+            waitForConfirmationToSetOffsets();
+          }
+}
+
+//********************************************************************* PSI Value *********************************************************************
+
+   void psiVal(){
+    
+         readPinState = digitalRead(readpin);
+         fadeVal = map(analogRead(fadePin), 0, 30, 0, 255);
+         
+
+        if ((readPinState == 0) && (fadeVal > 40) && (musicState == 0)){ 
+          PSI = constrain(fadeVal, 0, 255);
+        } else {
+          PSI = 0;
+        }
+
+        if(readPinState == 1 && musicState != 0 && (millis() - musicStateMillis >= 500)){
+          musicState = 0;
+        }
+
+}
+
+//********************************************************************* Read voltage in *********************************************************************
+
+  void readVin() {
+   
+      bodyVin= ((analogRead(battMonitor) * outputVoltage) / 1024.0) / (R2/(R1+R2)); 
+
+}
+
+
+//********************************************************************* Read Remote data using Serial 1 *********************************************************************
+
+
+  void recvRemote() {
+    static boolean recvInProgress = false;
+    static byte ndx = 0;
+    char startMarker = '<';
+    char endMarker = '>';
+    char rc;
+
+    while (Serial1.available() > 0 && newData == false) {
+        rc = Serial1.read();
+
+        if (recvInProgress == true) {
+            if (rc != endMarker) {
+                receivedChars[ndx] = rc;
+                ndx++;
+                if (ndx >= numChars) {
+                    ndx = numChars - 1;
+                }
+            }
+            else {
+                receivedChars[ndx] = '\0'; // terminate the string
+                recvInProgress = false;
+                ndx = 0;
+                newData = true;
+            }
+        }
+
+        else if (rc == startMarker) {
+            recvInProgress = true;
+        }
+    }
+}
+
+//********************************************************************* Parse Remote data using Serial 1 *********************************************************************
+
+
+  void parseRemoteData() {      // split the data into its parts
+
+    char * strtokIndx; // this is used by strtok() as an index
+
+    strtokIndx = strtok(tempChars,",");      // get the first part - the string
+    ch1 = atoi(strtokIndx); // copy it to messageFromPC
+ 
+    strtokIndx = strtok(NULL, ","); 
+    ch2 = atoi(strtokIndx);     
+    strtokIndx = strtok(NULL, ","); 
+    ch3 = atoi(strtokIndx);     
+    strtokIndx = strtok(NULL, ","); 
+    ch4 = atoi(strtokIndx);     
+    strtokIndx = strtok(NULL, ","); 
+    but1 = atoi(strtokIndx);     
+    strtokIndx = strtok(NULL, ","); 
+    but2 = atoi(strtokIndx);     
+    strtokIndx = strtok(NULL, ","); 
+    but3 = atoi(strtokIndx);     
+    strtokIndx = strtok(NULL, ","); 
+    but4 = atoi(strtokIndx);     
+    strtokIndx = strtok(NULL, ","); 
+    but5 = atoi(strtokIndx);     
+    strtokIndx = strtok(NULL, ","); 
+    but6 = atoi(strtokIndx);     
+    strtokIndx = strtok(NULL, ","); 
+    but7 = atoi(strtokIndx);     
+    strtokIndx = strtok(NULL, ","); 
+    but8 = atoi(strtokIndx);     
+    strtokIndx = strtok(NULL, ","); 
+    motorEnable = atoi(strtokIndx);     
+
+}
+
+//********************************************************************* Read Dome data using Serial 3 *********************************************************************
+
+
+  void recvDome() {
+    #ifdef DoDomeRecv
+    static boolean recvInProgressD = false;
+    static byte ndxD = 0;
+    char startMarkerD = '<';
+    char endMarkerD = '>';
+    char rcD;
+
+    while (Serial3.available() > 0 && newDataD == false) {
+        rcD = Serial3.read();
+
+        if (recvInProgressD == true) {
+            if (rcD != endMarkerD) {
+                receivedCharsD[ndxD] = rcD;
+                ndxD++;
+                if (ndxD >= numCharsD) {
+                    ndxD = numCharsD - 1;
+                }
+            }
+            else {
+                receivedCharsD[ndxD] = '\0'; // terminate the string
+                recvInProgressD = false;
+                ndxD = 0;
+                newDataD = true;
+            }
+        }
+
+        else if (rcD == startMarkerD) {
+            recvInProgressD = true;
+        }
+    }
+    #endif
+}
+
+//********************************************************************* Parse Dome data using Serial 3 *********************************************************************
+
+
+  void parseDomeData() {      // split the data into its parts
+
+    char * strtokIndxD; // this is used by strtok() as an index
+
+     strtokIndxD = strtok(tempCharsD,",");      // get the first part - the string
+    strcpy(textFromDome, strtokIndxD); // copy it to messageFromPC
+
+    strtokIndxD = strtok(NULL,",");      // get the first part - the string
+    domeYaw = atof(strtokIndxD); // copy it to domeYaw
+ 
+    strtokIndxD = strtok(NULL, ","); 
+    domeBatt = atof(strtokIndxD);     
+
+
+}
+
+//********************************************************************* Set dome rotation to Servo Mode *********************************************************************
+
+  void domeSpinServo() {
+
+    ch4Servo = map(ch4, 0, 512, -60, 60);
+
+    Input5 = (domeYaw + yawOffset) - yaw;
+    
+
+    if (Input5 < -180){
+      Input5 += 360;
+    } else if (Input5 > 180){
+      Input5 -= 360;
+    } else {
+      Input5 = Input5;
+    }
+    
+    Setpoint5 = ch4Servo;
+    
+    PID5.Compute();
+        
+         if (Output5 < -4)
+            {
+            Output5a = constrain(abs(Output5),0, 255);
+            analogWrite(domeSpinPWM1, Output5a);     
+            analogWrite(domeSpinPWM2, 0);
+            }
+         else if (Output5 > 4)  
+            { 
+            Output5a = constrain(abs(Output5), 0, 255);
+            analogWrite(domeSpinPWM2, Output5a);  
+            analogWrite(domeSpinPWM1, 0);
+            } 
+         else
+            {
+            analogWrite(domeSpinPWM2, 0);  
+            analogWrite(domeSpinPWM1, 0);
+            }
+    
+}
+
+//********************************************************************* Set Yaw Offset for dome servo mode *********************************************************************
+
+
+  void setYawOffset() {
+
+    yawOffset = yaw - domeYaw;
+    
+  }
+
+//********************************************************************* Count how long right select is pressed *********************************************************************
+
+
+  void timeRightSelect(){
+
+    unsigned long currentMillisOffset = millis();
+
+    if (but5 == 0 && rSelectState == 0){
+      setOffsetMillis = millis();
+      rSelectState = 1;
+    
+    }
+    
+    if (rSelectState == 1 && currentMillisOffset - setOffsetMillis >= 3000){
+      //setOffsetsAndSaveToEEPROM();
+      bodyStatus = 1;
+      rSelectState = 0;
+    }
+
+      #ifdef debugRSelectMillis
+      
+      Serial.print(" currentMillisOffset: ");
+      Serial.print(currentMillisOffset);
+      
+      #endif
+    
+  }
+
+  void waitForConfirmationToSetOffsets(){
+    countdown += .15;
+    if (but7 == 0 && motorEnable == 1){
+      setOffsetsAndSaveToEEPROM();
+    } else if (countdown >= 250){
+      bodyStatus = 0;
+      countdown = 0;
+    }
+
+      #ifdef debugRSelectMillis
+      
+      
+
+      #endif
+  }
+
+
+
+  
+//********************************************************************* Set offsets and save them to EEPROM *********************************************************************
+
+  void setOffsetsAndSaveToEEPROM(){
+    
+    
+    pitchOffset = pitch * -1;
+    rollOffset = roll * -1;
+    potOffsetS2S = 0 - (map(analogRead(S2SpotPin), 0, 1024, -135,135));
+    domeTiltPotOffset = 0 - (map(analogRead(domeTiltPotPin), 0, 1024, -135, 135));
+
+    if(pitchOffset != EEPROM.readFloat(0)){
+      EEPROM.writeFloat(0,pitchOffset);
+    }
+    if(rollOffset != EEPROM.readFloat(4)){
+      EEPROM.writeFloat(4,rollOffset);
+    }
+    if(potOffsetS2S != EEPROM.readInt(8)){
+      EEPROM.writeInt(8,potOffsetS2S);
+    }
+    if(domeTiltPotOffset != EEPROM.readInt(12)){
+      EEPROM.writeInt(12,domeTiltPotOffset);
+    }
+    bodyStatus = 0;
+    countdown = 0;
+    digitalWrite((soundPins[1]), LOW);
+    delay(1000);
+    digitalWrite((soundPins[1]), HIGH);
+  }
+
+//**************************************************Set offsets ONLY; this is used if nothing is stored in EEPROM *********************************************************************
+
+  void setOffsetsONLY(){
+    
+    pitchOffset = 0 - pitch;
+    rollOffset = 0 - roll;
+    potOffsetS2S = 0 - (map(analogRead(S2SpotPin), 0, 1024, -135,135));
+    domeTiltPotOffset = 0 - (map(analogRead(domeTiltPotPin), 0, 1024, -135, 135));
+    delay(1000);
+  }
+
+
+//**************************************************Drive Speed *****************************************************
+  
+      
+ void setDriveSpeed(){    
+
+  if(but6 == 1){
+    driveSpeed = 55;
+  }else if(but6 == 2){
+    driveSpeed = 75;
+  }else if(but6 == 3){
+    driveSpeed = 110;
+  }
+
+ }
+
+//**************************************************Dome Servo Check *****************************************************
+ 
+   void domeServoCheck(){
+    unsigned long currentMillis = millis();
+    
+            if (domeServo == 0 && but1 == 0 && currentMillis - domeServoMillis > domeInterval){
+              setYawOffset();
+              domeServo = 1;
+              domeServoMillis = currentMillis;
+            }
+            
+            if (domeServo == 1 && but1 == 0 && currentMillis - domeServoMillis > domeInterval){
+              domeServo = 0;
+              domeServoMillis = currentMillis;
+            } 
+            
+            if (domeServo == 1){
+              domeSpinServo();
+            } else {
+              domeSpin();
+            }   
+
+          #ifdef debugdomeRotation
+          Serial.print(F(" domeServoMillis: "));
+          Serial.print(domeServoMillis);
+          Serial.print(F(" millis: "));
+          Serial.print(currentMillis);
+          #endif
+   } 
+
+  void autoDisableMotors(){
+    
+    if((joystickDrive > -2 && joystickDrive < 2) && (joystickS2S > -2 && joystickS2S < 2) && (joystickDome > -2 && joystickDome < 2) && (autoDisableState == 0)){
+
+        autoDisableMotorsMillis = millis();
+        autoDisableState = 1;
+        
+    } else if(joystickDrive < -2 || joystickDrive > 2 || joystickS2S < -2 || joystickS2S > 2 || joystickDome < -2 || joystickDome > 2){
+
+        autoDisableState = 0;     
+        digitalWrite(enablePin, HIGH); 
+        autoDisableDoubleCheck = 0; 
+    }
+            
+    if(autoDisableState == 1 && (millis() - autoDisableMotorsMillis >= 3000) && Output1a < 25 && Output3a < 8){
+        digitalWrite(enablePin, LOW);
+    }else if(Output1a > 50 || Output3a > 20){
+        autoDisableState = 0;
+        digitalWrite(enablePin, HIGH);
+        autoDisableDoubleCheck = 0;      
+    }else if((Output1a > 25 || Output3a > 8) && autoDisableDoubleCheck == 0){
+        autoDisableDoubleCheckMillis = millis();
+        autoDisableDoubleCheck = 1;
+       
+    } else if((autoDisableDoubleCheck == 1) && (millis() - autoDisableDoubleCheckMillis >= 100)){
+        if(Output1a > 30 || Output3a > 8){ 
+        autoDisableState = 0;
+        digitalWrite(enablePin, HIGH);
+        autoDisableDoubleCheck = 0;
+        }else{
+          autoDisableDoubleCheck = 0;
+        }
+    } 
+    
+
+  }
+
+      
+// ************************************************************ debug ************************************************************
+  void debugRoutines(){
+    
+       // Uncomment " #Define " above
+      
+       
+       #ifdef debugDrive
+
+          Serial.print(F(" joystickDrive: "));
+          Serial.print(joystickDrive);
+          Serial.print(F(" accel: "));
+          Serial.print(driveAccel);
+          Serial.print(F(" SetDrive: "));
+          Serial.print(Setpoint3);
+          Serial.print(F(" InDrive: "));
+          Serial.print(Input3);
+          Serial.print(F(" OutDrive: "));
+          Serial.print(Output3);
+
+        #endif
+
+        #ifdef debugS2S
+
+          Serial.print(F(" joystickS2S: "));
+          Serial.print(joystickS2S);
+          Serial.print(F(" Roll: "));
+          Serial.print(roll);
+          Serial.print(F(" RollOffset: "));
+          Serial.print(rollOffset);
+          Serial.print(F(" S2SPot: "));
+          Serial.print(S2Spot);
+          Serial.print(F(" In2: "));
+          Serial.print(Input2);
+          Serial.print(F(" Set2: "));
+          Serial.print(Setpoint2);
+          Serial.print(F(" Out2/Set1: "));
+          Serial.print(Output2);
+          Serial.print(F(" In1: "));
+          Serial.print(Input1);
+          Serial.print(F(" Out1: "));
+          Serial.println(Output1);
+
+          
+        #endif
+
+        #ifdef debugDomeTilt
+        
+          Serial.print(F(" joystickDome: "));
+          Serial.print(joystickDome);
+          Serial.print(F(" In4 :"));
+          Serial.print(Input4);
+          Serial.print(F(" Set4 :"));
+          Serial.print(Setpoint4);
+          Serial.print(F(" Out4 :"));
+          Serial.print(Output4);
+
+        #endif
+
+        #ifdef debugdomeRotation
+
+          Serial.print(F(" domeRotation: "));
+          Serial.print(domeRotation);
+          Serial.print(F(" currentDomeSpeed: "));
+          Serial.print(currentDomeSpeed);
+          Serial.print(F(" ch4Servo: "));
+          Serial.print(ch4Servo);
+          Serial.print(F(" In5: "));
+          Serial.print(Input5);
+          Serial.print(F(" Set5: "));
+          Serial.print(Setpoint5);
+          Serial.print(F(" Out5: "));
+          Serial.print(Output5);
+          Serial.print(F(" yawOffset: "));
+          Serial.print(yawOffset);
+          Serial.print(F(" domeServo: "));
+          Serial.print(domeServo);
+          Serial.print(F(" domeYaw: "));
+          Serial.print(domeYaw);
+          Serial.print(F(" yaw: "));
+          Serial.print(yaw);
+          
+        
+        #endif
+
+        #ifdef debugPSI
+
+          Serial.print(F(" readPinState: "));
+          Serial.print(readPinState);
+          Serial.print(F(" fadeVal: "));
+          Serial.print(fadeVal);
+          Serial.print(F(" PSI: "));
+          Serial.println(PSI);
+
+        #endif
+
+        #ifdef printbodyVin
+
+          Serial.print(F(" Vin: "));
+          Serial.print(bodyVin);
+
+        #endif
+
+        
+        #ifdef printYPR
+        
+            Serial.print(F(" Yaw: "));
+            Serial.print(yaw);
+            Serial.print(F(" Roll: "));
+            Serial.print(roll);
+            Serial.print(F("  Pitch: "));
+            Serial.println(pitch);
+
+         #endif
+
+         #ifdef printDome
+         
+            Serial.print(F(" Dome Yaw: "));
+            Serial.print(domeYaw);
+            Serial.print(F(" Dome Batt: "));
+            Serial.print(domeBatt);
+            Serial.print (F(" PSI: "));
+            Serial.print (PSI);
+            Serial.print (F(" But4: "));
+            Serial.print (but4);
+
+         #endif
+
+
+         #ifdef printRemote
+
+            Serial.print (F("  Remote: "));
+            Serial.print (ch1);
+            Serial.print (" , ");
+            Serial.print (ch2);
+            Serial.print (F(" , "));
+            Serial.print (ch3);
+            Serial.print (F(" , "));
+            Serial.print (ch4);
+            Serial.print (F(" , "));
+            Serial.print (but1);
+            Serial.print (F(" , "));
+            Serial.print (but2);
+            Serial.print (F(" , "));
+            Serial.print (but3);
+            Serial.print (F(" , "));
+            Serial.print (but4);  //enable pin
+            Serial.print (F(" , "));
+            Serial.print (but5);
+            Serial.print (F(" , "));
+            Serial.print (but6);
+            Serial.print (F(" , "));
+            Serial.print (but7);
+            Serial.print (F(" , "));
+            Serial.print (but8);
+            Serial.print (F(" , "));
+            Serial.print (motorEnable);
+            Serial.print ('\n');
+
+          #endif
+
+          #ifdef printOffsets
+          
+            Serial.print(" pitchOffset: ");
+            Serial.print(pitchOffset);
+            Serial.print(" rollOffset: ");
+            Serial.print(rollOffset);
+            Serial.print(" potOffsetS2S: ");
+            Serial.print(potOffsetS2S);
+            Serial.print("domeTiltPotOffset: ");
+            Serial.println(domeTiltPotOffset);
+            
+          #endif
+
+          #ifdef debugRSelectMillis
+
+            //Serial.print(" currentMillisOffset: ");
+            //Serial.print(currentMillisOffset);
+            Serial.print(" setOffsetMillis: ");
+            Serial.print(setOffsetMillis);
+            Serial.print(" motorEnable: ");
+            Serial.print(motorEnable);
+            Serial.print(" rSelectState: ");
+            Serial.print(rSelectState);
+            Serial.print(" bodyStatus: ");
+            Serial.print(bodyStatus);
+            Serial.print(" countdown: ");
+            Serial.print(countdown);
+            
+          #endif
+
+          #ifdef printOutputs
+
+            Serial.print(F(" Out1: ")); Serial.print(Output1a);
+            Serial.print(F(" Out2: ")); Serial.print(Output2a);
+            Serial.print(F(" Out3: ")); Serial.print(Output3a);
+            Serial.print(F(" Out4: ")); Serial.println(Output4a);
+
+          #endif
+
+          #ifdef printSoundPins
+
+            Serial.print(F(" Pin1: ")); Serial.print(digitalRead(soundpin1));
+            Serial.print(F(" Pin2: ")); Serial.print(digitalRead(soundpin2));
+            Serial.print(F(" Pin3: ")); Serial.print(digitalRead(soundpin3));
+            Serial.print(F(" Pin4: ")); Serial.print(digitalRead(soundpin4));
+            Serial.print(F(" Pin5: ")); Serial.print(digitalRead(soundpin5));
+            Serial.print(F(" Pin6: ")); Serial.print(digitalRead(soundpin6));
+            Serial.print(F(" soundState: ")); Serial.print(soundState);
+            Serial.print(F(" readPinState: ")); Serial.print(digitalRead(readpin));
+            Serial.print(F(" randSoundPin: ")); Serial.println(randSoundPin);
+
+          #endif
+          
+  }
+
+
+
