@@ -322,7 +322,7 @@ PID PID1(&Input1, &Output1, &Setpoint1, Pk1, Ik1 , Dk1, DIRECT);
 // 
 // The following values need tuning if moving to the MK3 flywheel.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-double Pk2 = 1.0; // Joe 0.5; M2 Flywheel .4
+double Pk2 = 1.5; // Joe 0.5; M2 Flywheel .4
 double Ik2 = .00; // was .00
 double Dk2 = .01; // was .01
 double Setpoint2, Input2, Output2, Output2a;
