@@ -1,0 +1,1 @@
+This directory contains a snapshot of the required libraries to get the drive to work; it's probably better to actually get these yourself to get the newest versions, but these are the ones that are tested working with my drive.
