@@ -844,7 +844,7 @@ void mainDrive() {
 
   if (Output3 >= 2) {    //make BB8 roll
     Output3a = abs(Output3);
-    analogWrite(drivePWM1, Output3a);   
+    analogWrite(drivePWM1, Output3a);
     analogWrite(drivePWM2, 0);
   }
   else if (Output3 < -2) { 
