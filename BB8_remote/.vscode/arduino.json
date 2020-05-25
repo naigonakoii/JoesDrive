@@ -1,0 +1,7 @@
+{
+    "board": "arduino:avr:pro",
+    "configuration": "cpu=16MHzatmega328",
+    "sketch": "BB8_remote.ino",
+    "port": "com6",
+    "output": "bin"
+}

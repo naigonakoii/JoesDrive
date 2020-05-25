@@ -1,0 +1,592 @@
+// ===================================================================================================================================================================================================== 
+//                            Joe's Drive  - Remote - Updated 4/14
+//
+//             ***         You are free to use, and share this code as long as it is not sold. There is no warranty, guarantee, or other tomfoolery. 
+//                         This entire project was masterminded by an average Joe, your mileage may vary. 
+// ===================================================================================================================================================================================================== 
+//                            Written by Joe Latiola - https://www.facebook.com/groups/JoesDrive/
+//                            You will need libraries: EepromEX: https://github.com/thijse/Arduino-EEPROMEx
+//                                                     SSD1306AsciiWire: https://github.com/greiman/SSD1306Ascii 
+//
+//
+// ===================================================================================================================================================================================================== 
+// =====================================================================================================================================================================================================
+
+
+#define battPin     A6
+#define btStatePin  11
+#define enablePin   10
+#define lSelect     6
+#define lHorizontal A2
+#define lVertical   A3
+#define lBut1       9
+#define lBut2       8
+#define lBut3       7
+#define rSelect     2
+#define rHorizontal A1
+#define rVertical   A0
+#define rBut1       5
+#define rBut2       4
+#define rBut3       3
+#define Flywheel    A7
+
+
+
+#include <EEPROMex.h>   // https://github.com/thijse/Arduino-EEPROMEx
+#include "Arduino.h"
+#include <Wire.h>
+#include "SSD1306AsciiWire.h"
+#define I2C_ADDRESS 0x3C
+SSD1306AsciiWire oled;
+#include <EasyTransfer.h>
+
+EasyTransfer RecRemote;
+EasyTransfer SendRemote;
+
+enum SpeedToggle
+{
+  Unknown = 0,
+  Slow = 1,
+  Medium = 2,
+  Fast = 3,
+  Stationary = 4,
+};
+SpeedToggle LastSpeedEntry = SpeedToggle::Stationary;
+
+struct SEND_DATA_STRUCTURE{
+  int ch1; //main drive
+  int ch2; //tilt / steer
+  int ch3; //head tilt
+  int ch4; //head spin
+  int ch5; //spin Flywheel
+  int but1; //Select on left joystick
+  int but2; //left 1
+  int but3; //left 2
+  int but4; //left3
+  int but5; //Select on right joystick
+  int but6Speed = 1;
+  int but7; //right 2
+  int but8; //right 3
+  int motorEnable; //toggle on top
+
+};
+
+struct RECEIVE_DATA_STRUCTURE{
+  double bodyBatt = 0.0;
+  double domeBatt = 0.0;
+  int bodyStatus;
+  
+};
+
+SEND_DATA_STRUCTURE sendToBody;
+RECEIVE_DATA_STRUCTURE recFromBody;
+
+int ch1a; //main drive
+int ch1b;
+int ch2a; //tilt / steer
+int ch2b;
+int ch3a; //head tilt
+int ch3b;
+int ch4a; //head spin
+int ch5a; //spin Flywheel
+
+int but5;
+int but6; //right 1
+
+int but5State;
+int Fwd = 0;
+int FwdLast;
+int but6State = 0;
+int but6SpeedLast = 5;
+
+int printScreen;
+
+int ch1Center;
+int ch2Center;
+int ch3Center;
+int ch4Center;
+int ch5Center;
+
+int state = 0;
+int stateLast = 0;
+
+long previousMillis;
+long interval = 40;
+long previousMillisScreen;
+unsigned long bodyCalibrationMillis;
+
+
+float remoteBatt = 0.0;
+
+int driveSpeed = 55;
+int lastDriveSpeed = 55;
+int lastBodyStatus = 0;
+int calibrationMarker;
+
+
+
+const byte numChars = 32;
+char receivedChars[numChars];
+char tempChars[numChars];   
+
+boolean newData = false;
+
+long joystickCalibMillis;
+int joystickCalibState;
+
+
+void setup(){
+
+  
+   Serial.begin(115200); 
+   pinMode  (rSelect, INPUT_PULLUP);     
+   pinMode  (rBut1, INPUT_PULLUP);     
+   pinMode  (rBut2, INPUT_PULLUP);     
+   pinMode  (rBut3, INPUT_PULLUP); 
+   pinMode  (lSelect, INPUT_PULLUP);  
+   pinMode  (lBut1, INPUT_PULLUP);    
+   pinMode  (lBut2, INPUT_PULLUP); 
+   pinMode  (lBut3, INPUT_PULLUP); 
+   pinMode  (enablePin, INPUT_PULLUP); 
+   pinMode  (btStatePin, INPUT); // check for Bluetooth enable
+
+   Wire.begin();     
+    oled.begin(&Adafruit128x64, I2C_ADDRESS);
+    oled.set400kHz(); 
+    oled.setFont(Callibri15);
+    //oled.clear();  
+    oled.println(F("==========================="));
+    oled.println(F("            Joe's Drive       "));
+    oled.println(F("==========================="));
+    delay(2000);
+    oled.clear();
+
+    ch1Center = EEPROM.readInt(0);
+    ch2Center = EEPROM.readInt(4);
+    ch3Center = EEPROM.readInt(8);
+    ch4Center = EEPROM.readInt(12);
+    ch5Center = EEPROM.readInt(16);
+
+    if(ch1Center < 100){
+      ch1Center = 512;
+    }
+    if(ch2Center < 100){
+      ch2Center = 512;
+    }
+    if(ch3Center < 100){
+      ch3Center = 512;
+    }
+    if(ch4Center < 100){
+      ch4Center = 512;
+    }
+    if(ch5Center < 100){
+      ch5Center = 512;
+    }
+
+   RecRemote.begin(details(recFromBody), &Serial);
+   SendRemote.begin(details(sendToBody), &Serial);
+
+
+}
+
+
+
+
+void loop(){  
+//Serial.println(sendToBody.ch5);
+
+
+ /*   recvWithStartEndMarkers();
+    if (newData == true) {
+        strcpy(tempChars, receivedChars);
+            // this temporary copy is necessary to protect the original data
+            //   because strtok() used in parseData() replaces the commas with \0
+        parseData();
+        newData = false;
+    }*/
+
+  //unsigned long currentMillis = millis();
+checkForScreenUpdate();
+checkBodyStatus();
+
+
+  if(millis() - previousMillis > interval) {
+      previousMillis = millis(); 
+
+readInputs();
+sendAndReceive();
+reverseDirection();
+
+  }
+}
+
+//==================================  Receive data from body  ====================================
+
+/*void recvWithStartEndMarkers() {
+    static boolean recvInProgress = false;
+    static byte ndx = 0;
+    char startMarker = '<';
+    char endMarker = '>';
+    char rc;
+
+    while (Serial.available() > 0 && newData == false) {
+        rc = Serial.read();
+
+        if (recvInProgress == true) {
+            if (rc != endMarker) {
+                receivedChars[ndx] = rc;
+                ndx++;
+                if (ndx >= numChars) {
+                    ndx = numChars - 1;
+                }
+            }
+            else {
+                receivedChars[ndx] = '\0'; // terminate the string
+                recvInProgress = false;
+                ndx = 0;
+                newData = true;
+            }
+        }
+
+        else if (rc == startMarker) {
+            recvInProgress = true;
+        }
+    }
+}*/
+
+//==================================  Parse the data received from the body  ====================================
+
+/*void parseData() {      // split the data into its parts
+
+    char * strtokIndx; // this is used by strtok() as an index
+
+    strtokIndx = strtok(tempChars,",");      // get the first part - the string
+    bodyBatt = atof(strtokIndx); 
+    strtokIndx = strtok(NULL, ",");
+    domeBatt = atof(strtokIndx);     // convert this part to a float
+    strtokIndx = strtok(NULL, ","); 
+    bodyStatus = atoi(strtokIndx); 
+    strtokIndx = strtok(NULL, ","); 
+    driveSpeed = atoi(strtokIndx);
+
+}*/
+
+//==================================  Times how long far right button is pressed  ====================================
+
+  void timeJoystickCalibration(){
+
+    unsigned long currentMillisCenter = millis();
+
+    if (sendToBody.but8 == 0 && sendToBody.but7 == 0 && sendToBody.motorEnable == 1 && joystickCalibState == 0){
+      joystickCalibMillis = millis();
+      joystickCalibState = 1;
+    } 
+    
+    if (joystickCalibState == 1 && currentMillisCenter - joystickCalibMillis >= 3000){
+      oled.clear();
+      oled.setFont(Callibri15);
+      oled.println(F("========================="));
+      oled.println(F("   Joystick Calibration"));
+      oled.println(F("========================="));
+      delay(4000);
+      oled.clear();
+      oled.println(F("1. Release joysticks      "));
+      oled.println(F("2. Release all buttons "));
+      oled.print(F("                    "));
+      while (digitalRead(lBut1) == 0 || digitalRead(lBut2) == 0 || digitalRead(lBut3) == 0 || digitalRead(rBut1) == 0 || digitalRead(rBut2) == 0 || digitalRead(rBut3) == 0){}      
+      oled.clear();
+      oled.println(F("1. Release joysticks          "));
+      oled.println(F("2. Press any button         "));
+      oled.print(F("                    "));
+      while (digitalRead(lBut1) == 1 && digitalRead(lBut2) == 1 && digitalRead(lBut3) == 1 && digitalRead(rBut1) == 1 && digitalRead(rBut2) == 1 && digitalRead(rBut3) == 1 && digitalRead(enablePin) == 1){}
+        if(digitalRead(enablePin == 1)) {
+          setJoystickCenter();
+          joystickCalibState = 0;
+        }
+      oled.clear();
+      printScreen = 1;
+    }
+
+  }
+
+//==================================  Set joystick centers  ====================================
+
+
+  void setJoystickCenter(){
+
+    ch1Center = ch1a;
+    ch2Center = ch2a;
+    ch3Center = ch3a;
+    ch4Center = ch4a;
+    ch5Center = ch5a;
+
+    
+    EEPROM.writeInt(0,ch1Center);
+    EEPROM.writeInt(4,ch2Center);
+    EEPROM.writeInt(8,ch3Center);
+    EEPROM.writeInt(12,ch4Center);
+    EEPROM.writeInt(16,ch5Center);
+    delay(1000);
+  }
+
+//==================================  Calibrate body center  ====================================
+
+
+    void bodyCalibration(){
+      if(calibrationMarker == 0){
+      oled.setCursor(0,0);
+      oled.setFont(Callibri15);
+      //oled.println(F("========================="));
+      oled.println(F("** Body Calibration **            "));
+      oled.println(F("1. Center BB8.                 "));
+      oled.println(F("2. Disable motors.      "));
+      oled.println(F("3. Press right button.                      "));
+      calibrationMarker = 1;
+      }
+        if (sendToBody.but8 == 0){
+          printScreen = 1;
+        }
+  }
+
+    void domeCenterCalibration(){
+      if(calibrationMarker == 0){
+      oled.setCursor(0,0);
+      oled.setFont(Callibri15);
+      //oled.println(F("========================="));
+      oled.println(F("** Dome Calibration **            "));
+      oled.println(F("1. Face BB-8 'Forward'.                 "));
+      oled.println(F("2. Disable motors.      "));
+      oled.println(F("3. Press right button.                      "));
+      calibrationMarker = 1;
+      }
+          if (sendToBody.but8 == 0){
+            printScreen = 1;
+          }
+  }
+
+//==================================  Slow/Med/Fast  ====================================
+
+  
+    void setDriveSpeed(){
+
+      sendToBody.but6Speed = sendToBody.but6Speed >= (int)LastSpeedEntry
+        ? 1
+        : sendToBody.but6Speed + 1;
+      
+  }
+
+
+//==================================  Update screen  ====================================
+
+
+  void printVoltage(){
+      oled.setCursor(0,0);
+      oled.setFont(Callibri15);
+      oled.print(F("Body: "));
+      if(state == 1){
+        oled.print(recFromBody.bodyBatt);
+      } else {
+        oled.print(F("0.00"));
+      }
+      oled.print(F("V          "));
+      oled.setCursor(95,0);
+      if(sendToBody.but6Speed == SpeedToggle::Slow){
+        oled.println(F("Slow    "));
+      }else if(sendToBody.but6Speed == SpeedToggle::Medium){
+        oled.println(F("Med    "));
+      }else if(sendToBody.but6Speed == SpeedToggle::Fast){
+        oled.println(F("Fast    "));
+      }else if(sendToBody.but6Speed == SpeedToggle::Stationary){
+        oled.println(F("Wiggle  "));
+      }
+      oled.print(F("Dome: "));
+      if(state == 1){
+        oled.print(recFromBody.domeBatt);
+      } else {
+        oled.print(F("0.00"));
+      }
+      oled.print(F("V         "));
+      oled.setCursor(95,15);
+      if(Fwd == 0){
+        oled.println(F("Fwd          "));
+      }else if(Fwd == 1){
+        oled.println(F("Rev            "));
+      }
+      oled.print(F("Remote: "));
+      oled.print(remoteBatt);
+      oled.println(F("V                             "));
+      oled.print(F("BT: "));
+      if (state == 0) {
+        oled.println(F("Not Connected                     "));
+      } else {
+        oled.println(F("Connected                      "));
+      }
+      if(but6SpeedLast != sendToBody.but6Speed){
+        but6SpeedLast = sendToBody.but6Speed;
+      }
+      if(FwdLast != sendToBody.fwdState){
+        FwdLast = sendToBody.fwdState;
+      }
+      if(stateLast != state){
+        stateLast = state;
+      }
+  }
+
+void sendAndReceive(){
+  RecRemote.receiveData();
+  SendRemote.sendData();
+}
+
+void checkForScreenUpdate(){
+  if(recFromBody.bodyStatus == 0){  
+    if((millis() - previousMillisScreen > 15000 && calibrationMarker == 0) || (but6SpeedLast != sendToBody.but6Speed) || (stateLast != state) || (FwdLast != sendToBody.fwdState) || (printScreen == 1)) {
+      previousMillisScreen = millis();
+      printVoltage();  
+      if(printScreen != 0){
+        printScreen = 0;
+      }
+    }    
+  }
+}
+
+void checkBodyStatus(){
+  if(recFromBody.bodyStatus == 1 && (calibrationMarker == 0 || calibrationMarker == 1)){
+    bodyCalibration();
+  } else if (recFromBody.bodyStatus == 2 && (calibrationMarker == 0 || calibrationMarker == 1)){
+    domeCenterCalibration(); 
+  } else if (recFromBody.bodyStatus == 0){
+    calibrationMarker = 0; 
+  }
+}
+
+void reverseDirection(){
+  if(but5 == 0 && but5State == 0){
+    but5State = 1;
+    if(Fwd == 0){
+      Fwd = 1;
+    }else if(Fwd == 1){
+      Fwd = 0;
+    }
+  }else if (but5 == 1 && but5State != 0){
+    but5State = 0;
+  }
+}
+
+void readInputs(){
+      state = digitalRead(btStatePin);  // check to see when BT is paired
+    
+      ch1a = analogRead(rVertical); 
+      ch2a = analogRead(rHorizontal);  
+      ch3a = analogRead(lVertical);    
+      ch4a = analogRead(lHorizontal);  
+      ch5a = analogRead(Flywheel);
+      sendToBody.but1 = digitalRead(lSelect); 
+      sendToBody.but2 = digitalRead(lBut1);   
+      sendToBody.but3 = digitalRead(lBut2);   
+      sendToBody.but4 = digitalRead(lBut3); 
+      sendToBody.fwdState = Fwd;  
+      but5 = digitalRead(rSelect);
+      but6 = digitalRead(rBut1); 
+      sendToBody.but7 = digitalRead(rBut2);  
+      sendToBody.but8 = digitalRead(rBut3);
+      sendToBody.motorEnable = digitalRead(enablePin);
+    
+    
+      remoteBatt = analogRead(battPin);
+      remoteBatt /= 1023;
+      remoteBatt *= 5;
+      
+    
+      if (ch1a == ch1Center){
+        ch1b = 256;
+      }else if (ch1a > ch1Center){
+        ch1b = map(ch1a, ch1Center, 1023, 255, 0);
+      }else if (ch1a < ch1Center){
+        ch1b = map(ch1a, 0, ch1Center, 512, 257);
+      }
+      
+      if (ch2a == ch2Center){
+        ch2b = 256;
+      }else if (ch2a > ch2Center){
+        ch2b = map(ch2a, ch2Center, 1023, 255, 0);
+      }else if (ch2a < ch2Center){
+        ch2b = map(ch2a, 0, ch2Center, 512, 257);
+      }
+    
+      if (ch3a == ch3Center){
+        ch3b = 256;
+      }else if (ch3a > ch3Center){
+        ch3b = map(ch3a, ch3Center, 1023, 255, 0);
+      }else if (ch3a < ch3Center){
+        ch3b = map(ch3a, 0, ch3Center, 512, 257);
+      }
+
+      if(Fwd == 1){
+        sendToBody.ch1 = map(ch1b, 0, 512, 512, 0);
+        sendToBody.ch2 = map(ch2b, 0, 512, 512, 0);
+        sendToBody.ch3 = map(ch3b, 0, 512, 512, 0);
+      }else{
+        sendToBody.ch1 = ch1b;
+        sendToBody.ch2 = ch2b;
+        sendToBody.ch3 = ch3b;
+      }
+    
+      if (ch4a == ch4Center){
+        sendToBody.ch4 = 256;
+      }else if (ch4a > ch4Center){
+        sendToBody.ch4 = map(ch4a, ch4Center, 1023, 255, 0);
+      }else if (ch4a < ch4Center){
+        sendToBody.ch4 = map(ch4a, 0, ch4Center, 512, 257);
+      }
+
+      if (ch5a == ch5Center){
+        sendToBody.ch5 = 256;
+      }else if (ch5a > ch5Center){
+        sendToBody.ch5 = constrain(map(ch5a, ch5Center, 780, 255, 0),0,512);
+      }else if (ch5a < ch5Center){
+        sendToBody.ch5 = constrain(map(ch5a, 140, ch5Center, 512, 257),0,512);
+      }
+      
+    
+      if (sendToBody.but8 == 0 && sendToBody.but7 == 0){
+         timeJoystickCalibration();
+      }else if (sendToBody.but8 == 1 || sendToBody.but7 == 1 || sendToBody.motorEnable == 0){
+          joystickCalibState = 0;
+      }
+
+      if(but6 == 0 && but6State == 0){
+        setDriveSpeed();
+      }else if(but6 == 1 && but6State ==1){
+        but6State = 0; 
+      }
+      
+    
+     /*     Serial.print (F("<"));
+          Serial.print (ch1);
+          Serial.print (F(","));
+          Serial.print (ch2);
+          Serial.print (F(","));
+          Serial.print (ch3);
+          Serial.print (F(","));
+          Serial.print (ch4);
+          Serial.print (F(","));
+          Serial.print (but1);
+          Serial.print (F(","));
+          Serial.print (but2);
+          Serial.print (F(","));
+          Serial.print (but3);
+          Serial.print (F(","));
+          Serial.print (but4);
+          Serial.print (F(","));
+          Serial.print (but5);
+          Serial.print (F(","));
+          Serial.print (but6Speed);
+          Serial.print (F(","));
+          Serial.print (but7);
+          Serial.print (F(","));
+          Serial.print (but8);
+          Serial.print (F(","));
+          Serial.print (motorEnable);
+          Serial.println (F(">"));*/
+      
+  } 
