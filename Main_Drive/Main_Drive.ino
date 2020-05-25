@@ -653,21 +653,7 @@ void handleSounds() {
 // PSI Value
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void psiVal() {
-  // Naigon: TODO - should not need this entire method.
-  sendToDome.button4 = recFromRemote.but4;
-  readPinState = digitalRead(readpin);
-  fadeVal = map(analogRead(fadePin), 0, 30, 0, 255);
-
-  if ((readPinState == 0) && (fadeVal > 40) && (musicState == 0)) {
-    sendToDome.PSI = constrain(fadeVal, 0, 255);
-  }
-  else {
-    sendToDome.PSI = 0;
-  }
-
-  if(readPinState == 1 && musicState != 0 && (millis() - musicStateMillis >= 500)) {
-    musicState = 0;
-  }
+  // Naigon - Method not needed since dome communicates via XBee to audio sub-board currently.
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
