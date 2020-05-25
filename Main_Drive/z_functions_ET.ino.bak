@@ -247,7 +247,7 @@ void movement() {
 
          domeTiltPot = (map(analogRead(domeTiltPotPin), 0, 1024, -HeadTiltPotMax, HeadTiltPotMax) + domeTiltPotOffset);
          // naigon: reverse the direction for the head tilt compared to Joe's original since I have a different joystick orientation.
-         joystickDome = constrain(map(recFromRemote.ch3, 0, 512, -HeadTiltMax, HeadTiltMax), -HeadTiltMax, HeadTiltMax);// - speedDomeTilt;   // Reading the stick for angle -40 to 40
+         joystickDome = constrain(map(recFromRemote.ch3, 0, 512, -HeadTiltMax, HeadTiltMax), -HeadTiltMax, HeadTiltMax) - speedDomeTilt;   // Reading the stick for angle -40 to 40
          Input4  = domeTiltPot + (pitch + pitchOffset);
          
          if ((Setpoint4 > -1) && (Setpoint4 < 1) && (joystickDome == 0)){
@@ -481,7 +481,7 @@ void movement() {
 
   void domeSpinServo() {
 
-    ch4Servo = map(recFromRemote.ch4, 0, 512, -70, 70);
+    ch4Servo = map(recFromRemote.ch4, 0, 512, -60, 60);
 
     //Input5 = (recFromDome.domeYaw + yawOffset) - yaw;
 

@@ -1,0 +1,7 @@
+{
+    "board": "arduino:avr:mega",
+    "configuration": "cpu=atmega2560",
+    "port": "com7",
+    "sketch": "Main_Drive.ino",
+    "output": "bin"
+}
