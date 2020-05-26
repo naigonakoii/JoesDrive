@@ -40,15 +40,6 @@ SSD1306AsciiWire oled;
 EasyTransfer RecRemote;
 EasyTransfer SendRemote;
 
-enum SpeedToggle
-{
-  Unknown = 0,
-  Slow = 1,
-  Medium = 2,
-  Fast = 3,
-  Stationary = 4,
-};
-
 enum BodyStatus
 {
   Default = 0,
@@ -57,7 +48,14 @@ enum BodyStatus
   DomeCalibration = 102,
 };
 
-SpeedToggle LastSpeedEntry = SpeedToggle::Stationary;
+enum SpeedToggle : uint8_t
+{
+  Unknown = 0,
+  Slow = 1,
+  Medium = 2,
+  Fast = 3,
+  Stationary = 4,
+};
 
 struct SEND_DATA_STRUCTURE
 {
@@ -72,7 +70,7 @@ struct SEND_DATA_STRUCTURE
   int but4;     //left3
   // Naigon: TODO - remove fwdState and have the body send the state back; this is like what I do with servo in bodyStatus.
   int fwdState; //Select on right joystick
-  int but6Speed = 1;
+  int but6;
   int but7;        //right 2
   int but8;        //right 3
   int motorEnable; //toggle on top
@@ -83,6 +81,7 @@ struct RECEIVE_DATA_STRUCTURE
   double bodyBatt = 0.0;
   double domeBatt = 0.0;
   int bodyStatus;
+  uint8_t bodySpeed;
 };
 
 SEND_DATA_STRUCTURE sendToBody;
@@ -98,12 +97,10 @@ int ch4a; //head spin
 int ch5a; //spin Flywheel
 
 int but5;
-int but6; //right 1
 
 int but5State;
 int Fwd = 0;
 int FwdLast;
-int but6State = 0;
 int but6SpeedLast = 5;
 
 int printScreen;
@@ -114,7 +111,7 @@ int ch3Center;
 int ch4Center;
 int ch5Center;
 
-int state = 0;
+int btConnectedState = 0;
 int stateLast = 0;
 
 long previousMillis;
@@ -124,8 +121,7 @@ unsigned long bodyCalibrationMillis;
 
 float remoteBatt = 0.0;
 
-int driveSpeed = 55;
-int lastDriveSpeed = 55;
+uint8_t lastDriveSpeed = 0;
 int lastBodyStatus = -1;
 int calibrationMarker;
 
@@ -393,15 +389,6 @@ void domeCenterCalibration()
   }
 }
 
-//==================================  Slow/Med/Fast  ====================================
-
-void setDriveSpeed()
-{
-  sendToBody.but6Speed = sendToBody.but6Speed >= (int)LastSpeedEntry
-    ? 1
-    : sendToBody.but6Speed + 1;
-}
-
 //==================================  Update screen  ====================================
 
 void printVoltage()
@@ -411,7 +398,7 @@ void printVoltage()
   oled.setCursor(0, 0);
   oled.setFont(Callibri15);
   oled.print(F("Body: "));
-  if (state == 1)
+  if (btConnectedState == 1)
   {
     oled.print(recFromBody.bodyBatt);
   }
@@ -424,22 +411,27 @@ void printVoltage()
   // Movement speed
   //
   oled.setCursor(95, 0);
-  if (sendToBody.but6Speed == SpeedToggle::Slow)
+  if (recFromBody.bodySpeed == SpeedToggle::Slow)
   {
     oled.println(F("Slow    "));
   }
-  else if (sendToBody.but6Speed == SpeedToggle::Medium)
+  else if (recFromBody.bodySpeed == SpeedToggle::Medium)
   {
     oled.println(F("Med    "));
   }
-  else if (sendToBody.but6Speed == SpeedToggle::Fast)
+  else if (recFromBody.bodySpeed == SpeedToggle::Fast)
   {
     oled.println(F("Fast    "));
   }
-  else if (sendToBody.but6Speed == SpeedToggle::Stationary)
+  else if (recFromBody.bodySpeed == SpeedToggle::Stationary)
   {
     oled.println(F("Wiggle  "));
   }
+  else
+  {
+    oled.println(F("OFF      "));
+  }
+  
 
   // Remote voltage
   //
@@ -471,7 +463,7 @@ void printVoltage()
   // Bluetooth connected state
   //
   oled.print(F("BT: "));
-  if (state == 0)
+  if (btConnectedState == 0)
   {
     oled.println(F("Not Connected                     "));
   }
@@ -480,19 +472,9 @@ void printVoltage()
     oled.println(F("Connected                      "));
   }
 
-  // Send stuff
-  if (but6SpeedLast != sendToBody.but6Speed)
-  {
-    but6SpeedLast = sendToBody.but6Speed;
-  }
-  if (FwdLast != sendToBody.fwdState)
-  {
-    FwdLast = sendToBody.fwdState;
-  }
-  if (stateLast != state)
-  {
-    stateLast = state;
-  }
+  // Update current values
+  FwdLast = sendToBody.fwdState;
+  stateLast = btConnectedState;
 }
 
 void sendAndReceive()
@@ -507,10 +489,10 @@ void checkForScreenUpdate()
   {
     if (
       (millis() - previousMillisScreen > 15000 && calibrationMarker == 0)
-      || (but6SpeedLast != sendToBody.but6Speed)
-      || (stateLast != state)
+      || (stateLast != btConnectedState)
       || (FwdLast != sendToBody.fwdState)
       || (lastBodyStatus != recFromBody.bodyStatus)
+      || (lastDriveSpeed != recFromBody.bodySpeed)
       || (printScreen == 1))
     {
       previousMillisScreen = millis();
@@ -536,6 +518,7 @@ void checkBodyStatus()
   }
 
   lastBodyStatus = recFromBody.bodyStatus;
+  lastDriveSpeed = recFromBody.bodySpeed;
 }
 
 void reverseDirection()
@@ -560,7 +543,7 @@ void reverseDirection()
 
 void readInputs()
 {
-  state = digitalRead(btStatePin); // check to see when BT is paired
+  btConnectedState = digitalRead(btStatePin); // check to see when BT is paired
 
   ch1a = analogRead(rVertical);
   ch2a = analogRead(rHorizontal);
@@ -573,7 +556,7 @@ void readInputs()
   sendToBody.but4 = digitalRead(lBut3);
   sendToBody.fwdState = Fwd;
   but5 = digitalRead(rSelect);
-  but6 = digitalRead(rBut1);
+  sendToBody.but6 = digitalRead(rBut1);
   sendToBody.but7 = digitalRead(rBut2);
   sendToBody.but8 = digitalRead(rBut3);
   sendToBody.motorEnable = digitalRead(enablePin);
@@ -667,16 +650,6 @@ void readInputs()
   else if (sendToBody.but8 == 1 || sendToBody.but7 == 1 || sendToBody.motorEnable == 0)
   {
     joystickCalibState = 0;
-  }
-
-  if (but6 == 0 && but6State == 0)
-  {
-    setDriveSpeed();
-    but6State = 1;
-  }
-  else if (but6 == 1 && but6State == 1)
-  {
-    but6State = 0;
   }
 
   /*     Serial.print (F("<"));

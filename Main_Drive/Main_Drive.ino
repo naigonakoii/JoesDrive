@@ -111,22 +111,25 @@
 // Joe's default is 25.
 #define SIDE_TO_SIDE_VAL 22
 
-
-         //#define printRemote              // Uncomment to see values passed from controller
-         //#define debugS2S                 // Uncomment to see Side tilt variables, PID values, ETC.
-         //#define debugDrive               // Uncomment to see main drive variables, PID values, ETC.
-         //#define debugDomeTilt            // Uncomment to see Dome tilt variables, PID values, ETC.
-         //#define debugdomeRotation        // Uncomment to see Dome rotation variables, PID values, ETC.
-         //#define debugPSI                 // Uncomment to see PSI values.
-         //#define printbodyBatt            // Uncomment to see battery level 
-         //#define printYPR                 // Uncomment to see Yaw, Pitch, and Roll
-         //#define printDome                // Uncomment to see the Dome's Yaw
-         //#define printOffsets             // Uncomment to see the offsets
-         //#define debugRSelectMillis
-         //#define printOutputs
-         //#define printSoundPins
-         //#define debugFlywheelSpin
-         //#define debugSound
+//
+// Debug Defines
+// Uncomment at most ONE of these to debug the corresponding values.
+//
+//#define printRemote              // Uncomment to see values passed from controller
+//#define debugS2S                 // Uncomment to see Side tilt variables, PID values, ETC.
+//#define debugDrive               // Uncomment to see main drive variables, PID values, ETC.
+//#define debugDomeTilt            // Uncomment to see Dome tilt variables, PID values, ETC.
+//#define debugdomeRotation        // Uncomment to see Dome rotation variables, PID values, ETC.
+//#define debugPSI                 // Uncomment to see PSI values.
+//#define printbodyBatt            // Uncomment to see battery level 
+//#define printYPR                 // Uncomment to see Yaw, Pitch, and Roll
+//#define printDome                // Uncomment to see the Dome's Yaw
+//#define printOffsets             // Uncomment to see the offsets
+//#define debugRSelectMillis
+//#define printOutputs
+//#define printSoundPins
+//#define debugFlywheelSpin
+//#define debugSound
 
 
 
@@ -176,7 +179,7 @@ struct SEND_DATA_STRUCTURE_REMOTE {
   double bodyBatt= 0.0;
   double domeBattSend;
   int bodyStatus = 0;
-  int bodySpeed;
+  uint8_t bodySpeed;
 };
 
 struct RECEIVE_DATA_STRUCTURE_IMU {
@@ -185,7 +188,7 @@ struct RECEIVE_DATA_STRUCTURE_IMU {
   float roll;
 };
 
-enum SpeedToggle
+enum SpeedToggle : uint8_t
 {
   Unknown = 0,
   Slow = 1,
@@ -223,10 +226,10 @@ AnimateYes animate;
 AnimationState animationState;
 
 // Naigon - button state tracking
-// NOTE - should implement for all cases where using buttons in Joe's code, but for now I'm only tracking buttons Two
-// and three (left button 1 and 2).
+// NOTE - should implement for all cases where using buttons in Joe's code.
 ButtonHandler button2Handler(0 /* onVal */, 1000 /* heldDuration */);
 ButtonHandler button3Handler(0 /* onVal */, 1000 /* heldDuration */);
+ButtonHandler button6Handler(0 /* onVal */, 2000 /* heldDuration */);
 
 int ch4Servo;           //left joystick left/right when using servo mode
 int currentDomeSpeed;
@@ -238,12 +241,9 @@ int readPinState = 1;
 int soundPins[] = {soundpin1, soundpin2, soundpin3, soundpin4};
 int randSoundPin;
 int soundState;
-int but6State = 0;
 int musicState;
 int autoDisableState;
 unsigned long musicStateMillis = 0;
-unsigned long but6LastDebounceTime = 0;
-unsigned long but6DebounceDelay = 50;
 
 unsigned long autoDisableMotorsMillis = 0;
 int autoDisableDoubleCheck;
@@ -461,6 +461,9 @@ void setup() {
   if (abs(rollOffset) + abs(pitchOffset) + abs(potOffsetS2S) + abs(domeTiltPotOffset) == 0 ) {
     setOffsetsONLY();
   }
+
+  // Always startup on slow speed.
+  sendToRemote.bodySpeed = SpeedToggle::Slow;
 }
 
 
@@ -480,6 +483,7 @@ void loop() {
     // Update button state for the rest of the functions.
     button2Handler.UpdateState(recFromRemote.but2);
     button3Handler.UpdateState(recFromRemote.but3);
+    button6Handler.UpdateState(recFromRemote.but6);
 
     //sounds();
     handleSounds();
@@ -557,7 +561,6 @@ void checkMiniTime() {
     lastIMUloop = 0;
   }
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sounds
@@ -664,17 +667,19 @@ void BTenable() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Drive speed selection
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void setDriveSpeed() {    
-  if(recFromRemote.but6 == SpeedToggle::Slow) {
+void setDriveSpeed() {
+  incrementBodySpeedToggle();
+
+  if(sendToRemote.bodySpeed == SpeedToggle::Slow) {
     driveSpeed = DRIVE_SPEED_SLOW;
   }
-  else if(recFromRemote.but6 == SpeedToggle::Medium) {
+  else if(sendToRemote.bodySpeed == SpeedToggle::Medium) {
     driveSpeed = DRIVE_SPEED_MEDIUM;
   }
-  else if(recFromRemote.but6 == SpeedToggle::Fast) {
+  else if(sendToRemote.bodySpeed == SpeedToggle::Fast) {
     driveSpeed = DRIVE_SPEED_HIGH;
   }
-  else if (recFromRemote.but6 == SpeedToggle::Stationary) {
+  else if (sendToRemote.bodySpeed == SpeedToggle::Stationary) {
     // For safety, set the drive speed back to slow, even though the stick shouldn't use it.
     driveSpeed = DRIVE_SPEED_SLOW / 2;
   }
@@ -685,6 +690,20 @@ void setDriveSpeed() {
     : false;
  }
 
+void incrementBodySpeedToggle() {
+  // Only increment when the button was pressed and released.
+  if (button6Handler.GetState() != ButtonState::Pressed) { return; }
+
+  //
+  // Naigon - This method was taken directly from the remote code and ported here. In general, the drive should do all
+  // state changes and should be the state "master", while the remote ect should just send commands. This will allow
+  // secondary controllers to operate on the drive and the drive can maintain a state.
+  //
+  sendToRemote.bodySpeed =
+    sendToRemote.bodySpeed >= (int)LastSpeedEntry || sendToRemote.bodySpeed == SpeedToggle::Unknown
+      ? 1
+      : sendToRemote.bodySpeed + 1;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Body calibration
