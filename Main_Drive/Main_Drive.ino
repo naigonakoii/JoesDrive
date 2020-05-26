@@ -142,18 +142,12 @@
 #include "ButtonHandler.h"
 #include "SoundPlayer.h"
 #include "Animations.h"
-
-EasyTransfer RecDome; 
+ 
 EasyTransfer RecRemote;
-EasyTransfer SendDome;
 EasyTransfer SendRemote;
-EasyTransfer RecIMU; 
+EasyTransfer RecIMU;
 
-struct RECEIVE_DATA_STRUCTURE_DOME{
-  double domeBatt = 0.00;
-};
-
-struct RECEIVE_DATA_STRUCTURE_REMOTE{
+struct RECEIVE_DATA_STRUCTURE_REMOTE {
   int ch1;                //right joystick up/down
   int ch2;                //right joystick left/right
   int ch3;                //left joystick up/down
@@ -178,23 +172,17 @@ struct RECEIVE_DATA_STRUCTURE_REMOTE{
   int motorEnable = 1; 
 };
 
-struct SEND_DATA_STRUCTURE_DOME{
-  int PSI = 0;
-  int button4;
-};
-
-struct SEND_DATA_STRUCTURE_REMOTE{
+struct SEND_DATA_STRUCTURE_REMOTE {
   double bodyBatt= 0.0;
   double domeBattSend;
   int bodyStatus = 0;
-  
+  int bodySpeed;
 };
 
-struct RECEIVE_DATA_STRUCTURE_IMU{
+struct RECEIVE_DATA_STRUCTURE_IMU {
   float IMUloop;
   float pitch;
   float roll;
-  
 };
 
 enum SpeedToggle
@@ -221,9 +209,7 @@ enum BodyStatus
 float pitch;
 float roll;
 
-RECEIVE_DATA_STRUCTURE_DOME recFromDome;
 RECEIVE_DATA_STRUCTURE_REMOTE recFromRemote;
-SEND_DATA_STRUCTURE_DOME sendToDome;
 SEND_DATA_STRUCTURE_REMOTE sendToRemote;
 RECEIVE_DATA_STRUCTURE_IMU recIMUData;
 
@@ -398,13 +384,10 @@ ISoundPlayer* soundPlayer;
 void setup() {
   Serial.begin(115200);
   Serial1.begin(115200);
-  Serial2.begin(115200);
   Serial3.begin(115200);
 
   // Naigon - I changed Serial3 for the IMU, so swap these in code.
-  RecDome.begin(details(recFromDome), &Serial2);
   RecRemote.begin(details(recFromRemote), &Serial1);
-  SendDome.begin(details(sendToDome), &Serial2);
   SendRemote.begin(details(sendToRemote), &Serial1);
   RecIMU.begin(details(recIMUData), &Serial3);
 
@@ -523,27 +506,23 @@ void loop() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void sendAndReceive() {
 
-  RecDome.receiveData();
   RecRemote.receiveData();
-  SendDome.sendData();
   SendRemote.sendData();
 
   if(recIMUData.IMUloop != 0) {
 
 #ifdef reversePitch
-  pitch = recIMUData.pitch * -1;
+    pitch = recIMUData.pitch * -1;
 #else
-  pitch = recIMUData.pitch;
+    pitch = recIMUData.pitch;
 #endif
 
 #ifdef reverseRoll
-    roll = recIMUData.roll *-1;
+      roll = recIMUData.roll *-1;
 #else 
-    roll = recIMUData.roll;
+      roll = recIMUData.roll;
 #endif
-
   }
-  sendToRemote.domeBattSend = recFromDome.domeBatt;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1460,8 +1439,6 @@ void debugRoutines() {
   Serial.print(readPinState);
   Serial.print(F(" fadeVal: "));
   Serial.print(fadeVal);
-  Serial.print(F(" PSI: "));
-  Serial.println(sendToDome.PSI);
 #endif
 
 #ifdef printbodyBatt
@@ -1483,10 +1460,6 @@ void debugRoutines() {
   //Serial.print(recFromDome.domeYaw);
   Serial.print(F(" Dome Batt: "));
   Serial.print(recFromDome.domeBatt);
-  Serial.print (F(" PSI: "));
-  Serial.print (sendToDome.PSI);
-  Serial.print (F(" But4: "));
-  Serial.println (sendToDome.button4);
 #endif
 
 #ifdef printRemote
