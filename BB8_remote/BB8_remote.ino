@@ -1,16 +1,26 @@
-// =====================================================================================================================================================================================================
-//                            Joe's Drive  - Remote - Updated 4/14
-//
-//             ***         You are free to use, and share this code as long as it is not sold. There is no warranty, guarantee, or other tomfoolery.
+// ====================================================================================================================
+// This work is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License. To view a copy
+// of this license, visit http://creativecommons.org/licenses/by-nc/4.0/ or send a letter to
+// Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
+// ====================================================================================================================
+
+// ====================================================================================================================
+//                         Joe's Drive  - Single Arduino Pro Mini Remote
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//                         Joe's Drive powered by Naigon
+//                         Last Updated 27 May 2020
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//             ***         You are free to use, and share this code as long as it is not sold. There is no warranty,
+//                         guarantee, or other tomfoolery.
 //                         This entire project was masterminded by an average Joe, your mileage may vary.
-// =====================================================================================================================================================================================================
-//                            Written by Joe Latiola - https://www.facebook.com/groups/JoesDrive/
-//                            You will need libraries: EepromEX: https://github.com/thijse/Arduino-EEPROMEx
-//                                                     SSD1306AsciiWire: https://github.com/greiman/SSD1306Ascii
+// ====================================================================================================================
+//                         Written by Joe Latiola - https://www.facebook.com/groups/JoesDrive/
+//                         You will need libraries: EepromEX: https://github.com/thijse/Arduino-EEPROMEx
+//                                                  SSD1306AsciiWire: https://github.com/greiman/SSD1306Ascii
 //
 //
-// =====================================================================================================================================================================================================
-// =====================================================================================================================================================================================================
+// ====================================================================================================================
+// ====================================================================================================================
 
 #define battPin A6
 #define btStatePin 11
@@ -409,6 +419,8 @@ void printVoltage()
   }
   oled.print(F("V          "));
 
+  // Naigon - Drive-side (Server-side) Refactor
+  // Read the speed from the value received from the body as opposed to calculating it directly.
   // Movement speed
   //
   oled.setCursor(95, 0);
@@ -444,6 +456,8 @@ void printVoltage()
   oled.print(F("V                             "));
 
   // Movement direction
+  // Naigon - Drive-side (Server-side) Refactor
+  // Get the body direction (Fwd/Reverse) directly from the body as opposed to maintaining it here.
   oled.setCursor(95, 15);
   if (recFromBody.bodyDirection == Direction::Reverse)
   {
@@ -490,6 +504,8 @@ void checkForScreenUpdate()
 {
   if (recFromBody.bodyStatus <= 100)
   {
+    // Naigon - Drive-side (Server-side) Refactor
+    // Update if statement to see if body sent new values for state variables.
     if (
       (millis() - previousMillisScreen > 15000 && calibrationMarker == 0)
       || (stateLast != btConnectedState)
@@ -520,6 +536,8 @@ void checkBodyStatus()
     calibrationMarker = 0;
   }
 
+  // Naigon - Drive-side (Server-side) Refactor
+  // Update the variables to use for next iterations comparison.
   lastBodyStatus = recFromBody.bodyStatus;
   lastDriveSpeed = recFromBody.bodySpeed;
   lastDirection = recFromBody.bodyDirection;
@@ -534,6 +552,9 @@ void readInputs()
   ch3a = analogRead(lVertical);
   ch4a = analogRead(lHorizontal);
   ch5a = analogRead(Flywheel);
+  // Naigon - Drive-side (Server-side) Refactor
+  // Update to directly send the values to the drive, so that it can determine button pressed state.
+  // This is the crux of the change and all the rest is fallout from making the change here.
   sendToBody.but1 = digitalRead(lSelect);
   sendToBody.but2 = digitalRead(lBut1);
   sendToBody.but3 = digitalRead(lBut2);

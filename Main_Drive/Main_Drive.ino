@@ -1,19 +1,30 @@
-// ===================================================================================================================================================================================================== 
-//                            Joe's Drive  - Main drive mechanism - Updated 9/26/17
-//
-//             ***         You are free to use, and share this code as long as it is not sold. There is no warranty, guarantee, or other tomfoolery. 
-//                         This entire project was masterminded by an average Joe, your mileage may vary. 
-// ===================================================================================================================================================================================================== 
-//                            Written by Joe Latiola - https://www.facebook.com/groups/JoesDrive/
-//                            You will need libraries: EepromEX: https://github.com/thijse/Arduino-EEPROMEx
-//                                                     PIDLibrary: http://playground.arduino.cc/Code/PIDLibrary  
-//                                                     EasyTransfer: https://github.com/madsci1016/Arduino-EasyTransfer
-//
-// ===================================================================================================================================================================================================== 
-// =====================================================================================================================================================================================================
-// Update these as necessary to match your setup
+// ====================================================================================================================
+// This work is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License. To view a copy
+// of this license, visit http://creativecommons.org/licenses/by-nc/4.0/ or send a letter to
+// Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
+// ====================================================================================================================
 
- 
+// ====================================================================================================================
+//                         Joe's Drive - Main drive mechanism using Ardino Mega with secondary Arduino Pro Mini IMU
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//                         Joe's Drive powered by Naigon
+//                         Last Updated 27 May 2020
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//             ***         You are free to use, and share this code as long as it is not sold. There is no warranty,
+//                         guarantee, or other tomfoolery. 
+//                         This entire project was masterminded by an average Joe, your mileage may vary. 
+// ====================================================================================================================
+//                         Written by Joe Latiola - https://www.facebook.com/groups/JoesDrive/
+//                         You will need libraries: EepromEX: https://github.com/thijse/Arduino-EEPROMEx
+//                                                  PIDLibrary: http://playground.arduino.cc/Code/PIDLibrary  
+//                                                  EasyTransfer: https://github.com/madsci1016/Arduino-EasyTransfer
+//
+// ====================================================================================================================
+// ====================================================================================================================
+
+//
+// Update these as necessary to match your setup
+//
 #define enablePin 31          // Pin that provides power to motor driver enable pins
 #define enablePinDome 29      // Pin that provides power to Dome motor driver enable pin
 #define S2SpotPin A0          // Pin connected to side tilt potentiometer 
@@ -45,7 +56,10 @@
 #define resistor1 121000      // Larger resisitor used on voltage divider to read battery level
 #define resistor2 82000       // Smaller resisitor used on voltage divider to read battery level
 
-// Naigon Pins
+//
+// Naigon - NEC Audio
+// Digital I/O pins that connect to my custom Naigon's Electronic Creations Igniter 3 sound player.
+//
 #define HappySoundPin 41
 #define SadSoundPin 43
 #define ExcitedSoundPin 45
@@ -62,7 +76,9 @@
 
 #define TiltDomeForwardWhenDriving      // uncomment this if you want to tilt the dome forward when driving. 
 
-// Naigon: Flywheel MK3 - lighter flywheel means drive moves more before the ball starts to roll. This value is
+//
+// Naigon: Flywheel MK3
+// Lighter flywheel means drive moves more before the ball starts to roll. This value is
 // factored out as a double to allow tuning here.
 //
 // This value should be between 0.0 and 1.0 exclusively.
@@ -92,18 +108,19 @@
 
 // 
 // REPLACED - Joe added a var for this.
-// naigon: Amout the head can tilt, Joe's default is 17
+// Naigon: Amount the head can tilt, Joe's default is 17
 //#define HeadTiltMax 17
-// naigon: Max pot range, Joe's default is 135. This means pot will map to -HeadTiltPotMax, HeadTiltPotMax
+// Naigon: Max pot range, Joe's default is 135. This means pot will map to -HeadTiltPotMax, HeadTiltPotMax
 #define HeadTiltPotMax 135
-// naigon: Threshold of the pot before actually adjusting the input. Joe's default is 25
+// Naigon: Threshold of the pot before actually adjusting the input. Joe's default is 25
 #define HeadTiltPotThresh 25
-// naigon: Amount to limit the flywheel when in stationary mode. At full 255, the drive when spun up takes a while to slow and respond to the second direction; this allows it to do quicker moves for animatronics, at the expense of not being able to spin as much.
+// Naigon: Amount to limit the flywheel when in stationary mode. At full 255, the drive when spun up takes a while to slow and respond to the second direction; this allows it to do quicker moves for animatronics, at the expense of not being able to spin as much.
 #define FlywheelStationaryMax 215
-// naigon: Amount to limit the flywheel in normal drive modes. Full 255 can "lock" the droid for a half second or so. To prevent I just cap a bit more than full blast.
+// Naigon: Amount to limit the flywheel in normal drive modes. Full 255 can "lock" the droid for a half second or so. To prevent I just cap a bit more than full blast.
 #define FlywheelDriveMax 245
-// naigon: Default drive speeds
+// Naigon: Default drive speeds
 // Joe had 55, 75, ?
+// I found his defaults TOO powerful so toned it down a bit.
 #define DRIVE_SPEED_SLOW 45
 #define DRIVE_SPEED_MEDIUM 55
 #define DRIVE_SPEED_HIGH 75
@@ -141,7 +158,6 @@
 // =====================================================================================================================================================================================================
 // 
 
-
 #include <EEPROMex.h>   // https://github.com/thijse/Arduino-EEPROMEx
 #include "Arduino.h"
 #include <EasyTransfer.h>
@@ -159,7 +175,7 @@ struct RECEIVE_DATA_STRUCTURE_REMOTE {
   int ch3;                //left joystick up/down
   int ch4;                //left joystick left/right
   int ch5;                //flywheel
-  // but1 from Joe is selecting between dome servo and dome spin
+  // but1 (stick 1) from Joe is selecting between dome servo and dome spin
   int but1 = 1;           //left select
   // but2 from Joe is audio
   int but2 = 1;           //left button 1
@@ -167,7 +183,7 @@ struct RECEIVE_DATA_STRUCTURE_REMOTE {
   int but3 = 1;           //left button 2
   // but4 from Joe is to trigger dome effects?
   int but4 = 1;           //left button 3
-  // but5 toggles fwd/rev
+  // but5 (stick 2) toggles fwd/rev
   int but5 = 0;           //right select (fwd/rev)
   // but6 from Joe is for switching between modes
   int but6 = 1;           //right button 1
@@ -210,9 +226,11 @@ enum Direction : uint8_t
   Reverse = 2,
 };
 
-// Naigon - Body status is used as an enum to send to the remote. It is the same variable that Joe was sending; this
-// enum just quantifies the values, changes the representation (ie 1 used to be body calibration), and adds the Servo
-// value so the remote knows to display servo in the corner.
+//
+// Naigon - Drive-side (Server-side) Refactor
+// Body status is used as an enum to send to the remote. It is the same variable that Joe was sending; this enum just
+// quantifies the values, changes the representation (ie 1 used to be body calibration), and adds the Servo value so
+// the remote knows to display servo in the corner.
 enum BodyStatus
 {
   Default = 0,
@@ -230,14 +248,14 @@ RECEIVE_DATA_STRUCTURE_IMU recIMUData;
 
 #include <PID_v1.h>  //PID loop from http://playground.arduino.cc/Code/PIDLibrary
 
-// Naigon - for stationary mode
+// Naigon - Stationary/Wiggle Mode
 bool IsStationary = false;
 
-// Naigon - animation (in progress)
+// Naigon - Animations (in progress)
 AnimateYes animate;
 AnimationState animationState;
 
-// Naigon - button state tracking
+// Naigon - Button Handling
 // NOTE - should implement for all cases where using buttons in Joe's code.
 ButtonHandler button2Handler(0 /* onVal */, 1000 /* heldDuration */);
 ButtonHandler button3Handler(0 /* onVal */, 1000 /* heldDuration */);
@@ -384,7 +402,7 @@ int bodyCalibState = 0;
 // In the future if an XBee is hooked to the Arduino Mega the hard-wired pins will not be needed.
 #else
 //
-// Naigon - NEC gen3 custom sound board.
+// Naigon - NEC Audio.
 //
 SoundMapper mapper(HappySoundPin, SadSoundPin, ExcitedSoundPin, ScaredSoundPin, ChattySoundPin, AgitatedSoundPin, PlayTrackPin, StopTrackPin);
 ISoundPlayer* soundPlayer;
@@ -616,6 +634,7 @@ void sounds() {
 */
 void handleSounds() {
   //
+  // Naigon - NEC Audio
   // This method handles sending sound to the custom Naigon's Electronic Creations gen 3 BB-8 sound player.
   //
   bool played = false;
@@ -709,8 +728,9 @@ void incrementBodySpeedToggle() {
   if (button6Handler.GetState() != ButtonState::Pressed) { return; }
 
   //
-  // Naigon - This method was taken directly from the remote code and ported here. In general, the drive should do all
-  // state changes and should be the state "master", while the remote ect should just send commands. This will allow
+  // Naigon - Drive-side (Server-side) Refactor
+  // This method was taken directly from the remote code and ported here. In general, the drive should do all state
+  // changes and should be the state "master", while the remote ect should just send commands. This will allow
   // secondary controllers to operate on the drive and the drive can maintain a state.
   //
   sendToRemote.bodySpeed =
@@ -751,8 +771,8 @@ void bodyCalib() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void updateAnimations()
 {
-  // TODO: Naigon
-  // Finish the animation code here.
+  // Naigon - Animations
+  // TODO: Finish the animation code here.
   /*
   if (recFromRemote.but7 == 0 && !animate.GetIsRunning())
   {
@@ -780,6 +800,10 @@ void movement() {
     unsigned long currentMillis = millis();
 
     if (sendToRemote.bodySpeed == SpeedToggle::PushToRoll) {
+      //
+      // Naigon - Safe Mode
+      //
+
       // Disallow all input from the remote in this case, and only use stabilization. Remote values come in as zero (0)
       // to 512, so use the middle.
       recFromRemote.ch1 = 255;
@@ -848,7 +872,8 @@ void mainDrive() {
   joystickDrive = map(recFromRemote.ch1, 0,512,(driveSpeed * -1), driveSpeed);  //Read joystick - change -55/55 to adjust for speed. 
 #endif
 
-  // naigon: when in stationary mode, don't use the joystick to move at all.
+  // Naigon: Stationary/Wiggle Mode
+  // When in wiggle/stationary mode, don't use the joystick to move at all.
   if (IsStationary == true) {
     joystickDrive = 0;
   }
@@ -1076,7 +1101,8 @@ void domeSpin() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void flywheelSpin() {
   if (IsStationary) {
-    // Naigon: When in stationary mode, use the drive stick as the flywheel, as the drive is disabled.
+    // Naigon - Stationary/Wiggle Mode
+    // When in stationary mode, use the drive stick as the flywheel, as the drive is disabled.
 #ifdef reverseFlywheel
     ch5PWM = constrain(map(recFromRemote.ch1, 0, 512, 255, -255), -FlywheelStationaryMax, FlywheelStationaryMax);
 #else
@@ -1249,7 +1275,7 @@ void domeSpinServo() {
 // Count how long right select is pressed.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void timeBodyCalibration() {
-  // TODO: naigon - get rid of this method and use a button handler.
+  // TODO: Naigon - get rid of this method and use a button handler.
   unsigned long currentMillisBodyCalib = millis();
 
   if (recFromRemote.but8 == 0 && recFromRemote.but7 == 1 && bodyCalibState == 0) {
@@ -1277,7 +1303,8 @@ void waitForConfirmationToSetOffsets() {
     //sendToRemote.bodyStatus = 0;
   }
   else if (countdown >= 500) {
-    // Naigon - Set the body status to whether servo mode is active or not so that can be displayed.
+    // Naigon - Drive-side (Server-side) Refactor
+    // Set the body status to whether servo mode is active or not so that can be displayed.
     sendToRemote.bodyStatus = servoMode;
     countdown = 0;
   }
@@ -1307,7 +1334,8 @@ void setOffsetsAndSaveToEEPROM() {
     domeTiltPotOffset = 0 - (map(analogRead(domeTiltPotPin), 0, 1024, -HeadTiltPotMax, HeadTiltPotMax));
     EEPROM.writeInt(12,domeTiltPotOffset);
     SaveToEEPROM = 0;
-    // Naigon - set the status to the correct servo mode so the remote will display properly.
+    // Naigon - Drive-side (Server-side) Refactor
+    // Set the status to the correct servo mode so the remote will display properly.
     sendToRemote.bodyStatus = servoMode;
     countdown = 0;
     //playSound = 1;
@@ -1323,7 +1351,8 @@ void setDomeSpinOffset() {
   }
   EEPROM.writeInt(16,domeSpinOffset);
   // delay(200);
-  // Naigon - set the body status to the current servo mode so the remote will display the info.
+  // Naigon - Drive-side (Server-side) Refactor
+  // Set the body status to the current servo mode so the remote will display the info.
   sendToRemote.bodyStatus = servoMode;
 
   //playSound = 1;
@@ -1347,7 +1376,8 @@ void setOffsetsONLY() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void waitForConfirmationToSetDomeOffsets() {
   if(servoMode == BodyStatus::Servo) {
-    // Naigon - Might want to remove this so that servo mode persists after dome offset update.
+    // Naigon - Drive-side (Server-side) Refactor
+    // Might want to remove this so that servo mode persists after dome offset update.
     servoMode = BodyStatus::Default;
   }
 
