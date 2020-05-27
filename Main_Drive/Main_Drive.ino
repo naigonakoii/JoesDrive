@@ -110,6 +110,9 @@
 // naigon: Defines the side to side output range, ie how much it can move.
 // Joe's default is 25.
 #define SIDE_TO_SIDE_VAL 22
+// naigon: Defines the length (in MS) for the auto disable feature to kick in.
+// Joe had this hard-coded inline with a value of 3000.
+#define AutoDisableMS 3000.0
 
 //
 // Debug Defines
@@ -196,8 +199,9 @@ enum SpeedToggle : uint8_t
   Medium = 2,
   Fast = 3,
   Stationary = 4,
+  PushToRoll = 5,
 };
-SpeedToggle LastSpeedEntry = SpeedToggle::Stationary;
+SpeedToggle LastSpeedEntry = SpeedToggle::PushToRoll;
 
 enum Direction : uint8_t
 {
@@ -549,7 +553,6 @@ void checkMiniTime() {
   } else if (recIMUData.IMUloop <1 && lastIMUloop > 3) {
     lastIMUloop = 0;
   }
-  
 
   if(recIMUData.IMUloop > lastIMUloop) {
     lastIMUloop = recIMUData.IMUloop;
@@ -776,10 +779,26 @@ void movement() {
   if (recFromRemote.motorEnable == 0 && BTstate == 1 && MiniStatus != 0) {
     unsigned long currentMillis = millis();
 
-    sideTilt();
-    mainDrive();
-    domeTilt();
-    flywheelSpin();
+    if (sendToRemote.bodySpeed == SpeedToggle::PushToRoll) {
+      // Disallow all input from the remote in this case, and only use stabilization. Remote values come in as zero (0)
+      // to 512, so use the middle.
+      recFromRemote.ch1 = 255;
+      recFromRemote.ch2 = 255;
+      recFromRemote.ch3 = 255;
+      recFromRemote.ch4 = 255;
+      recFromRemote.ch5 = 255;
+
+      // Only move the main drive as s2s and dome could be compromised (flywheel unneeded).
+      // The active stabilization will allow pushing the ball to the desired orientation for access.
+      mainDrive();
+    }
+    else {
+      // Normal modes do all the things.
+      sideTilt();
+      mainDrive();
+      domeTilt();
+      flywheelSpin();
+    }
   }
   else {
     turnOffAllTheThings();
@@ -1350,7 +1369,6 @@ void waitForConfirmationToSetDomeOffsets() {
 // Auto disable motors
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void autoDisableMotors() {
-  // Naigon: TODO - This method will need to update to handle the manual roll mode.
   if(
     (joystickDrive > -2 && joystickDrive < 2)
     && (joystickS2S > -2 && joystickS2S < 2)
@@ -1379,7 +1397,7 @@ void autoDisableMotors() {
     autoDisable = 0;
   }
 
-  if(autoDisableState == 1 && (millis() - autoDisableMotorsMillis >= 3000) && Output1a < 25 && Output3a < 8) {
+  if(autoDisableState == 1 && (millis() - autoDisableMotorsMillis >= AutoDisableMS) && Output1a < 25 && Output3a < 8) {
     digitalWrite(enablePin, LOW);
     autoDisable = 1;
   }

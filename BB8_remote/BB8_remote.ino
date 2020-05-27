@@ -55,6 +55,7 @@ enum SpeedToggle : uint8_t
   Medium = 2,
   Fast = 3,
   Stationary = 4,
+  PushToRoll = 5,
 };
 
 enum Direction : uint8_t
@@ -426,6 +427,10 @@ void printVoltage()
   else if (recFromBody.bodySpeed == SpeedToggle::Stationary)
   {
     oled.println(F("Wiggle  "));
+  }
+  else if (recFromBody.bodySpeed == SpeedToggle::PushToRoll)
+  {
+    oled.println(F("Safe    "));
   }
   else
   {
