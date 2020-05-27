@@ -50,29 +50,35 @@ enum BodyStatus
 
 enum SpeedToggle : uint8_t
 {
-  Unknown = 0,
+  UnknownSpeed = 0,
   Slow = 1,
   Medium = 2,
   Fast = 3,
   Stationary = 4,
 };
 
+enum Direction : uint8_t
+{
+  UnknownDirection = 0,
+  Forward = 1,
+  Reverse = 2,
+};
+
 struct SEND_DATA_STRUCTURE
 {
-  int ch1;      //main drive
-  int ch2;      //tilt / steer
-  int ch3;      //head tilt
-  int ch4;      //head spin
-  int ch5;      //spin Flywheel
-  int but1;     //Select on left joystick
-  int but2;     //left 1
-  int but3;     //left 2
-  int but4;     //left3
-  // Naigon: TODO - remove fwdState and have the body send the state back; this is like what I do with servo in bodyStatus.
-  int fwdState; //Select on right joystick
-  int but6;
-  int but7;        //right 2
-  int but8;        //right 3
+  int ch1;      // main drive
+  int ch2;      // tilt / steer
+  int ch3;      // head tilt
+  int ch4;      // head spin
+  int ch5;      // spin Flywheel
+  int but1;     // Select on left joystick
+  int but2;     // left 1
+  int but3;     // left 2
+  int but4;     // left3
+  int but5;     // Select on right joystick
+  int but6;     // right 1
+  int but7;     // right 2
+  int but8;     // right 3
   int motorEnable; //toggle on top
 };
 
@@ -82,6 +88,7 @@ struct RECEIVE_DATA_STRUCTURE
   double domeBatt = 0.0;
   int bodyStatus;
   uint8_t bodySpeed;
+  uint8_t bodyDirection;
 };
 
 SEND_DATA_STRUCTURE sendToBody;
@@ -95,13 +102,6 @@ int ch3a; //head tilt
 int ch3b;
 int ch4a; //head spin
 int ch5a; //spin Flywheel
-
-int but5;
-
-int but5State;
-int Fwd = 0;
-int FwdLast;
-int but6SpeedLast = 5;
 
 int printScreen;
 
@@ -121,7 +121,8 @@ unsigned long bodyCalibrationMillis;
 
 float remoteBatt = 0.0;
 
-uint8_t lastDriveSpeed = 0;
+uint8_t lastDriveSpeed = SpeedToggle::UnknownSpeed;
+uint8_t lastDirection = Direction::UnknownDirection;
 int lastBodyStatus = -1;
 int calibrationMarker;
 
@@ -214,7 +215,6 @@ void loop()
 
     readInputs();
     sendAndReceive();
-    reverseDirection();
   }
 }
 
@@ -431,7 +431,6 @@ void printVoltage()
   {
     oled.println(F("OFF      "));
   }
-  
 
   // Remote voltage
   //
@@ -441,13 +440,13 @@ void printVoltage()
 
   // Movement direction
   oled.setCursor(95, 15);
-  if (Fwd == 0)
+  if (recFromBody.bodyDirection == Direction::Reverse)
   {
-    oled.println(F("Fwd          "));
+    oled.println(F("Rev          "));
   }
-  else if (Fwd == 1)
+  else
   {
-    oled.println(F("Rev            "));
+    oled.println(F("Fwd            "));
   }
 
   oled.print(F("Dome Rotation: "));
@@ -473,7 +472,6 @@ void printVoltage()
   }
 
   // Update current values
-  FwdLast = sendToBody.fwdState;
   stateLast = btConnectedState;
 }
 
@@ -490,9 +488,9 @@ void checkForScreenUpdate()
     if (
       (millis() - previousMillisScreen > 15000 && calibrationMarker == 0)
       || (stateLast != btConnectedState)
-      || (FwdLast != sendToBody.fwdState)
       || (lastBodyStatus != recFromBody.bodyStatus)
       || (lastDriveSpeed != recFromBody.bodySpeed)
+      || (lastDirection != recFromBody.bodyDirection)
       || (printScreen == 1))
     {
       previousMillisScreen = millis();
@@ -519,26 +517,7 @@ void checkBodyStatus()
 
   lastBodyStatus = recFromBody.bodyStatus;
   lastDriveSpeed = recFromBody.bodySpeed;
-}
-
-void reverseDirection()
-{
-  if (but5 == 0 && but5State == 0)
-  {
-    but5State = 1;
-    if (Fwd == 0)
-    {
-      Fwd = 1;
-    }
-    else if (Fwd == 1)
-    {
-      Fwd = 0;
-    }
-  }
-  else if (but5 == 1 && but5State != 0)
-  {
-    but5State = 0;
-  }
+  lastDirection = recFromBody.bodyDirection;
 }
 
 void readInputs()
@@ -554,8 +533,7 @@ void readInputs()
   sendToBody.but2 = digitalRead(lBut1);
   sendToBody.but3 = digitalRead(lBut2);
   sendToBody.but4 = digitalRead(lBut3);
-  sendToBody.fwdState = Fwd;
-  but5 = digitalRead(rSelect);
+  sendToBody.but5 = digitalRead(rSelect);
   sendToBody.but6 = digitalRead(rBut1);
   sendToBody.but7 = digitalRead(rBut2);
   sendToBody.but8 = digitalRead(rBut3);
@@ -604,7 +582,7 @@ void readInputs()
     ch3b = map(ch3a, 0, ch3Center, 512, 257);
   }
 
-  if (Fwd == 1)
+  if (recFromBody.bodyDirection == Direction::Reverse)
   {
     sendToBody.ch1 = map(ch1b, 0, 512, 512, 0);
     sendToBody.ch2 = map(ch2b, 0, 512, 512, 0);

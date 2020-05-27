@@ -176,10 +176,11 @@ struct RECEIVE_DATA_STRUCTURE_REMOTE {
 };
 
 struct SEND_DATA_STRUCTURE_REMOTE {
-  double bodyBatt= 0.0;
+  double bodyBatt=0.0;
   double domeBattSend;
   int bodyStatus = 0;
   uint8_t bodySpeed;
+  uint8_t bodyDirection;
 };
 
 struct RECEIVE_DATA_STRUCTURE_IMU {
@@ -190,13 +191,20 @@ struct RECEIVE_DATA_STRUCTURE_IMU {
 
 enum SpeedToggle : uint8_t
 {
-  Unknown = 0,
+  UnknownSpeed = 0,
   Slow = 1,
   Medium = 2,
   Fast = 3,
   Stationary = 4,
 };
 SpeedToggle LastSpeedEntry = SpeedToggle::Stationary;
+
+enum Direction : uint8_t
+{
+  UnknownDirection = 0,
+  Forward = 1,
+  Reverse = 2,
+};
 
 // Naigon - Body status is used as an enum to send to the remote. It is the same variable that Joe was sending; this
 // enum just quantifies the values, changes the representation (ie 1 used to be body calibration), and adds the Servo
@@ -229,6 +237,7 @@ AnimationState animationState;
 // NOTE - should implement for all cases where using buttons in Joe's code.
 ButtonHandler button2Handler(0 /* onVal */, 1000 /* heldDuration */);
 ButtonHandler button3Handler(0 /* onVal */, 1000 /* heldDuration */);
+ButtonHandler button5Handler(0 /* onVal */, 2000 /* heldDuration */);
 ButtonHandler button6Handler(0 /* onVal */, 2000 /* heldDuration */);
 
 int ch4Servo;           //left joystick left/right when using servo mode
@@ -483,6 +492,7 @@ void loop() {
     // Update button state for the rest of the functions.
     button2Handler.UpdateState(recFromRemote.but2);
     button3Handler.UpdateState(recFromRemote.but3);
+    button5Handler.UpdateState(recFromRemote.but5);
     button6Handler.UpdateState(recFromRemote.but6);
 
     //sounds();
@@ -491,6 +501,7 @@ void loop() {
     readVin();
     BTenable();
     setDriveSpeed();
+    reverseDirection();
     bodyCalib();
     updateAnimations();
     movement();
@@ -700,9 +711,18 @@ void incrementBodySpeedToggle() {
   // secondary controllers to operate on the drive and the drive can maintain a state.
   //
   sendToRemote.bodySpeed =
-    sendToRemote.bodySpeed >= (int)LastSpeedEntry || sendToRemote.bodySpeed == SpeedToggle::Unknown
+    sendToRemote.bodySpeed >= (int)LastSpeedEntry || sendToRemote.bodySpeed == SpeedToggle::UnknownSpeed
       ? 1
       : sendToRemote.bodySpeed + 1;
+}
+
+void reverseDirection()
+{
+  if (button5Handler.GetState() == ButtonState::Pressed) {
+    sendToRemote.bodyDirection = sendToRemote.bodyDirection == Direction::Forward
+      ? Direction::Reverse
+      : Direction::Forward;
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1330,19 +1350,33 @@ void waitForConfirmationToSetDomeOffsets() {
 // Auto disable motors
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void autoDisableMotors() {
-  if((joystickDrive > -2 && joystickDrive < 2) && (joystickS2S > -2 && joystickS2S < 2) && (joystickDome > -2 && joystickDome < 2) && (flywheelRotation < 25 && flywheelRotation > -25) && (recFromRemote.ch4 < 276 && recFromRemote.ch4 > 236) && (autoDisableState == 0)) {
+  // Naigon: TODO - This method will need to update to handle the manual roll mode.
+  if(
+    (joystickDrive > -2 && joystickDrive < 2)
+    && (joystickS2S > -2 && joystickS2S < 2)
+    && (joystickDome > -2 && joystickDome < 2)
+    && (flywheelRotation < 25 && flywheelRotation > -25)
+    && (recFromRemote.ch4 < 276 && recFromRemote.ch4 > 236)
+    && (autoDisableState == 0)) {
     autoDisableMotorsMillis = millis();
     autoDisableState = 1;
   }
-  else if(joystickDrive < -2 || joystickDrive > 2 || joystickS2S < -2 || joystickS2S > 2 || joystickDome < -2 || joystickDome > 2 || flywheelRotation > 30 || flywheelRotation < -30 || recFromRemote.ch4 > 276 || recFromRemote.ch4 < 236 || (lastDirection != recFromRemote.but5)) {
+  else if(
+    joystickDrive < -2
+    || joystickDrive > 2
+    || joystickS2S < -2
+    || joystickS2S > 2
+    || joystickDome < -2
+    || joystickDome > 2
+    || flywheelRotation > 30
+    || flywheelRotation < -30
+    || recFromRemote.ch4 > 276
+    || recFromRemote.ch4 < 236
+    || (lastDirection != recFromRemote.but5)) {
     autoDisableState = 0;     
     digitalWrite(enablePin, HIGH); 
     autoDisableDoubleCheck = 0; 
     autoDisable = 0;
-
-    if(recFromRemote.but5 != lastDirection) {
-      lastDirection = recFromRemote.but5;
-    }
   }
 
   if(autoDisableState == 1 && (millis() - autoDisableMotorsMillis >= 3000) && Output1a < 25 && Output3a < 8) {
