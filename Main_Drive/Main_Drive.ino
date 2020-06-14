@@ -339,18 +339,23 @@ PID PID1(&Input1, &Output1, &Setpoint1, Pk1, Ik1 , Dk1, DIRECT);
 // 
 // The following values need tuning if moving to the MK3 flywheel.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-double Pk2 = 1.5; // Joe 0.5; M2 Flywheel .4
+double Pk2 = 1.0; // Joe 0.5; M2 Flywheel .4
 double Ik2 = .00; // was .00
 double Dk2 = .01; // was .01
 double Setpoint2, Input2, Output2, Output2a;
 
 PID PID2(&Input2, &Output2, &Setpoint2, Pk2, Ik2 , Dk2, DIRECT);    // PID Setup - S2S stability   
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //PID3 is for the main drive
-double Pk3 = 5; 
+// Naigon: MK3 Flywheel
+//
+// The following values will need to be updated if doing the MK3 flywheel and adding the balancing weights.
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+double Pk3 = 5.0; // Joe 5.0; 
 double Ik3 = 0;
 double Dk3 = 0;
-double Setpoint3, Input3, Output3, Output3a;    
+double Setpoint3, Input3, Output3, Output3a;
 
 PID PID3(&Input3, &Output3, &Setpoint3, Pk3, Ik3 , Dk3, DIRECT);    // Main drive motor
 
@@ -359,7 +364,7 @@ PID PID3(&Input3, &Output3, &Setpoint3, Pk3, Ik3 , Dk3, DIRECT);    // Main driv
 double Pk4 = 6;  // default is 6
 double Ik4 = 0;
 double Dk4 = 0.05;
-double Setpoint4, Input4, Output4, Output4a;    
+double Setpoint4, Input4, Output4, Output4a;
 
 PID PID4(&Input4, &Output4, &Setpoint4, Pk4, Ik4 , Dk4, DIRECT);
 
