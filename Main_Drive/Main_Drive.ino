@@ -723,7 +723,7 @@ void setDriveSpeed() {
   }
 
   // Indicate if the droid is in stationary mode only when in the stationary state.
-  IsStationary = recFromRemote.but6 == SpeedToggle::Stationary
+  IsStationary = sendToRemote.bodySpeed == SpeedToggle::Stationary
     ? true
     : false;
  }
