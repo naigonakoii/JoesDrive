@@ -845,17 +845,20 @@ void movement() {
 // Dome calibration
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void domeCalib() {
+  ButtonState state = button1Handler.GetState();
 
-  if(
-    (sendToRemote.bodyStatus == BodyStatus::BodyCalibration || sendToRemote.bodyStatus == BodyStatus::Servo)
-    && button1Handler.GetState() == ButtonState::Held) {
+  if (
+    (sendToRemote.bodyStatus == BodyStatus::Default || sendToRemote.bodyStatus == BodyStatus::Servo)
+    && state == ButtonState::Held) {
     sendToRemote.bodyStatus = BodyStatus::DomeCalibration;
   }
   else if(
-    (sendToRemote.bodyStatus == BodyStatus::BodyCalibration || sendToRemote.bodyStatus == BodyStatus::Servo)
-    && abs(recFromRemote.ch3 -255) < JoystickMinMovement
+    (sendToRemote.bodyStatus == BodyStatus::Default || sendToRemote.bodyStatus == BodyStatus::Servo)
+    && abs(recFromRemote.ch3 - 255) < JoystickMinMovement
     && abs(recFromRemote.ch4 - 255) < JoystickMinMovement
-    && button1Handler.GetState() == ButtonState::Pressed) {
+    && state == ButtonState::Pressed) {
+    // Naigon: Safe Joystick Button Toggle
+    // Only swap the states when the joystick is not in movement.
     servoMode = servoMode == BodyStatus::Servo
       ? BodyStatus::Default
       : BodyStatus::Servo;
@@ -1393,12 +1396,10 @@ void waitForConfirmationToSetDomeOffsets() {
   if (countdown > 5 && recFromRemote.but8 == 0 && recFromRemote.motorEnable == 1) {
     setDomeSpinOffset();
     sendToRemote.bodyStatus = servoMode;
-    but1State = 0;
   }
   else if (countdown >= 250) {
     sendToRemote.bodyStatus = servoMode;
     countdown = 0;
-    but1State = 0;
   }
 }
 
