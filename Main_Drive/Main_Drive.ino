@@ -665,7 +665,13 @@ void psiVal() {
 // Read voltage in
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void readVin() {
-  sendToRemote.bodyBatt= ((analogRead(battMonitor) * outputVoltage) / 1024.0) / (R2 / (R1+R2)); 
+  // Naigon
+  // I've been having issues where this reads a constant value of 12.86 regardless of my battery. So I'm going to
+  // watch it for a while and try to deduce what is wrong.
+  //
+  // DO NOT TAKE THIS CHANGE
+  //
+  sendToRemote.bodyBatt= analogRead(battMonitor); //((analogRead(battMonitor) * outputVoltage) / 1024.0) / (R2 / (R1+R2)); 
 }
 
 
