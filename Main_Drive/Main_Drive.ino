@@ -130,6 +130,14 @@
 // Defines the side to side output range, ie how much it can move.
 // Joe's default is 25.
 #define SideToSideMax 20
+
+//
+// Naigon: Safe Joystick Button Toggle
+//
+// Defines the amount that is considered to cause real movement. When the stick is above this value, no press from the
+// stick will be registered.
+#define JoystickMinMovement 10
+
 // naigon: Defines the length (in MS) for the auto disable feature to kick in.
 // Joe had this hard-coded inline with a value of 3000.
 #define AutoDisableMS 3000.0
@@ -260,6 +268,7 @@ AnimationState animationState;
 
 // Naigon - Button Handling
 // NOTE - should implement for all cases where using buttons in Joe's code.
+ButtonHandler button1Handler(0 /* onVal */, 1000 /* heldDuration */);
 ButtonHandler button2Handler(0 /* onVal */, 1000 /* heldDuration */);
 ButtonHandler button3Handler(0 /* onVal */, 1000 /* heldDuration */);
 ButtonHandler button5Handler(0 /* onVal */, 2000 /* heldDuration */);
@@ -314,8 +323,6 @@ double domeTiltOffset;
 int domeTiltPot;
 
 int domeSpinOffset;
-int but1State;
-unsigned long but1Millis;
 int servoMode;
 
 float countdown;
@@ -502,6 +509,7 @@ void loop() {
     checkMiniTime();
 
     // Update button state for the rest of the functions.
+    button1Handler.UpdateState(recFromRemote.but1);
     button2Handler.UpdateState(recFromRemote.but2);
     button3Handler.UpdateState(recFromRemote.but3);
     button5Handler.UpdateState(recFromRemote.but5);
@@ -737,7 +745,15 @@ void incrementBodySpeedToggle() {
 
 void reverseDirection()
 {
-  if (button5Handler.GetState() == ButtonState::Pressed) {
+  // Naigon: Safe Joystick Button Toggle.
+  //
+  // I've had some pretty catastropic issues where I accidently hit reverse when driving and didn't realize it. This
+  // is because the reverse is pressing the drive stick.
+  //
+  // To prevent that, I'm only going to accept the input when the ch1 and ch2 are below a threshold.
+  if (button5Handler.GetState() == ButtonState::Pressed
+    && abs(recFromRemote.ch1 - 255) < JoystickMinMovement
+    && abs(recFromRemote.ch2 - 255) < JoystickMinMovement) {
     sendToRemote.bodyDirection = sendToRemote.bodyDirection == Direction::Forward
       ? Direction::Reverse
       : Direction::Forward;
@@ -829,24 +845,20 @@ void movement() {
 // Dome calibration
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void domeCalib() {
-  if(but1State == 0 && recFromRemote.but1 == 0) {
-    but1State = 1;
-    but1Millis = millis();
-  }
 
-  if(but1State == 1 && recFromRemote.but1 == 0 && (millis() - but1Millis > 3000)) {
+  if(
+    (sendToRemote.bodyStatus == BodyStatus::BodyCalibration || sendToRemote.bodyStatus == BodyStatus::Servo)
+    && button1Handler.GetState() == ButtonState::Held) {
     sendToRemote.bodyStatus = BodyStatus::DomeCalibration;
-    but1State = 2;
   }
-  else if(but1State == 1 && recFromRemote.but1 == 1 && (millis() - but1Millis < 3000)) {
-    if (servoMode == BodyStatus::Servo) {
-        servoMode = BodyStatus::Default;
-        but1State = 0;
-    }
-    else {
-      servoMode = BodyStatus::Servo;
-      but1State = 0;
-    }
+  else if(
+    (sendToRemote.bodyStatus == BodyStatus::BodyCalibration || sendToRemote.bodyStatus == BodyStatus::Servo)
+    && abs(recFromRemote.ch3 -255) < JoystickMinMovement
+    && abs(recFromRemote.ch4 - 255) < JoystickMinMovement
+    && button1Handler.GetState() == ButtonState::Pressed) {
+    servoMode = servoMode == BodyStatus::Servo
+      ? BodyStatus::Default
+      : BodyStatus::Servo;
     sendToRemote.bodyStatus = servoMode;
   }
 
