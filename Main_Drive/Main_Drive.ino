@@ -71,8 +71,8 @@
 
 #define flywheelEase 3        // Speed in which flywheel will increase/decrease during gradual movements
 // S2SEase from Joe: 1.5
-#define S2SEase 1.25          // Speed in which side to side moves. Higher number equates to faster movement
-#define MaxDomeTiltAngle 22   // Maximum angle in which the dome will tilt. **  Max is 25  **
+#define S2SEase 1.10          // Speed in which side to side moves. Higher number equates to faster movement
+#define MaxDomeTiltAngle 18   // Maximum angle in which the dome will tilt. **  Max is 25  **
 
 #define TiltDomeForwardWhenDriving      // uncomment this if you want to tilt the dome forward when driving. 
 
@@ -83,7 +83,7 @@
 //
 // This value should be between 0.0 and 1.0 exclusively.
 // Joe's default is .05
-#define DomeTiltAmount  0.2
+#define DomeTiltAmount  0.05
 
 #define reverseDrive                    // uncomment if your drive joystick is reversed
 #define reverseDomeTilt                 // uncomment if your dome tilt joystick is reversed
@@ -106,17 +106,16 @@
   #define revDome2 
 #endif
 
-// 
-// REPLACED - Joe added a var for this.
-// Naigon: Amount the head can tilt, Joe's default is 17
-//#define HeadTiltMax 17
 // Naigon: Max pot range, Joe's default is 135. This means pot will map to -HeadTiltPotMax, HeadTiltPotMax
 #define HeadTiltPotMax 135
 // Naigon: Threshold of the pot before actually adjusting the input. Joe's default is 25
 #define HeadTiltPotThresh 25
-// Naigon: Amount to limit the flywheel when in stationary mode. At full 255, the drive when spun up takes a while to slow and respond to the second direction; this allows it to do quicker moves for animatronics, at the expense of not being able to spin as much.
+// Naigon: Amount to limit the flywheel when in stationary mode. At full 255, the drive when spun up takes a while to
+// slow and respond to the second direction; this allows it to do quicker moves for animatronics, at the expense of not
+// being able to spin as much.
 #define FlywheelStationaryMax 215
-// Naigon: Amount to limit the flywheel in normal drive modes. Full 255 can "lock" the droid for a half second or so. To prevent I just cap a bit more than full blast.
+// Naigon: Amount to limit the flywheel in normal drive modes. Full 255 can "lock" the droid for a half second or so.
+// To prevent I just cap a bit more than full blast.
 #define FlywheelDriveMax 245
 // Naigon: Default drive speeds
 // Joe had 55, 75, ?
@@ -124,9 +123,13 @@
 #define DRIVE_SPEED_SLOW 45
 #define DRIVE_SPEED_MEDIUM 55
 #define DRIVE_SPEED_HIGH 75
-// naigon: Defines the side to side output range, ie how much it can move.
+//
+// Naigon: MK3 Flywheel - This value should be updated for the MK3 Flywheel, as more weight towards the outside makes
+// it move higher, and it is overall more sensitive.
+//
+// Defines the side to side output range, ie how much it can move.
 // Joe's default is 25.
-#define SIDE_TO_SIDE_VAL 22
+#define SideToSideMax 20
 // naigon: Defines the length (in MS) for the auto disable feature to kick in.
 // Joe had this hard-coded inline with a value of 3000.
 #define AutoDisableMS 3000.0
@@ -649,7 +652,7 @@ void handleSounds() {
     // Button will only do a sound that is deemed "happy".
     int randomType = random(0, 3) * 2;
     if (button2Handler.GetState() == ButtonState::Held) randomType += 1;
-    soundPlayer->PlaySound(randomType);
+    soundPlayer->PlaySound((SoundTypes)randomType);
     played = true;
   }
   else if (button3Handler.GetState() == ButtonState::Pressed
@@ -957,24 +960,24 @@ void sideTilt() {
   S2Spot = map(analogRead(S2SpotPin), 0, 1024, -135,135);
 #endif
   Input2 = roll + rollOffset; 
-  Setpoint2 = constrain(Setpoint2, -SIDE_TO_SIDE_VAL, SIDE_TO_SIDE_VAL);
+  Setpoint2 = constrain(Setpoint2, -SideToSideMax, SideToSideMax);
   PID2.Compute();  //PID2 is used to control the 'servo' control of the side to side movement. 
 
   Input1  = S2Spot + potOffsetS2S;
   Setpoint1 = map(
-    constrain(Output2, -SIDE_TO_SIDE_VAL, SIDE_TO_SIDE_VAL),
-    -SIDE_TO_SIDE_VAL,
-    SIDE_TO_SIDE_VAL,
-    SIDE_TO_SIDE_VAL,
-    -SIDE_TO_SIDE_VAL);
+    constrain(Output2, -SideToSideMax, SideToSideMax),
+    -SideToSideMax,
+    SideToSideMax,
+    SideToSideMax,
+    -SideToSideMax);
   PID1.Compute();   //PID1 is for side to side stabilization
 
-  if ((Output1 <= -1) && (Input1 > -SIDE_TO_SIDE_VAL)) {
+  if ((Output1 <= -1) && (Input1 > -SideToSideMax)) {
     Output1a = abs(Output1);
     analogWrite(s2sPWM2, Output1a);
     analogWrite(s2sPWM1, 0);
   }
-  else if ((Output1 >= 1) && (Input1 < SIDE_TO_SIDE_VAL)) { 
+  else if ((Output1 >= 1) && (Input1 < SideToSideMax)) { 
     Output1a = abs(Output1);
     analogWrite(s2sPWM1, Output1a);
     analogWrite(s2sPWM2, 0);
@@ -1432,7 +1435,7 @@ void autoDisableMotors() {
     autoDisable = 0;
   }
 
-  if(autoDisableState == 1 && (millis() - autoDisableMotorsMillis >= AutoDisableMS) && Output1a < 25 && Output3a < 8) {
+  if(autoDisableState == 1 && (millis() - autoDisableMotorsMillis >= (unsigned long)AutoDisableMS) && Output1a < 25 && Output3a < 8) {
     digitalWrite(enablePin, LOW);
     autoDisable = 1;
   }
