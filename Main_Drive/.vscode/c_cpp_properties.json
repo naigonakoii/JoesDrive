@@ -5,7 +5,6 @@
             "includePath": [
                 "D:\\Program Files (x86)\\Arduino\\tools\\**",
                 "D:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\**",
-                "D:/My Documents/Scott/BB-8/Code/Naigon/src/",
                 "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\**",
                 "C:\\Program Files (x86)\\Arduino\\tools\\**"
             ],
