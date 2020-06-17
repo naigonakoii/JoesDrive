@@ -863,9 +863,9 @@ void domeCalib() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void mainDrive() {
 #ifdef reverseDrive
-  joystickDrive = map(recFromRemote.ch1, 0,512, driveSpeed, (driveSpeed * -1));  //Read joystick - change -55/55 to adjust for speed. 
+  joystickDrive = map(recFromRemote.ch1, 0, 512, driveSpeed, (driveSpeed * -1));  //Read joystick - change -55/55 to adjust for speed. 
 #else
-  joystickDrive = map(recFromRemote.ch1, 0,512,(driveSpeed * -1), driveSpeed);  //Read joystick - change -55/55 to adjust for speed. 
+  joystickDrive = map(recFromRemote.ch1, 0, 512,(driveSpeed * -1), driveSpeed);  //Read joystick - change -55/55 to adjust for speed. 
 #endif
 
   // Naigon: Stationary/Wiggle Mode
