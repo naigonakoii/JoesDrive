@@ -72,7 +72,7 @@
 #define flywheelEase 3        // Speed in which flywheel will increase/decrease during gradual movements
 // S2SEase from Joe: 1.5
 #define S2SEase 1.10          // Speed in which side to side moves. Higher number equates to faster movement
-#define MaxDomeTiltAngle 18   // Maximum angle in which the dome will tilt. **  Max is 25  **
+#define MaxDomeTiltAngle 20   // Maximum angle in which the dome will tilt. **  Max is 25  **
 
 #define TiltDomeForwardWhenDriving      // uncomment this if you want to tilt the dome forward when driving. 
 
