@@ -379,24 +379,6 @@ double Setpoint5, Input5, Output5, Output5a;
 
 PID PID5(&Input5, &Output5, &Setpoint5, Kp5, Ki5, Kd5, DIRECT);
 
-const byte numChars = 40;
-char receivedChars[numChars];
-char tempChars[numChars];        // temporary array for use when parsing
-
-
-boolean newData = false;
-
-const byte numCharsD = 32;
-char receivedCharsD[numCharsD];
-char tempCharsD[numCharsD];        // temporary array for use when parsing
-
-
-char textFromDome[numChars] = {0};
-
-boolean newDataD = false;
-
-long domeInterval = 1000;
-long domeServoMillis;
 long setCalibMillis;
 
 float pitchOffset;
