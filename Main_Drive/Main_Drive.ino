@@ -140,7 +140,7 @@
 
 // Naigon: Defines the length (in MS) for the auto disable feature to kick in.
 // Joe had this hard-coded inline with a value of 3000.
-#define AutoDisableMS 3000.0
+#define AutoDisableMS 4000
 
 // Naigon - Head Tilt Stabilization
 // Defines the number of points for the pitch and roll smoothing filter.
@@ -307,6 +307,8 @@ unsigned long autoDisableMotorsMillis = 0;
 int autoDisableDoubleCheck;
 unsigned long autoDisableDoubleCheckMillis = 0;
 int autoDisable;
+bool forcedMotorEnable = false;
+
 unsigned long lastLoopMillis;
 float lastIMUloop;
 int MiniStatus;
@@ -321,7 +323,6 @@ float R2 = resistor2;
 int joystickDrive;
 
 int ch5PWM;
-int lastDirection;
 
 int driveSpeed = DRIVE_SPEED_SLOW;
 int driveAccel;
@@ -800,6 +801,10 @@ void reverseDirection()
     sendToRemote.bodyDirection = sendToRemote.bodyDirection == Direction::Forward
       ? Direction::Reverse
       : Direction::Forward;
+    
+    // Naigon - Fix for Issue #5
+    // Force the motor to enable here if they were disabled.
+    forcedMotorEnable = true; 
   }
 }
 
@@ -1464,7 +1469,8 @@ void autoDisableMotors() {
   if(
     (joystickDrive > -2 && joystickDrive < 2)
     && (joystickS2S > -2 && joystickS2S < 2)
-    && (joystickDome > -2 && joystickDome < 2)
+    // Naigon - Head Tilt Stabilization: Add a bit more tolerance here since the stabilization adds to the stick.
+    && (joystickDome > -10 && joystickDome < 10)
     && (flywheelRotation < 25 && flywheelRotation > -25)
     && (recFromRemote.ch4 < 276 && recFromRemote.ch4 > 236)
     && (autoDisableState == 0)) {
@@ -1476,20 +1482,22 @@ void autoDisableMotors() {
     || joystickDrive > 2
     || joystickS2S < -2
     || joystickS2S > 2
-    || joystickDome < -2
-    || joystickDome > 2
+    // Naigon - Head Tilt Stabilization: Add a bit more tolerance here since the stabilization adds to the stick.
+    || joystickDome < -10
+    || joystickDome > 10
     || flywheelRotation > 30
     || flywheelRotation < -30
     || recFromRemote.ch4 > 276
     || recFromRemote.ch4 < 236
-    || (lastDirection != recFromRemote.but5)) {
-    autoDisableState = 0;     
+    || forcedMotorEnable == true) {
+    autoDisableState = 0;
     digitalWrite(enablePin, HIGH); 
     autoDisableDoubleCheck = 0; 
     autoDisable = 0;
+    forcedMotorEnable = false;
   }
 
-  if(autoDisableState == 1 && (millis() - autoDisableMotorsMillis >= (unsigned long)AutoDisableMS) && Output1a < 25 && Output3a < 8) {
+  if(autoDisableState == 1 && (millis() - autoDisableMotorsMillis) >= (unsigned long)AutoDisableMS && Output1a < 25 && Output3a < 8) {
     digitalWrite(enablePin, LOW);
     autoDisable = 1;
   }
