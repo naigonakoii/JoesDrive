@@ -1042,7 +1042,7 @@ void domeTilt() {
     Setpoint4 -= easeDomeTilt;
   }
 
-  Setpoint4 = constrain(Setpoint4, -MaxDomeTiltAngle,MaxDomeTiltAngle);
+  Setpoint4 = constrain(Setpoint4, -MaxDomeTiltAngle, MaxDomeTiltAngle);
   PID4.Compute();
 
   if (Output4 < -0 && domeTiltPot > -HeadTiltPotThresh) {
@@ -1078,16 +1078,16 @@ void domeSpin() {
   }
 
   if ((domeRotation > currentDomeSpeed) && (currentDomeSpeed >= 0)) {
-    currentDomeSpeed += easeDome ;
+    currentDomeSpeed += easeDome;
   } 
   else if ((domeRotation < currentDomeSpeed) && (currentDomeSpeed >= 0)) {
-    currentDomeSpeed -= easeDome ;
+    currentDomeSpeed -= easeDome;
   } 
   else if ((domeRotation > currentDomeSpeed) && (currentDomeSpeed <= 0)) {
-    currentDomeSpeed += easeDome ;
+    currentDomeSpeed += easeDome;
   } 
   else if ((domeRotation < currentDomeSpeed) && (currentDomeSpeed <= 0)) {
-    currentDomeSpeed -= easeDome ;
+    currentDomeSpeed -= easeDome;
   } 
 
   if ((currentDomeSpeed <= -20) && (BTstate == 1)) {
