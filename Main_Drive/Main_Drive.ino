@@ -83,7 +83,7 @@
 //
 // This value should be between 0.0 and 1.0 exclusively.
 // Joe's default is .05
-#define DomeTiltAmount  0.075
+#define DomeTiltAmount  0.05
 
 #define reverseDrive                    // uncomment if your drive joystick is reversed
 #define reverseDomeTilt                 // uncomment if your dome tilt joystick is reversed
@@ -1005,6 +1005,7 @@ void domeTilt() {
     speedDomeTilt = 0;
   }
   else {
+    // Naigon: TODO - Actually read the IMU and set the dome angle based on the drive forward/back angle.
     speedDomeTilt = Output3 * DomeTiltAmount; // naigon: test this as it changed for mk2 from 15 to 20
   }
 
