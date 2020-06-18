@@ -72,7 +72,7 @@
 #define flywheelEase 3        // Speed in which flywheel will increase/decrease during gradual movements
 // S2SEase from Joe: 1.5
 #define S2SEase 1.10          // Speed in which side to side moves. Higher number equates to faster movement
-#define MaxDomeTiltAngle 20   // Maximum angle in which the dome will tilt. **  Max is 25  **
+#define MaxDomeTiltAngle 21   // Maximum angle in which the dome will tilt. **  Max is 25  **
 
 #define TiltDomeForwardWhenDriving      // uncomment this if you want to tilt the dome forward when driving. 
 
@@ -83,7 +83,7 @@
 //
 // This value should be between 0.0 and 1.0 exclusively.
 // Joe's default is .05
-#define DomeTiltAmount  0.05
+#define DomeTiltAmount  0.075
 
 #define reverseDrive                    // uncomment if your drive joystick is reversed
 #define reverseDomeTilt                 // uncomment if your dome tilt joystick is reversed
@@ -349,7 +349,7 @@ PID PID1(&Input1, &Output1, &Setpoint1, Pk1, Ik1 , Dk1, DIRECT);
 // 
 // The following values need tuning if moving to the MK3 flywheel.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-double Pk2 = 1.0; // Joe 0.5; M2 Flywheel .4
+double Pk2 = 1.25; // Joe 0.5; M2 Flywheel .4
 double Ik2 = .00; // was .00
 double Dk2 = .01; // was .01
 double Setpoint2, Input2, Output2, Output2a;
