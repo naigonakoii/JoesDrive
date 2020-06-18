@@ -939,9 +939,9 @@ void mainDrive() {
 //
 void sideTilt() {
 #ifdef reverseS2S
-  joystickS2S = map(constrain(recFromRemote.ch2, 0 , 512), 0,512,25,-25); //- is  left, + is  right
+  joystickS2S = map(constrain(recFromRemote.ch2, 0, 512), 0, 512, 25, -25); //- is  left, + is  right
 #else
-  joystickS2S = map(constrain(recFromRemote.ch2, 0 , 512), 0,512,-25,25); //- is  left, + is  right
+  joystickS2S = map(constrain(recFromRemote.ch2, 0, 512), 0, 512, -25, 25); //- is  left, + is  right
 #endif
 
   // Setpoint will increase/decrease by S2SEase each time the code runs until it matches the joystick. This slows the side to side movement.  
@@ -958,9 +958,9 @@ void sideTilt() {
 
 
 #ifdef reverseS2SPot
-  S2Spot = map(analogRead(S2SpotPin), 0, 1024, 135,-135);
+  S2Spot = map(analogRead(S2SpotPin), 0, 1024, 135, -135);
 #else
-  S2Spot = map(analogRead(S2SpotPin), 0, 1024, -135,135);
+  S2Spot = map(analogRead(S2SpotPin), 0, 1024, -135, 135);
 #endif
   Input2 = roll + rollOffset; 
   Setpoint2 = constrain(Setpoint2, -SideToSideMax, SideToSideMax);
@@ -1021,12 +1021,12 @@ void domeTilt() {
 
 #ifdef TiltDomeForwardWhenDriving
   joystickDome = constrain(
-    map(ch3Val, 0,512,-MaxDomeTiltAngle, MaxDomeTiltAngle),
+    map(ch3Val, 0, 512, -MaxDomeTiltAngle, MaxDomeTiltAngle),
     MaxDomeTiltAngle revDome2,
     MaxDomeTiltAngle revDome1) - speedDomeTilt;   // Reading the stick for angle -40 to 40
 #else
   joystickDome = constrain(
-    map(ch3Val, 0,512,-MaxDomeTiltAngle, MaxDomeTiltAngle),
+    map(ch3Val, 0, 512, -MaxDomeTiltAngle, MaxDomeTiltAngle),
     MaxDomeTiltAngle revDome2,
     MaxDomeTiltAngle revDome1);   // Reading the stick for angle -40 to 40
 #endif
@@ -1066,9 +1066,9 @@ void domeTilt() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void domeSpin() {
 #ifdef reverseDomeSpin
-  domeRotation = map(recFromRemote.ch4, 0,512,255,-255);
+  domeRotation = map(recFromRemote.ch4, 0, 512, 255, -255);
 #else
-  domeRotation = map(recFromRemote.ch4, 0,512,-255,255);
+  domeRotation = map(recFromRemote.ch4, 0, 512, -255, 255);
 #endif
 
 
@@ -1091,12 +1091,12 @@ void domeSpin() {
   } 
 
   if ((currentDomeSpeed <= -20) && (BTstate == 1)) {
-    currentDomeSpeed = constrain(currentDomeSpeed,-255,255);
+    currentDomeSpeed = constrain(currentDomeSpeed, -255, 255);
     analogWrite(domeSpinPWM2, 0);
     analogWrite(domeSpinPWM1, abs(currentDomeSpeed));
   }
   else if ((currentDomeSpeed >= 20) && (BTstate == 1)) {
-    currentDomeSpeed = constrain(currentDomeSpeed,-255,255);
+    currentDomeSpeed = constrain(currentDomeSpeed, -255, 255);
     analogWrite(domeSpinPWM1, 0);
     analogWrite(domeSpinPWM2, abs(currentDomeSpeed));
   }
@@ -1167,10 +1167,10 @@ void flywheelSpin() {
     flywheelRotation = 255;
   }
   else if(ch5PWM > flywheelRotation) {
-    flywheelRotation+=flywheelEase;
+    flywheelRotation += flywheelEase;
   }
   else if (ch5PWM < flywheelRotation) {
-    flywheelRotation-=flywheelEase;
+    flywheelRotation -= flywheelEase;
   }
 
   constrain(flywheelRotation, -255, 255);
