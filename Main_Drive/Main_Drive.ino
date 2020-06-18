@@ -72,18 +72,18 @@
 #define flywheelEase 3        // Speed in which flywheel will increase/decrease during gradual movements
 // S2SEase from Joe: 1.5
 #define S2SEase 1.10          // Speed in which side to side moves. Higher number equates to faster movement
-#define MaxDomeTiltAngle 21   // Maximum angle in which the dome will tilt. **  Max is 25  **
+#define MaxDomeTiltAngle 22   // Maximum angle in which the dome will tilt. **  Max is 25  **
 
 #define TiltDomeForwardWhenDriving      // uncomment this if you want to tilt the dome forward when driving. 
 
 //
-// Naigon: Flywheel MK3
+// Naigon - Flywheel MK3
 // Lighter flywheel means drive moves more before the ball starts to roll. This value is
 // factored out as a double to allow tuning here.
 //
 // This value should be between 0.0 and 1.0 exclusively.
 // Joe's default is .05
-#define DomeTiltAmount  0.05
+#define DomeTiltAmount  0.075
 
 #define reverseDrive                    // uncomment if your drive joystick is reversed
 #define reverseDomeTilt                 // uncomment if your dome tilt joystick is reversed
@@ -124,7 +124,7 @@
 #define DRIVE_SPEED_MEDIUM 55
 #define DRIVE_SPEED_HIGH 75
 //
-// Naigon: MK3 Flywheel - This value should be updated for the MK3 Flywheel, as more weight towards the outside makes
+// Naigon - MK3 Flywheel - This value should be updated for the MK3 Flywheel, as more weight towards the outside makes
 // it move higher, and it is overall more sensitive.
 //
 // Defines the side to side output range, ie how much it can move.
@@ -132,15 +132,25 @@
 #define SideToSideMax 20
 
 //
-// Naigon: Safe Joystick Button Toggle
+// Naigon - Safe Joystick Button Toggle
 //
 // Defines the amount that is considered to cause real movement. When the stick is above this value, no press from the
 // stick will be registered.
 #define JoystickMinMovement 10
 
-// naigon: Defines the length (in MS) for the auto disable feature to kick in.
+// Naigon: Defines the length (in MS) for the auto disable feature to kick in.
 // Joe had this hard-coded inline with a value of 3000.
 #define AutoDisableMS 3000.0
+
+// Naigon - Head Tilt Stabilization
+// Defines the number of points for the pitch and roll smoothing filter.
+// Higher values make movements much smoother, at the expense of a longer delay before the drive catches up to the actual value.
+#define PitchAndRollFilterCount 8
+
+// Naigon - Head Tilt Stabilization
+// Proportional amount of the stabilization to apply to the head tilt. Higher value means it will respond quicker at the expense of more jerk.
+// Value should be between 0.0 and 1.0 inclusively.
+#define HeadTiltPitchAndRollProportion 0.6
 
 //
 // Debug Defines
@@ -250,8 +260,13 @@ enum BodyStatus
   DomeCalibration = 102,
 };
 
+// Naigon - Head Tilt Stabilization
+// To keep the head tilt from being jerky, do some filtering on the pitch and roll over time.
 float pitch;
+float pitchPrev[PitchAndRollFilterCount];
 float roll;
+float rollPrev[PitchAndRollFilterCount];
+bool isFirstPitchAndRoll = true;
 
 RECEIVE_DATA_STRUCTURE_REMOTE recFromRemote;
 SEND_DATA_STRUCTURE_REMOTE sendToRemote;
@@ -345,7 +360,7 @@ PID PID1(&Input1, &Output1, &Setpoint1, Pk1, Ik1 , Dk1, DIRECT);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // PID2 is for side to side stability
-// Naigon: MK3 Flywheel
+// Naigon - MK3 Flywheel
 // 
 // The following values need tuning if moving to the MK3 flywheel.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -358,7 +373,7 @@ PID PID2(&Input2, &Output2, &Setpoint2, Pk2, Ik2 , Dk2, DIRECT);    // PID Setup
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //PID3 is for the main drive
-// Naigon: MK3 Flywheel
+// Naigon - MK3 Flywheel
 //
 // The following values will need to be updated if doing the MK3 flywheel and adding the balancing weights.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -553,11 +568,39 @@ void sendAndReceive() {
 #endif
 
 #ifdef reverseRoll
-      roll = recIMUData.roll *-1;
+      roll = recIMUData.roll * -1;
 #else 
       roll = recIMUData.roll;
 #endif
   }
+
+  if (isFirstPitchAndRoll == true) {
+    // Naigon - Head Tilt Stabilization
+    // Initialize the first time to the current value to prevent anomilies at startup.
+    for (int i = 0; i < 4; i++) {
+      pitchPrev[i] = pitch;
+      rollPrev[i] = roll;
+    }
+    isFirstPitchAndRoll = false;
+  }
+
+  //
+  // Naigon - Head Tilt Stablilization
+  // The pitch and roll are now computed as a rolling average to filter noise. This prevents jerkyness in any movements
+  // based on these values.
+  pitch = updatePrevValsAndComputeAvg(pitchPrev, pitch);
+  roll = updatePrevValsAndComputeAvg(rollPrev, roll);
+}
+
+float updatePrevValsAndComputeAvg(float *nums, float currentVal) {
+  float sum = 0;
+  nums[0] = currentVal;
+  for (int i = PitchAndRollFilterCount - 1; i >= 1; i -= 1) {
+    nums[i] = nums[i - 1];
+    sum += nums[i];
+  }
+
+  return (sum + nums[0]) / (float)PitchAndRollFilterCount;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -745,7 +788,7 @@ void incrementBodySpeedToggle() {
 
 void reverseDirection()
 {
-  // Naigon: Safe Joystick Button Toggle.
+  // Naigon - Safe Joystick Button Toggle.
   //
   // I've had some pretty catastropic issues where I accidently hit reverse when driving and didn't realize it. This
   // is because the reverse is pressing the drive stick.
@@ -857,7 +900,7 @@ void domeCalib() {
     && abs(recFromRemote.ch3 - 255) < JoystickMinMovement
     && abs(recFromRemote.ch4 - 255) < JoystickMinMovement
     && state == ButtonState::Pressed) {
-    // Naigon: Safe Joystick Button Toggle
+    // Naigon - Safe Joystick Button Toggle
     // Only swap the states when the joystick is not in movement.
     servoMode = servoMode == BodyStatus::Servo
       ? BodyStatus::Default
@@ -883,7 +926,7 @@ void mainDrive() {
   joystickDrive = map(recFromRemote.ch1, 0, 512,(driveSpeed * -1), driveSpeed);  //Read joystick - change -55/55 to adjust for speed. 
 #endif
 
-  // Naigon: Stationary/Wiggle Mode
+  // Naigon - Stationary/Wiggle Mode
   // When in wiggle/stationary mode, don't use the joystick to move at all.
   if (IsStationary == true) {
     joystickDrive = 0;
@@ -1009,6 +1052,10 @@ void domeTilt() {
     speedDomeTilt = Output3 * DomeTiltAmount; // naigon: test this as it changed for mk2 from 15 to 20
   }
 
+  // Naigon - Head Tilt Stabilization
+  // Calculate the pitch to input into the head tilt input in order to keep it level.
+  int pitchAdjust = (pitch + pitchOffset) * HeadTiltPitchAndRollProportion * 2.0;
+
 #ifdef reverseDomeTiltPot
   domeTiltPot = (map(analogRead(domeTiltPotPin), 0, 1024, HeadTiltPotMax, -HeadTiltPotMax) + domeTiltPotOffset);
 #else
@@ -1016,18 +1063,23 @@ void domeTilt() {
 #endif
 
   int ch3Val = recFromRemote.ch3;
-  if (animationState.hasResult && animationState.ch3 != NOT_RUNNING) {
+  if (animationState.hasResult
+    && animationState.ch3 != NOT_RUNNING
+    && abs(ch3Val) < 10) {
     ch3Val = animationState.ch3;
   }
 
 #ifdef TiltDomeForwardWhenDriving
+  // Naigon: BUG
+  // Joe's code had a bug here; you need to subtract within the constrain, otherwise driving can cause this value to go
+  // outside the bounds and really bad things happen like the drive locking and losing the head.
   joystickDome = constrain(
-    map(ch3Val, 0, 512, -MaxDomeTiltAngle, MaxDomeTiltAngle),
+    map(ch3Val, 0, 512, -MaxDomeTiltAngle, MaxDomeTiltAngle) - speedDomeTilt - pitchAdjust,
     MaxDomeTiltAngle revDome2,
-    MaxDomeTiltAngle revDome1) - speedDomeTilt;   // Reading the stick for angle -40 to 40
+    MaxDomeTiltAngle revDome1);   // Reading the stick for angle -40 to 40
 #else
   joystickDome = constrain(
-    map(ch3Val, 0, 512, -MaxDomeTiltAngle, MaxDomeTiltAngle),
+    map(ch3Val, 0, 512, -MaxDomeTiltAngle, MaxDomeTiltAngle) - pitchAdjust,
     MaxDomeTiltAngle revDome2,
     MaxDomeTiltAngle revDome1);   // Reading the stick for angle -40 to 40
 #endif
