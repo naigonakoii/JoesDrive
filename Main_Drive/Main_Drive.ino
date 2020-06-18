@@ -39,7 +39,7 @@
 #define BTstatePin 33         // Connected to state pin on BT Module
 #define domeTiltPotPin A1     // Connected to Potentiometer on the dome tilt mast
 #define easeDome 20           // Lower number means more easing when spinning
-#define easeDomeTilt 3        // Lower number means more easing when moving forward and back a.k.a. slower
+#define easeDomeTilt 3.5      // Lower number means more easing when moving forward and back a.k.a. slower
 #define domeSpinPot A2        // Pin used to monitor dome spin potentiometer
 #define battMonitor A3        // Pin used to monitor battery voltage
 #define outputVoltage 5.2     // This is the output voltage from the Buck Converter powering the arduino
