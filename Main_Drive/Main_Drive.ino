@@ -83,7 +83,7 @@
 //
 // This value should be between 0.0 and 1.0 exclusively.
 // Joe's default is .05
-#define DomeTiltAmount  0.075
+#define DomeTiltAmount  0.06
 
 #define reverseDrive                    // uncomment if your drive joystick is reversed
 #define reverseDomeTilt                 // uncomment if your dome tilt joystick is reversed
@@ -185,7 +185,8 @@
 #include "ButtonHandler.h"
 #include "SoundPlayer.h"
 #include "Animations.h"
- 
+#include "MotorPWM.h"
+
 EasyTransfer RecRemote;
 EasyTransfer SendRemote;
 EasyTransfer RecIMU;
@@ -289,6 +290,14 @@ ButtonHandler button3Handler(0 /* onVal */, 1000 /* heldDuration */);
 ButtonHandler button5Handler(0 /* onVal */, 2000 /* heldDuration */);
 ButtonHandler button6Handler(0 /* onVal */, 2000 /* heldDuration */);
 
+// Naigon
+// Refactor code to use the new PWM driver.
+MotorPWM drivePwm(drivePWM1, drivePWM2, 0, 2);
+MotorPWM sideToSidePWM(s2sPWM1, s2sPWM2, SideToSideMax, 1);
+MotorPWM headTiltPWM(domeTiltPWM1, domeTiltPWM2, HeadTiltPotThresh, 0);
+MotorPWM domeSpinPWM(domeSpinPWM1, domeSpinPWM2, 0, 20);
+MotorPWM flywheelPWM(flywheelSpinPWM1, flywheelSpinPWM2, 0, 10);
+
 int ch4Servo;           //left joystick left/right when using servo mode
 int currentDomeSpeed;
 int domeRotation;
@@ -355,7 +364,7 @@ double Pk1 = 13;  // was 13
 double Ik1 = 0;
 // Naigon - Change this value from .3 to .1 or 0 to remove shakey side to side
 double Dk1 = 0.0;
-double Setpoint1, Input1, Output1, Output1a;
+double Setpoint1, Input1, Output1;
 
 PID PID1(&Input1, &Output1, &Setpoint1, Pk1, Ik1 , Dk1, DIRECT);   
 
@@ -365,10 +374,10 @@ PID PID1(&Input1, &Output1, &Setpoint1, Pk1, Ik1 , Dk1, DIRECT);
 // 
 // The following values need tuning if moving to the MK3 flywheel.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-double Pk2 = 1.25; // Joe 0.5; M2 Flywheel .4
+double Pk2 = 1.75; // Joe 0.5; M2 Flywheel .4
 double Ik2 = .00; // was .00
 double Dk2 = .01; // was .01
-double Setpoint2, Input2, Output2, Output2a;
+double Setpoint2, Input2, Output2;
 
 PID PID2(&Input2, &Output2, &Setpoint2, Pk2, Ik2 , Dk2, DIRECT);    // PID Setup - S2S stability   
 
@@ -381,7 +390,7 @@ PID PID2(&Input2, &Output2, &Setpoint2, Pk2, Ik2 , Dk2, DIRECT);    // PID Setup
 double Pk3 = 5.0; // Joe 5.0; 
 double Ik3 = 0;
 double Dk3 = 0;
-double Setpoint3, Input3, Output3, Output3a;
+double Setpoint3, Input3, Output3;
 
 PID PID3(&Input3, &Output3, &Setpoint3, Pk3, Ik3 , Dk3, DIRECT);    // Main drive motor
 
@@ -390,7 +399,7 @@ PID PID3(&Input3, &Output3, &Setpoint3, Pk3, Ik3 , Dk3, DIRECT);    // Main driv
 double Pk4 = 6;  // default is 6
 double Ik4 = 0;
 double Dk4 = 0.05;
-double Setpoint4, Input4, Output4, Output4a;
+double Setpoint4, Input4, Output4;
 
 PID PID4(&Input4, &Output4, &Setpoint4, Pk4, Ik4 , Dk4, DIRECT);
 
@@ -921,9 +930,16 @@ void domeCalib() {
   }
 }
 
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Motor Drivers
+//
+// The following group of functions are for driving the output to the motors.
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// ------------------------------------------------------------------------------------
 // Main drive
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ------------------------------------------------------------------------------------
 void mainDrive() {
 #ifdef reverseDrive
   joystickDrive = map(recFromRemote.ch1, 0, 512, driveSpeed, (driveSpeed * -1));  //Read joystick - change -55/55 to adjust for speed. 
@@ -962,23 +978,13 @@ void mainDrive() {
   // domeTiltOffset used to keep the ball from rolling when dome is tilted front/back
 
   PID3.Compute();
-
-  if (Output3 >= 2) {    //make BB8 roll
-    Output3a = abs(Output3);
-    analogWrite(drivePWM1, Output3a);
-    analogWrite(drivePWM2, 0);
-  }
-  else if (Output3 < -2) { 
-    Output3a = abs(Output3);
-    analogWrite(drivePWM2, Output3a);  
-    analogWrite(drivePWM1, 0);
-  }
+  writeMotorPwm(drivePwm, Output3, 0 /*input*/, false /*requireBT*/, false /*requireMotorEnable*/);
 }
 
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ------------------------------------------------------------------------------------
 // Side to Side
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ------------------------------------------------------------------------------------
 
 //
 //s2s left joystick goes from 0(LEFT) to 512(RIGHT)  
@@ -1022,32 +1028,19 @@ void sideTilt() {
     SideToSideMax,
     -SideToSideMax);
   PID1.Compute();   //PID1 is for side to side stabilization
-
-  if ((Output1 <= -1) && (Input1 > -SideToSideMax)) {
-    Output1a = abs(Output1);
-    analogWrite(s2sPWM2, Output1a);
-    analogWrite(s2sPWM1, 0);
-  }
-  else if ((Output1 >= 1) && (Input1 < SideToSideMax)) { 
-    Output1a = abs(Output1);
-    analogWrite(s2sPWM1, Output1a);
-    analogWrite(s2sPWM2, 0);
-  } 
-  else {
-    analogWrite(s2sPWM2, 0);  
-    analogWrite(s2sPWM1, 0);
-  }
+  writeMotorPwm(sideToSidePWM, Output1, Input1, false /*requireBT*/, false /*requireMotorEnable*/);
 }
 
     
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ------------------------------------------------------------------------------------
 // Dome tilt
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//The joystick will go from 0(Forward) to 512(Back). 
-//The pot will get HIGH as it moves back, and LOW as it moves forward
-//
-//
+// ------------------------------------------------------------------------------------
 void domeTilt() {
+  //
+  //The joystick will go from 0(Forward) to 512(Back). 
+  //The pot will get HIGH as it moves back, and LOW as it moves forward
+  //
+
   //speedDomeTilt offsets the dome based on the main drive to tilt it in the direction of movement. 
   if (Setpoint3 < 3 && Setpoint3 > -3) {
     speedDomeTilt = 0;
@@ -1093,35 +1086,21 @@ void domeTilt() {
   if ((Setpoint4 > -1) && (Setpoint4 < 1) && (joystickDome == 0)) {
     Setpoint4 = 0;
   }
-  else if ((joystickDome > Setpoint4) && (joystickDome != Setpoint4)) {
+  else if (joystickDome > Setpoint4) {
     Setpoint4 += easeDomeTilt;
   }
-  else if ((joystickDome < Setpoint4) && (joystickDome != Setpoint4)) {
+  else if (joystickDome < Setpoint4) {
     Setpoint4 -= easeDomeTilt;
   }
 
   Setpoint4 = constrain(Setpoint4, -MaxDomeTiltAngle, MaxDomeTiltAngle);
   PID4.Compute();
-
-  if (Output4 < -0 && domeTiltPot > -HeadTiltPotThresh) {
-      Output4a = abs(Output4);
-      analogWrite(domeTiltPWM2, Output4a);    
-      analogWrite(domeTiltPWM1, 0);
-  }
-  else if (Output4 >= 0 && domeTiltPot < HeadTiltPotThresh) {
-    Output4a = abs(Output4);
-    analogWrite(domeTiltPWM1, Output4a);  
-    analogWrite(domeTiltPWM2, 0);
-  } 
-  else {
-    analogWrite(domeTiltPWM2, 0);  
-    analogWrite(domeTiltPWM1, 0);
-  }
+  writeMotorPwm(headTiltPWM, Output4, domeTiltPot, false /*requireBT*/, false /*requireMotorEnable*/);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ------------------------------------------------------------------------------------
 // Dome spin
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ------------------------------------------------------------------------------------
 void domeSpin() {
 #ifdef reverseDomeSpin
   domeRotation = map(recFromRemote.ch4, 0, 512, 255, -255);
@@ -1148,26 +1127,16 @@ void domeSpin() {
     currentDomeSpeed -= easeDome;
   } 
 
-  if ((currentDomeSpeed <= -20) && (BTstate == 1)) {
-    currentDomeSpeed = constrain(currentDomeSpeed, -255, 255);
-    analogWrite(domeSpinPWM2, 0);
-    analogWrite(domeSpinPWM1, abs(currentDomeSpeed));
-  }
-  else if ((currentDomeSpeed >= 20) && (BTstate == 1)) {
-    currentDomeSpeed = constrain(currentDomeSpeed, -255, 255);
-    analogWrite(domeSpinPWM1, 0);
-    analogWrite(domeSpinPWM2, abs(currentDomeSpeed));
-  }
-  else {
-    analogWrite(domeSpinPWM1, 0);
-    analogWrite(domeSpinPWM2, 0);
-  }   
+  currentDomeSpeed = constrain(currentDomeSpeed, -255, 255);
+
+  // Joe has always allowed the dome to spin regardless of whether the motors were enabled or not, which I like.
+  writeMotorPwm(domeSpinPWM, currentDomeSpeed, 0 /*input*/, true /*requireBT*/, false /*requireMotorEnable*/);   
 }
 
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ------------------------------------------------------------------------------------
 // Flywheel spin
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ------------------------------------------------------------------------------------
 void flywheelSpin() {
   if (IsStationary) {
     // Naigon - Stationary/Wiggle Mode
@@ -1233,19 +1202,21 @@ void flywheelSpin() {
 
   constrain(flywheelRotation, -255, 255);
 
-  if ((flywheelRotation < -10) && (BTstate == 1) && (recFromRemote.motorEnable == 0)) {
-    analogWrite(flywheelSpinPWM1, 0);
-    analogWrite(flywheelSpinPWM2, abs(flywheelRotation));
-  }
-  else if ((flywheelRotation > 10) && (BTstate == 1) && (recFromRemote.motorEnable == 0)) {
-    analogWrite(flywheelSpinPWM2, 0);
-    analogWrite(flywheelSpinPWM1, abs(flywheelRotation));
+  writeMotorPwm(flywheelPWM, flywheelRotation, 0 /*input*/, true /*requireBT*/, true /*requireMotorEnable*/);
+}
+
+void writeMotorPwm(MotorPWM &motorPwm, int output, int input, bool requireBT, bool requireMotorEnable) {
+  if (
+    (requireBT == true && BTstate != 1)
+    || (requireMotorEnable == true && recFromRemote.motorEnable != 0)) {
+    motorPwm.WriteZeros();
   }
   else {
-    analogWrite(flywheelSpinPWM1, 0);
-    analogWrite(flywheelSpinPWM2, 0);
+    motorPwm.WritePWM(output, input);
   }
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1466,6 +1437,9 @@ void waitForConfirmationToSetDomeOffsets() {
 // Auto disable motors
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void autoDisableMotors() {
+  double output1A = abs(Output1);
+  double output3A = abs(Output3);
+
   if(
     (joystickDrive > -2 && joystickDrive < 2)
     && (joystickS2S > -2 && joystickS2S < 2)
@@ -1497,22 +1471,24 @@ void autoDisableMotors() {
     forcedMotorEnable = false;
   }
 
-  if(autoDisableState == 1 && (millis() - autoDisableMotorsMillis) >= (unsigned long)AutoDisableMS && Output1a < 25 && Output3a < 8) {
+  if(autoDisableState == 1
+    && (millis() - autoDisableMotorsMillis) >= (unsigned long)AutoDisableMS
+    && output1A < 25 && output3A < 8) {
     digitalWrite(enablePin, LOW);
     autoDisable = 1;
   }
-  else if(Output1a > 50 || Output3a > 20) {
+  else if(output1A > 50 || output3A > 20) {
     autoDisableState = 0;
     digitalWrite(enablePin, HIGH);
     autoDisableDoubleCheck = 0;
     autoDisable = 0;
   }
-  else if((Output1a > 25 || Output3a > 8) && autoDisableDoubleCheck == 0) {
+  else if((output1A > 25 || output3A > 8) && autoDisableDoubleCheck == 0) {
     autoDisableDoubleCheckMillis = millis();
     autoDisableDoubleCheck = 1;
   }
   else if((autoDisableDoubleCheck == 1) && (millis() - autoDisableDoubleCheckMillis >= 100)) {
-    if(Output1a > 30 || Output3a > 8) { 
+    if(output1A > 30 || output3A > 8) { 
         autoDisableState = 0;
         digitalWrite(enablePin, HIGH);
         autoDisableDoubleCheck = 0;
@@ -1692,10 +1668,10 @@ void debugRoutines() {
 #endif
 
 #ifdef printOutputs
-  Serial.print(F(" Out1: ")); Serial.print(Output1a);
-  Serial.print(F(" Out2: ")); Serial.print(Output2a);
-  Serial.print(F(" Out3: ")); Serial.print(Output3a);
-  Serial.print(F(" Out4: ")); Serial.println(Output4a);
+  Serial.print(F(" Out1: ")); Serial.print(abs(Output1));
+  Serial.print(F(" Out2: ")); Serial.print(abs(Output2));
+  Serial.print(F(" Out3: ")); Serial.print(abs(Output3));
+  Serial.print(F(" Out4: ")); Serial.println(abs(Output4));
 #endif
 
 #ifdef printSoundPin
