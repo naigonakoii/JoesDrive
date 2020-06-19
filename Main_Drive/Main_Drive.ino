@@ -191,7 +191,8 @@ EasyTransfer RecRemote;
 EasyTransfer SendRemote;
 EasyTransfer RecIMU;
 
-struct RECEIVE_DATA_STRUCTURE_REMOTE {
+struct RECEIVE_DATA_STRUCTURE_REMOTE
+{
   int ch1;                //right joystick up/down
   int ch2;                //right joystick left/right
   int ch3;                //left joystick up/down
@@ -216,7 +217,8 @@ struct RECEIVE_DATA_STRUCTURE_REMOTE {
   int motorEnable = 1; 
 };
 
-struct SEND_DATA_STRUCTURE_REMOTE {
+struct SEND_DATA_STRUCTURE_REMOTE
+{
   double bodyBatt=0.0;
   double domeBattSend;
   int bodyStatus = 0;
@@ -224,7 +226,8 @@ struct SEND_DATA_STRUCTURE_REMOTE {
   uint8_t bodyDirection;
 };
 
-struct RECEIVE_DATA_STRUCTURE_IMU {
+struct RECEIVE_DATA_STRUCTURE_IMU
+{
   float IMUloop;
   float pitch;
   float roll;
@@ -305,7 +308,7 @@ int domeRotation;
 int fadeVal = 0; 
 int readPinState = 1; 
 
-int soundPins[] = {soundpin1, soundpin2, soundpin3, soundpin4};
+int soundPins[] = { soundpin1, soundpin2, soundpin3, soundpin4 };
 int randSoundPin;
 int soundState;
 int musicState;
@@ -336,10 +339,10 @@ int ch5PWM;
 int driveSpeed = DRIVE_SPEED_SLOW;
 int driveAccel;
 // the speedArray is used to create an S curve for the 'throttle' of bb8
-int speedArray[] = {0,1,1,1,1,1,1,2,2,2,2,2,2,3,3,3,3,4,4,4,5,5,5,5,6,6,7,7,8,8,9,
+int speedArray[] = { 0,1,1,1,1,1,1,2,2,2,2,2,2,3,3,3,3,4,4,4,5,5,5,5,6,6,7,7,8,8,9,
 9,10,10,11,12,12,13,13,14,15,16,16,17,18,19,19,20,21,22,23,24,25,26,26,27,28,29,30,
 31,32,33,33,34,35,36,37,37,38,39,40,40,41,42,42,43,44,44,45,45,46,46,47,47,48,48,49,
-49,50,50,50,51,51,51,52,52,52,52,53,53,53,53,54,54,54,54,54,55,55,55,55,55};
+49,50,50,50,51,51,51,52,52,52,52,53,53,53,53,54,54,54,54,54,55,55,55,55,55 };
 
 int joystickS2S;
 
@@ -434,7 +437,8 @@ ISoundPlayer* soundPlayer;
 // ===                      INITIAL SETUP                       ===
 // ================================================================
 
-void setup() {
+void setup()
+{
   Serial.begin(115200);
   Serial1.begin(115200);
   Serial3.begin(115200);
@@ -511,7 +515,8 @@ void setup() {
   domeTiltPotOffset = EEPROM.readInt(12);
   domeSpinOffset = EEPROM.readInt(16);
 
-  if (abs(rollOffset) + abs(pitchOffset) + abs(potOffsetS2S) + abs(domeTiltPotOffset) == 0 ) {
+  if (abs(rollOffset) + abs(pitchOffset) + abs(potOffsetS2S) + abs(domeTiltPotOffset) == 0 )
+  {
     setOffsetsONLY();
   }
 
@@ -525,11 +530,12 @@ void setup() {
 //     =====                                            LOOP, bruh!                                               =====
 //     ================================================================================================================
 //     ================================================================================================================
-void loop() {
+void loop()
+{
   RecIMU.receiveData();
 
-  if (millis() - lastLoopMillis >= 20) {
-
+  if (millis() - lastLoopMillis >= 20)
+  {
     sendAndReceive();
     checkMiniTime();
 
@@ -564,12 +570,13 @@ void loop() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Send and receive all data
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void sendAndReceive() {
-
+void sendAndReceive()
+{
   RecRemote.receiveData();
   SendRemote.sendData();
 
-  if(recIMUData.IMUloop != 0) {
+  if(recIMUData.IMUloop != 0)
+  {
 
 #ifdef reversePitch
     pitch = recIMUData.pitch * -1;
@@ -584,10 +591,12 @@ void sendAndReceive() {
 #endif
   }
 
-  if (isFirstPitchAndRoll == true) {
+  if (isFirstPitchAndRoll == true)
+  {
     // Naigon - Head Tilt Stabilization
     // Initialize the first time to the current value to prevent anomilies at startup.
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 4; i++)
+    {
       pitchPrev[i] = pitch;
       rollPrev[i] = roll;
     }
@@ -602,10 +611,12 @@ void sendAndReceive() {
   roll = updatePrevValsAndComputeAvg(rollPrev, roll);
 }
 
-float updatePrevValsAndComputeAvg(float *nums, float currentVal) {
+float updatePrevValsAndComputeAvg(float *nums, float currentVal)
+{
   float sum = 0;
   nums[0] = currentVal;
-  for (int i = PitchAndRollFilterCount - 1; i >= 1; i -= 1) {
+  for (int i = PitchAndRollFilterCount - 1; i >= 1; i -= 1)
+  {
     nums[i] = nums[i - 1];
     sum += nums[i];
   }
@@ -616,31 +627,39 @@ float updatePrevValsAndComputeAvg(float *nums, float currentVal) {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // MPU6050 stuff
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void checkMiniTime() {
-  if (recIMUData.IMUloop == 1 && lastIMUloop >=980) {
+void checkMiniTime()
+{
+  if (recIMUData.IMUloop == 1 && lastIMUloop >=980)
+  {
     lastIMUloop = 0;
-  } else if (recIMUData.IMUloop <1 && lastIMUloop > 3) {
+  } else if (recIMUData.IMUloop <1 && lastIMUloop > 3)
+  {
     lastIMUloop = 0;
   }
 
-  if(recIMUData.IMUloop > lastIMUloop) {
+  if(recIMUData.IMUloop > lastIMUloop)
+  {
     lastIMUloop = recIMUData.IMUloop;
 
-    if(MiniStatus != 1) {
+    if(MiniStatus != 1)
+    {
       MiniStatus = 1;
     }
   }
-  else if(recIMUData.IMUloop <= lastIMUloop && MiniStatus != 0) {
+  else if(recIMUData.IMUloop <= lastIMUloop && MiniStatus != 0)
+  {
     lastIMUloop++;
   }
 
-  if (recIMUData.IMUloop - lastIMUloop < -20 && recIMUData.IMUloop - lastIMUloop > -800) {
+  if (recIMUData.IMUloop - lastIMUloop < -20 && recIMUData.IMUloop - lastIMUloop > -800)
+  {
     MiniStatus = 0;
     lastIMUloop = 0;
     recIMUData.IMUloop = 0;
   }
 
-  if(lastIMUloop >= 999) {
+  if(lastIMUloop >= 999)
+  {
     lastIMUloop = 0;
   }
 }
@@ -683,7 +702,8 @@ void sounds() {
   }
 }
 */
-void handleSounds() {
+void handleSounds()
+{
   //
   // Naigon - NEC Audio
   // This method handles sending sound to the custom Naigon's Electronic Creations gen 3 BB-8 sound player.
@@ -691,25 +711,29 @@ void handleSounds() {
   bool played = false;
 
   if ((button2Handler.GetState() == ButtonState::Pressed || button2Handler.GetState() == ButtonState::Held)
-    && soundPlayer->SoundTypeCurrentlyPlaying() == SoundTypes::NotPlaying) {
+    && soundPlayer->SoundTypeCurrentlyPlaying() == SoundTypes::NotPlaying)
+    {
     // Button will only do a sound that is deemed "happy".
     int randomType = random(0, 3) * 2;
-    if (button2Handler.GetState() == ButtonState::Held) randomType += 1;
+    if (button2Handler.GetState() == ButtonState::Held) { randomType += 1; }
     soundPlayer->PlaySound((SoundTypes)randomType);
     played = true;
   }
   else if (button3Handler.GetState() == ButtonState::Pressed
-  && soundPlayer->TrackTypeCurrentlyPlaying() == SoundTypes::NotPlaying) {
+    && soundPlayer->TrackTypeCurrentlyPlaying() == SoundTypes::NotPlaying)
+  {
     soundPlayer->PlaySound(SoundTypes::PlayTrack);
     played = true;
   }
   else if (button3Handler.GetState() == ButtonState::Held
-    && soundPlayer->TrackTypeCurrentlyPlaying() != SoundTypes::StopTrack) {
+    && soundPlayer->TrackTypeCurrentlyPlaying() != SoundTypes::StopTrack)
+  {
     soundPlayer->PlaySound(SoundTypes::StopTrack);
     played = true;
   }
 
-  if (!played) {
+  if (!played)
+  {
     // If nothing was played, then update this loop with nothing.
     soundPlayer->PlaySound(SoundTypes::NotPlaying);
   }
@@ -718,14 +742,16 @@ void handleSounds() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // PSI Value
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void psiVal() {
+void psiVal()
+{
   // Naigon - Method not needed since dome communicates via XBee to audio sub-board currently.
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Read voltage in
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void readVin() {
+void readVin()
+{
   // Naigon
   // I've been having issues where this reads a constant value of 12.86 regardless of my battery. So I'm going to
   // watch it for a while and try to deduce what is wrong.
@@ -739,14 +765,17 @@ void readVin() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Bluetooth enable
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void BTenable() {
+void BTenable()
+{
   BTstate = digitalRead(BTstatePin);  //read whether BT is connected
 
-  if(recFromRemote.motorEnable == 0 && BTstate == 1) {          //if motor enable switch is on and BT connected, turn on the motor drivers          
+  if(recFromRemote.motorEnable == 0 && BTstate == 1)
+  {          //if motor enable switch is on and BT connected, turn on the motor drivers          
     autoDisableMotors();
     digitalWrite(enablePinDome, HIGH);
   }
-  else if (recFromRemote.motorEnable == 1 || BTstate == 0) {    //if motor enable switch is off OR BT disconnected, turn off the motor drivers
+  else if (recFromRemote.motorEnable == 1 || BTstate == 0)
+  {    //if motor enable switch is off OR BT disconnected, turn off the motor drivers
     digitalWrite(enablePin, LOW);
     digitalWrite(enablePinDome, LOW);
     autoDisableState = 0;
@@ -757,19 +786,24 @@ void BTenable() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Drive speed selection
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void setDriveSpeed() {
+void setDriveSpeed()
+{
   incrementBodySpeedToggle();
 
-  if(sendToRemote.bodySpeed == SpeedToggle::Slow) {
+  if(sendToRemote.bodySpeed == SpeedToggle::Slow)
+  {
     driveSpeed = DRIVE_SPEED_SLOW;
   }
-  else if(sendToRemote.bodySpeed == SpeedToggle::Medium) {
+  else if(sendToRemote.bodySpeed == SpeedToggle::Medium)
+  {
     driveSpeed = DRIVE_SPEED_MEDIUM;
   }
-  else if(sendToRemote.bodySpeed == SpeedToggle::Fast) {
+  else if(sendToRemote.bodySpeed == SpeedToggle::Fast)
+  {
     driveSpeed = DRIVE_SPEED_HIGH;
   }
-  else if (sendToRemote.bodySpeed == SpeedToggle::Stationary) {
+  else if (sendToRemote.bodySpeed == SpeedToggle::Stationary)
+  {
     // For safety, set the drive speed back to slow, even though the stick shouldn't use it.
     driveSpeed = DRIVE_SPEED_SLOW / 2;
   }
@@ -780,7 +814,8 @@ void setDriveSpeed() {
     : false;
  }
 
-void incrementBodySpeedToggle() {
+void incrementBodySpeedToggle()
+{
   // Only increment when the button was pressed and released.
   if (button6Handler.GetState() != ButtonState::Pressed) { return; }
 
@@ -806,7 +841,8 @@ void reverseDirection()
   // To prevent that, I'm only going to accept the input when the ch1 and ch2 are below a threshold.
   if (button5Handler.GetState() == ButtonState::Pressed
     && abs(recFromRemote.ch1 - 255) < JoystickMinMovement
-    && abs(recFromRemote.ch2 - 255) < JoystickMinMovement) {
+    && abs(recFromRemote.ch2 - 255) < JoystickMinMovement)
+  {
     sendToRemote.bodyDirection = sendToRemote.bodyDirection == Direction::Forward
       ? Direction::Reverse
       : Direction::Forward;
@@ -820,17 +856,21 @@ void reverseDirection()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Body calibration
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void bodyCalib() {
-  if (recFromRemote.but8 == 0 && recFromRemote.but7 == 1) {
+void bodyCalib()
+{
+  if (recFromRemote.but8 == 0 && recFromRemote.but7 == 1)
+  {
     timeBodyCalibration();
   }
   else if (
     (recFromRemote.but8 == 1 || recFromRemote.but7 == 0 || recFromRemote.motorEnable == 0)
-    && bodyCalibState != 0) {
+    && bodyCalibState != 0)
+  {
     bodyCalibState = 0;
   }
 
-  if (sendToRemote.bodyStatus == BodyStatus::BodyCalibration) {
+  if (sendToRemote.bodyStatus == BodyStatus::BodyCalibration)
+  {
     waitForConfirmationToSetOffsets();
   }
 }
@@ -854,21 +894,26 @@ void updateAnimations()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Actual movement
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void movement() {
+void movement()
+{
   debugRoutines();
 
-  if (SaveToEEPROM != 0) {
+  if (SaveToEEPROM != 0)
+  {
     setOffsetsAndSaveToEEPROM();
   }
 
-  if (sendToRemote.bodyStatus == BodyStatus::DomeCalibration) {
+  if (sendToRemote.bodyStatus == BodyStatus::DomeCalibration)
+  {
     waitForConfirmationToSetDomeOffsets();
   }
 
-  if (recFromRemote.motorEnable == 0 && BTstate == 1 && MiniStatus != 0) {
+  if (recFromRemote.motorEnable == 0 && BTstate == 1 && MiniStatus != 0)
+  {
     unsigned long currentMillis = millis();
 
-    if (sendToRemote.bodySpeed == SpeedToggle::PushToRoll) {
+    if (sendToRemote.bodySpeed == SpeedToggle::PushToRoll)
+    {
       //
       // Naigon - Safe Mode
       //
@@ -885,7 +930,8 @@ void movement() {
       // The active stabilization will allow pushing the ball to the desired orientation for access.
       mainDrive();
     }
-    else {
+    else
+    {
       // Normal modes do all the things.
       sideTilt();
       mainDrive();
@@ -893,7 +939,8 @@ void movement() {
       flywheelSpin();
     }
   }
-  else {
+  else
+  {
     turnOffAllTheThings();
   }
 }
@@ -901,19 +948,22 @@ void movement() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Dome calibration
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void domeCalib() {
+void domeCalib()
+{
   ButtonState state = button1Handler.GetState();
 
   if (
     (sendToRemote.bodyStatus == BodyStatus::Default || sendToRemote.bodyStatus == BodyStatus::Servo)
-    && state == ButtonState::Held) {
+    && state == ButtonState::Held)
+  {
     sendToRemote.bodyStatus = BodyStatus::DomeCalibration;
   }
   else if(
     (sendToRemote.bodyStatus == BodyStatus::Default || sendToRemote.bodyStatus == BodyStatus::Servo)
     && abs(recFromRemote.ch3 - 255) < JoystickMinMovement
     && abs(recFromRemote.ch4 - 255) < JoystickMinMovement
-    && state == ButtonState::Pressed) {
+    && state == ButtonState::Pressed)
+  {
     // Naigon - Safe Joystick Button Toggle
     // Only swap the states when the joystick is not in movement.
     servoMode = servoMode == BodyStatus::Servo
@@ -922,10 +972,12 @@ void domeCalib() {
     sendToRemote.bodyStatus = servoMode;
   }
 
-  if(servoMode == BodyStatus::Default || autoDisable == 1 || recFromRemote.motorEnable == 1) {
+  if(servoMode == BodyStatus::Default || autoDisable == 1 || recFromRemote.motorEnable == 1)
+  {
     domeSpin();
   }
-  else if (servoMode == BodyStatus::Servo && autoDisable == 0) {
+  else if (servoMode == BodyStatus::Servo && autoDisable == 0)
+  {
     domeSpinServo();
   }
 }
@@ -940,7 +992,8 @@ void domeCalib() {
 // ------------------------------------------------------------------------------------
 // Main drive
 // ------------------------------------------------------------------------------------
-void mainDrive() {
+void mainDrive()
+{
 #ifdef reverseDrive
   joystickDrive = map(recFromRemote.ch1, 0, 512, driveSpeed, (driveSpeed * -1));  //Read joystick - change -55/55 to adjust for speed. 
 #else
@@ -949,25 +1002,30 @@ void mainDrive() {
 
   // Naigon - Stationary/Wiggle Mode
   // When in wiggle/stationary mode, don't use the joystick to move at all.
-  if (IsStationary == true) {
+  if (IsStationary == true)
+  {
     joystickDrive = 0;
   }
 
   // Moves through speedArray to match joystick. speedArray is set up to create an 's curve' for increasing/decreasing speed
 
-  if ((joystickDrive > driveAccel) && (driveAccel >= 0)) {
+  if ((joystickDrive > driveAccel) && (driveAccel >= 0))
+  {
     driveAccel ++;
     Setpoint3 = speedArray[constrain(abs(driveAccel),0, 110)];
   } 
-  else if ((joystickDrive < driveAccel) && (driveAccel >= 0)) {
+  else if ((joystickDrive < driveAccel) && (driveAccel >= 0))
+  {
     driveAccel --;
     Setpoint3 = speedArray[constrain(abs(driveAccel),0, 110)];
   }
-  else if ((joystickDrive > driveAccel) && (driveAccel <= 0)) {
+  else if ((joystickDrive > driveAccel) && (driveAccel <= 0))
+  {
     driveAccel++;
     Setpoint3 = (speedArray[constrain(abs(driveAccel),0, 110)] * -1);
   } 
-  else if ((joystickDrive < driveAccel) && (driveAccel <= 0)) {
+  else if ((joystickDrive < driveAccel) && (driveAccel <= 0))
+  {
     driveAccel --;
     Setpoint3 = (speedArray[constrain(abs(driveAccel),0, 110)] * -1);
   }
@@ -991,7 +1049,8 @@ void mainDrive() {
 //The IMU roll should go DOWN as it tilts to the right, and UP as it tilts to the left
 //The side to side pot should go UP as the ball tilts left, and LOW as it tilts right
 //
-void sideTilt() {
+void sideTilt()
+{
 #ifdef reverseS2S
   joystickS2S = map(constrain(recFromRemote.ch2, 0, 512), 0, 512, 25, -25); //- is  left, + is  right
 #else
@@ -1000,13 +1059,16 @@ void sideTilt() {
 
   // Setpoint will increase/decrease by S2SEase each time the code runs until it matches the joystick. This slows the side to side movement.  
 
-  if ((Setpoint2 > -S2SEase) && (Setpoint2 < S2SEase) && (joystickS2S == 0)) {
+  if ((Setpoint2 > -S2SEase) && (Setpoint2 < S2SEase) && (joystickS2S == 0))
+  {
     Setpoint2 = 0;
   }
-  else if ((joystickS2S > Setpoint2) && (joystickS2S != Setpoint2)) {
+  else if ((joystickS2S > Setpoint2) && (joystickS2S != Setpoint2))
+  {
     Setpoint2 += S2SEase;  
   }
-  else if ((joystickS2S < Setpoint2) && (joystickS2S != Setpoint2)) {
+  else if ((joystickS2S < Setpoint2) && (joystickS2S != Setpoint2))
+  {
     Setpoint2 -= S2SEase;
   }
 
@@ -1035,17 +1097,20 @@ void sideTilt() {
 // ------------------------------------------------------------------------------------
 // Dome tilt
 // ------------------------------------------------------------------------------------
-void domeTilt() {
+void domeTilt()
+{
   //
   //The joystick will go from 0(Forward) to 512(Back). 
   //The pot will get HIGH as it moves back, and LOW as it moves forward
   //
 
   //speedDomeTilt offsets the dome based on the main drive to tilt it in the direction of movement. 
-  if (Setpoint3 < 3 && Setpoint3 > -3) {
+  if (Setpoint3 < 3 && Setpoint3 > -3)
+  {
     speedDomeTilt = 0;
   }
-  else {
+  else
+  {
     // Naigon: TODO - Actually read the IMU and set the dome angle based on the drive forward/back angle.
     speedDomeTilt = Output3 * DomeTiltAmount; // naigon: test this as it changed for mk2 from 15 to 20
   }
@@ -1063,7 +1128,8 @@ void domeTilt() {
   int ch3Val = recFromRemote.ch3;
   if (animationState.hasResult
     && animationState.ch3 != NOT_RUNNING
-    && abs(ch3Val) < 10) {
+    && abs(ch3Val) < 10)
+  {
     ch3Val = animationState.ch3;
   }
 
@@ -1083,13 +1149,16 @@ void domeTilt() {
 #endif
   Input4  = domeTiltPot + (pitch + pitchOffset);
 
-  if ((Setpoint4 > -1) && (Setpoint4 < 1) && (joystickDome == 0)) {
+  if ((Setpoint4 > -1) && (Setpoint4 < 1) && (joystickDome == 0))
+  {
     Setpoint4 = 0;
   }
-  else if (joystickDome > Setpoint4) {
+  else if (joystickDome > Setpoint4)
+  {
     Setpoint4 += easeDomeTilt;
   }
-  else if (joystickDome < Setpoint4) {
+  else if (joystickDome < Setpoint4)
+  {
     Setpoint4 -= easeDomeTilt;
   }
 
@@ -1101,7 +1170,8 @@ void domeTilt() {
 // ------------------------------------------------------------------------------------
 // Dome spin
 // ------------------------------------------------------------------------------------
-void domeSpin() {
+void domeSpin()
+{
 #ifdef reverseDomeSpin
   domeRotation = map(recFromRemote.ch4, 0, 512, 255, -255);
 #else
@@ -1109,21 +1179,26 @@ void domeSpin() {
 #endif
 
 
-  if (domeRotation < 3 && domeRotation > -3 && currentDomeSpeed > -15 && currentDomeSpeed < 15) {
+  if (domeRotation < 3 && domeRotation > -3 && currentDomeSpeed > -15 && currentDomeSpeed < 15)
+  {
     domeRotation = 0;
     currentDomeSpeed = 0;
   }
 
-  if ((domeRotation > currentDomeSpeed) && (currentDomeSpeed >= 0)) {
+  if ((domeRotation > currentDomeSpeed) && (currentDomeSpeed >= 0))
+  {
     currentDomeSpeed += easeDome;
   } 
-  else if ((domeRotation < currentDomeSpeed) && (currentDomeSpeed >= 0)) {
+  else if ((domeRotation < currentDomeSpeed) && (currentDomeSpeed >= 0))
+  {
     currentDomeSpeed -= easeDome;
   } 
-  else if ((domeRotation > currentDomeSpeed) && (currentDomeSpeed <= 0)) {
+  else if ((domeRotation > currentDomeSpeed) && (currentDomeSpeed <= 0))
+  {
     currentDomeSpeed += easeDome;
   } 
-  else if ((domeRotation < currentDomeSpeed) && (currentDomeSpeed <= 0)) {
+  else if ((domeRotation < currentDomeSpeed) && (currentDomeSpeed <= 0))
+  {
     currentDomeSpeed -= easeDome;
   } 
 
@@ -1137,8 +1212,10 @@ void domeSpin() {
 // ------------------------------------------------------------------------------------
 // Flywheel spin
 // ------------------------------------------------------------------------------------
-void flywheelSpin() {
-  if (IsStationary) {
+void flywheelSpin()
+{
+  if (IsStationary)
+  {
     // Naigon - Stationary/Wiggle Mode
     // When in stationary mode, use the drive stick as the flywheel, as the drive is disabled.
 #ifdef reverseFlywheel
@@ -1147,7 +1224,8 @@ void flywheelSpin() {
     ch5PWM = constrain(map(recFromRemote.ch1, 0, 512, -255, 255), -FlywheelStationaryMax, FlywheelStationaryMax);
 #endif
   }
-  else {
+  else
+  {
 #ifdef reverseFlywheel
     ch5PWM = constrain(map(recFromRemote.ch5, 0, 512, 255, -255), -FlywheelDriveMax, FlywheelDriveMax);
 #else
@@ -1155,16 +1233,20 @@ void flywheelSpin() {
 #endif
   }
 
-  if(ch5PWM > -1 && ch5PWM < 35) {
+  if(ch5PWM > -1 && ch5PWM < 35)
+  {
     ch5PWM = 0;
   }
-  else if (ch5PWM < 0 && ch5PWM > -35) {
-            ch5PWM = 0;
+  else if (ch5PWM < 0 && ch5PWM > -35)
+  {
+    ch5PWM = 0;
   }
-  else if (ch5PWM > 35) {
+  else if (ch5PWM > 35)
+  {
     map(ch5PWM, 35, 255, 0, 255);
   }
-  else if (ch5PWM < -35) {
+  else if (ch5PWM < -35)
+  {
     map(ch5PWM, -35, -255, 0, -255);
   }
 
@@ -1178,25 +1260,31 @@ void flywheelSpin() {
     || ((ch5PWM > 240)
     && (
       (flywheelRotation > -30 && flywheelRotation < 30)
-      || flywheelRotation < -240))) {
-
-    if(ch5PWM > 240) {
+      || flywheelRotation < -240)))
+  {
+    if(ch5PWM > 240)
+    {
       flywheelRotation = 255;
     }
-    else if(ch5PWM < -240) {
+    else if(ch5PWM < -240)
+    {
       flywheelRotation = -255;
     }
   }
-  else if(flywheelRotation < 0 && ch5PWM > 240) {
+  else if(flywheelRotation < 0 && ch5PWM > 240)
+  {
     flywheelRotation = 255;
   }
-  else if(flywheelRotation > 0 && ch5PWM < -240) {
+  else if(flywheelRotation > 0 && ch5PWM < -240)
+  {
     flywheelRotation = 255;
   }
-  else if(ch5PWM > flywheelRotation) {
+  else if(ch5PWM > flywheelRotation)
+  {
     flywheelRotation += flywheelEase;
   }
-  else if (ch5PWM < flywheelRotation) {
+  else if (ch5PWM < flywheelRotation)
+  {
     flywheelRotation -= flywheelEase;
   }
 
@@ -1205,13 +1293,16 @@ void flywheelSpin() {
   writeMotorPwm(flywheelPWM, flywheelRotation, 0 /*input*/, true /*requireBT*/, true /*requireMotorEnable*/);
 }
 
-void writeMotorPwm(MotorPWM &motorPwm, int output, int input, bool requireBT, bool requireMotorEnable) {
+void writeMotorPwm(MotorPWM &motorPwm, int output, int input, bool requireBT, bool requireMotorEnable)
+{
   if (
     (requireBT == true && BTstate != 1)
-    || (requireMotorEnable == true && recFromRemote.motorEnable != 0)) {
+    || (requireMotorEnable == true && recFromRemote.motorEnable != 0))
+  {
     motorPwm.WriteZeros();
   }
-  else {
+  else
+  {
     motorPwm.WritePWM(output, input);
   }
 }
@@ -1222,7 +1313,8 @@ void writeMotorPwm(MotorPWM &motorPwm, int output, int input, bool requireBT, bo
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Disable droid
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void turnOffAllTheThings() {
+void turnOffAllTheThings()
+{
   //disables all PIDS and movement. This is to avoid any sudden jerks when re-enabling motors. 
   joystickS2S = 0;
   Input2 = 0;
@@ -1249,7 +1341,8 @@ void turnOffAllTheThings() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Set dome rotation to servo mode
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void domeSpinServo() {
+void domeSpinServo()
+{
 #ifndef reverseDomeRotation
   ch4Servo = map(recFromRemote.ch4, 0, 512, 70, -70);
 #else
@@ -1257,54 +1350,67 @@ void domeSpinServo() {
 #endif
 
 #ifdef reverseDomeSpinPot
-  if(recFromRemote.but5 == 1) {
+  if(recFromRemote.but5 == 1)
+  {
     Input5 = ((map(analogRead(domeSpinPot),0, 1023, -180, 180) + domeSpinOffset)-180);
   }
-  else {
+  else
+  {
     Input5 = map(analogRead(domeSpinPot),0, 1023, -180, 180) + domeSpinOffset;
   }
 #else
-  if(recFromRemote.but5 == 1) {
+  if(recFromRemote.but5 == 1)
+  {
     Input5 = ((map(analogRead(domeSpinPot),0, 1023, 180, -180) + domeSpinOffset)-180);
   }
-  else {
+  else
+  {
     Input5 = map(analogRead(domeSpinPot),0, 1023, 180, -180) + domeSpinOffset;
   }
 #endif
-  if (Input5 < -180) {
+  if (Input5 < -180)
+  {
     Input5 += 360;
   }
-  else if (Input5 > 180) {
+  else if (Input5 > 180)
+  {
     Input5 -= 360;
   }
-  else {
+  else
+  {
       Input5 = Input5;
   }
 
-  if ((Setpoint5 > -5) && (Setpoint5 < 5) && (ch4Servo == 0)) {
+  if ((Setpoint5 > -5) && (Setpoint5 < 5) && (ch4Servo == 0))
+  {
     Setpoint5 = 0;
   }
-  else if ((ch4Servo > Setpoint5) && (ch4Servo != Setpoint5)) {
+  else if ((ch4Servo > Setpoint5) && (ch4Servo != Setpoint5))
+  {
     Setpoint5+=5;  
   }
-  else if ((ch4Servo < Setpoint5) && (ch4Servo != Setpoint5)) {
+  else if ((ch4Servo < Setpoint5) && (ch4Servo != Setpoint5))
+  {
     Setpoint5-=5;
   }
 
   constrain(Setpoint5, -70, 70);
   PID5.Compute();
         
-  if (Output5 < -4) {
+  if (Output5 < -4)
+  {
     Output5a = constrain(abs(Output5),0, 255);
     analogWrite(domeSpinPWM1, Output5a);     
     analogWrite(domeSpinPWM2, 0);
   }
-  else if (Output5 > 4) {
+  else if (Output5 > 4)
+  {
     Output5a = constrain(abs(Output5), 0, 255);
     analogWrite(domeSpinPWM2, Output5a);  
     analogWrite(domeSpinPWM1, 0);
   } 
-  else {
+  else
+  {
     analogWrite(domeSpinPWM2, 0);  
     analogWrite(domeSpinPWM1, 0);
   }
@@ -1314,16 +1420,19 @@ void domeSpinServo() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Count how long right select is pressed.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void timeBodyCalibration() {
+void timeBodyCalibration()
+{
   // TODO: Naigon - get rid of this method and use a button handler.
   unsigned long currentMillisBodyCalib = millis();
 
-  if (recFromRemote.but8 == 0 && recFromRemote.but7 == 1 && bodyCalibState == 0) {
+  if (recFromRemote.but8 == 0 && recFromRemote.but7 == 1 && bodyCalibState == 0)
+  {
     setCalibMillis = millis();
     bodyCalibState = 1;
   }
 
-  if (bodyCalibState == 1 && currentMillisBodyCalib - setCalibMillis >= 3000) {
+  if (bodyCalibState == 1 && currentMillisBodyCalib - setCalibMillis >= 3000)
+  {
     //setOffsetsAndSaveToEEPROM();
     sendToRemote.bodyStatus = BodyStatus::BodyCalibration;
     bodyCalibState = 0;
@@ -1335,14 +1444,17 @@ void timeBodyCalibration() {
 #endif
 }
 
-void waitForConfirmationToSetOffsets() {
+void waitForConfirmationToSetOffsets()
+{
   countdown += .15;
-  if (countdown > 10 && recFromRemote.but8 == 0 && recFromRemote.motorEnable == 1) {
+  if (countdown > 10 && recFromRemote.but8 == 0 && recFromRemote.motorEnable == 1)
+  {
     //countdown = 0;
     SaveToEEPROM = 1;
     //sendToRemote.bodyStatus = 0;
   }
-  else if (countdown >= 500) {
+  else if (countdown >= 500)
+  {
     // Naigon - Drive-side (Server-side) Refactor
     // Set the body status to whether servo mode is active or not so that can be displayed.
     sendToRemote.bodyStatus = servoMode;
@@ -1354,23 +1466,28 @@ void waitForConfirmationToSetOffsets() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Set offsets and save to EEPROM
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void setOffsetsAndSaveToEEPROM() {
-  if(SaveToEEPROM == 1) {
+void setOffsetsAndSaveToEEPROM()
+{
+  if(SaveToEEPROM == 1)
+  {
     pitchOffset = pitch * -1;
     EEPROM.writeFloat(0,pitchOffset);
     SaveToEEPROM = 2;
   }
-  else if(SaveToEEPROM == 2) {
+  else if(SaveToEEPROM == 2)
+  {
     rollOffset = roll * -1;
     EEPROM.writeFloat(4,rollOffset);
     SaveToEEPROM = 3;
   }
-  else if(SaveToEEPROM == 3) {
+  else if(SaveToEEPROM == 3)
+  {
     potOffsetS2S = 0 - (map(analogRead(S2SpotPin), 0, 1024, -135,135));
     EEPROM.writeInt(8,potOffsetS2S);
     SaveToEEPROM = 4;
   }
-  else if (SaveToEEPROM == 4) {
+  else if (SaveToEEPROM == 4)
+  {
     domeTiltPotOffset = 0 - (map(analogRead(domeTiltPotPin), 0, 1024, -HeadTiltPotMax, HeadTiltPotMax));
     EEPROM.writeInt(12,domeTiltPotOffset);
     SaveToEEPROM = 0;
@@ -1382,13 +1499,17 @@ void setOffsetsAndSaveToEEPROM() {
   }
 }
 
-void setDomeSpinOffset() {
-  if(recFromRemote.but5 == 1) {
+void setDomeSpinOffset()
+{
+  if(recFromRemote.but5 == 1)
+  {
     domeSpinOffset = 180 - map(analogRead(domeSpinPot),0, 1023, 180, -180);
   }
-  else {
+  else
+  {
     domeSpinOffset = 0 - map(analogRead(domeSpinPot),0, 1023, 180, -180);
   }
+  
   EEPROM.writeInt(16,domeSpinOffset);
   // delay(200);
   // Naigon - Drive-side (Server-side) Refactor
@@ -1402,7 +1523,8 @@ void setDomeSpinOffset() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Set offsets ONLY; this is used if nothing is stored in EEPROM
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void setOffsetsONLY() {
+void setOffsetsONLY()
+{
   pitchOffset = 0 - pitch;
   rollOffset = 0 - roll;
   potOffsetS2S = 0 - (map(analogRead(S2SpotPin), 0, 1024, -135, 135));
@@ -1414,19 +1536,23 @@ void setOffsetsONLY() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Set dome offsets
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void waitForConfirmationToSetDomeOffsets() {
-  if(servoMode == BodyStatus::Servo) {
+void waitForConfirmationToSetDomeOffsets()
+{
+  if(servoMode == BodyStatus::Servo)
+  {
     // Naigon - Drive-side (Server-side) Refactor
     // Might want to remove this so that servo mode persists after dome offset update.
     servoMode = BodyStatus::Default;
   }
 
   countdown += .15;
-  if (countdown > 5 && recFromRemote.but8 == 0 && recFromRemote.motorEnable == 1) {
+  if (countdown > 5 && recFromRemote.but8 == 0 && recFromRemote.motorEnable == 1)
+  {
     setDomeSpinOffset();
     sendToRemote.bodyStatus = servoMode;
   }
-  else if (countdown >= 250) {
+  else if (countdown >= 250)
+  {
     sendToRemote.bodyStatus = servoMode;
     countdown = 0;
   }
@@ -1436,7 +1562,8 @@ void waitForConfirmationToSetDomeOffsets() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Auto disable motors
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void autoDisableMotors() {
+void autoDisableMotors()
+{
   double output1A = abs(Output1);
   double output3A = abs(Output3);
 
@@ -1447,7 +1574,8 @@ void autoDisableMotors() {
     && (joystickDome > -10 && joystickDome < 10)
     && (flywheelRotation < 25 && flywheelRotation > -25)
     && (recFromRemote.ch4 < 276 && recFromRemote.ch4 > 236)
-    && (autoDisableState == 0)) {
+    && (autoDisableState == 0))
+  {
     autoDisableMotorsMillis = millis();
     autoDisableState = 1;
   }
@@ -1463,7 +1591,8 @@ void autoDisableMotors() {
     || flywheelRotation < -30
     || recFromRemote.ch4 > 276
     || recFromRemote.ch4 < 236
-    || forcedMotorEnable == true) {
+    || forcedMotorEnable == true)
+  {
     autoDisableState = 0;
     digitalWrite(enablePin, HIGH); 
     autoDisableDoubleCheck = 0; 
@@ -1473,28 +1602,34 @@ void autoDisableMotors() {
 
   if(autoDisableState == 1
     && (millis() - autoDisableMotorsMillis) >= (unsigned long)AutoDisableMS
-    && output1A < 25 && output3A < 8) {
+    && output1A < 25 && output3A < 8)
+  {
     digitalWrite(enablePin, LOW);
     autoDisable = 1;
   }
-  else if(output1A > 50 || output3A > 20) {
+  else if(output1A > 50 || output3A > 20)
+  {
     autoDisableState = 0;
     digitalWrite(enablePin, HIGH);
     autoDisableDoubleCheck = 0;
     autoDisable = 0;
   }
-  else if((output1A > 25 || output3A > 8) && autoDisableDoubleCheck == 0) {
+  else if((output1A > 25 || output3A > 8) && autoDisableDoubleCheck == 0)
+  {
     autoDisableDoubleCheckMillis = millis();
     autoDisableDoubleCheck = 1;
   }
-  else if((autoDisableDoubleCheck == 1) && (millis() - autoDisableDoubleCheckMillis >= 100)) {
-    if(output1A > 30 || output3A > 8) { 
+  else if((autoDisableDoubleCheck == 1) && (millis() - autoDisableDoubleCheckMillis >= 100))
+  {
+    if(output1A > 30 || output3A > 8)
+    { 
         autoDisableState = 0;
         digitalWrite(enablePin, HIGH);
         autoDisableDoubleCheck = 0;
         autoDisable = 0;
     }
-    else {
+    else
+    {
       autoDisableDoubleCheck = 0;
     }
   }
@@ -1504,7 +1639,8 @@ void autoDisableMotors() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Debug
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void debugRoutines() {
+void debugRoutines()
+{
   // Uncomment " #Define " above
 #ifdef debugDrive
   Serial.print(F(" joystickDrive: "));
