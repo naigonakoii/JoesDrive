@@ -8,7 +8,7 @@
 //                         Joe's Drive - Main drive mechanism using Ardino Mega with secondary Arduino Pro Mini IMU
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //                         Joe's Drive powered by Naigon
-//                         Last Updated 27 May 2020
+//                         27 May 2020
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //             ***         You are free to use, and share this code as long as it is not sold. There is no warranty,
 //                         guarantee, or other tomfoolery. 
@@ -186,6 +186,8 @@
 #include "SoundPlayer.h"
 #include "Animations.h"
 #include "MotorPWM.h"
+
+using NaigonBB8::MotorPWM;
 
 EasyTransfer RecRemote;
 EasyTransfer SendRemote;
@@ -429,8 +431,8 @@ int bodyCalibState = 0;
 //
 // Naigon - NEC Audio.
 //
-SoundMapper mapper(HappySoundPin, SadSoundPin, ExcitedSoundPin, ScaredSoundPin, ChattySoundPin, AgitatedSoundPin, PlayTrackPin, StopTrackPin);
-ISoundPlayer* soundPlayer;
+NaigonBB8::SoundMapper mapper(HappySoundPin, SadSoundPin, ExcitedSoundPin, ScaredSoundPin, ChattySoundPin, AgitatedSoundPin, PlayTrackPin, StopTrackPin);
+NaigonBB8::ISoundPlayer* soundPlayer;
 #endif
 
 // ================================================================
@@ -480,7 +482,7 @@ void setup()
   pinMode(StopTrackPin, OUTPUT);
 
   // Setup the soundPlayer as the one with a wired interface.
-  soundPlayer = new WiredSoundPlayer(mapper, 200);
+  soundPlayer = new NaigonBB8::WiredSoundPlayer(mapper, 200);
 #endif
 
   soundPlayer->ClearSounds();
@@ -711,31 +713,31 @@ void handleSounds()
   bool played = false;
 
   if ((button2Handler.GetState() == ButtonState::Pressed || button2Handler.GetState() == ButtonState::Held)
-    && soundPlayer->SoundTypeCurrentlyPlaying() == SoundTypes::NotPlaying)
+    && soundPlayer->SoundTypeCurrentlyPlaying() == NaigonBB8::SoundTypes::NotPlaying)
     {
     // Button will only do a sound that is deemed "happy".
     int randomType = random(0, 3) * 2;
     if (button2Handler.GetState() == ButtonState::Held) { randomType += 1; }
-    soundPlayer->PlaySound((SoundTypes)randomType);
+    soundPlayer->PlaySound((NaigonBB8::SoundTypes)randomType);
     played = true;
   }
   else if (button3Handler.GetState() == ButtonState::Pressed
-    && soundPlayer->TrackTypeCurrentlyPlaying() == SoundTypes::NotPlaying)
+    && soundPlayer->TrackTypeCurrentlyPlaying() == NaigonBB8::SoundTypes::NotPlaying)
   {
-    soundPlayer->PlaySound(SoundTypes::PlayTrack);
+    soundPlayer->PlaySound(NaigonBB8::SoundTypes::PlayTrack);
     played = true;
   }
   else if (button3Handler.GetState() == ButtonState::Held
-    && soundPlayer->TrackTypeCurrentlyPlaying() != SoundTypes::StopTrack)
+    && soundPlayer->TrackTypeCurrentlyPlaying() != NaigonBB8::SoundTypes::StopTrack)
   {
-    soundPlayer->PlaySound(SoundTypes::StopTrack);
+    soundPlayer->PlaySound(NaigonBB8::SoundTypes::StopTrack);
     played = true;
   }
 
   if (!played)
   {
     // If nothing was played, then update this loop with nothing.
-    soundPlayer->PlaySound(SoundTypes::NotPlaying);
+    soundPlayer->PlaySound(NaigonBB8::SoundTypes::NotPlaying);
   }
 }
 
