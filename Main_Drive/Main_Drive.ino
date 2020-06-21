@@ -74,7 +74,8 @@
 #define S2SEase 1.10          // Speed in which side to side moves. Higher number equates to faster movement
 #define MaxDomeTiltAngle 22   // Maximum angle in which the dome will tilt. **  Max is 25  **
 
-#define TiltDomeForwardWhenDriving      // uncomment this if you want to tilt the dome forward when driving. 
+//#define TiltDomeForwardWhenDriving      // uncomment this if you want to tilt the dome forward when driving. 
+#define HeadTiltStabilization // uncomment this if you want the head to stabilize on top of the body.
 
 //
 // Naigon - Flywheel MK3
@@ -150,7 +151,7 @@
 // Naigon - Head Tilt Stabilization
 // Proportional amount of the stabilization to apply to the head tilt. Higher value means it will respond quicker at the expense of more jerk.
 // Value should be between 0.0 and 1.0 inclusively.
-#define HeadTiltPitchAndRollProportion 0.6
+#define HeadTiltPitchAndRollProportion 0.3
 
 //
 // Debug Defines
@@ -1106,20 +1107,22 @@ void domeTilt()
   //The pot will get HIGH as it moves back, and LOW as it moves forward
   //
 
-  //speedDomeTilt offsets the dome based on the main drive to tilt it in the direction of movement. 
-  if (Setpoint3 < 3 && Setpoint3 > -3)
-  {
-    speedDomeTilt = 0;
-  }
-  else
-  {
-    // Naigon: TODO - Actually read the IMU and set the dome angle based on the drive forward/back angle.
-    speedDomeTilt = Output3 * DomeTiltAmount; // naigon: test this as it changed for mk2 from 15 to 20
-  }
+#ifdef TiltDomeForwardWhenDriving
+  // speedDomeTilt offsets the dome based on the main drive to tilt it in the direction of movement. 
+  speedDomeTilt = Setpoint3 < 3 && Setpoint3 > -3
+    ? 0
+    : Output3 * DomeTiltAmount;
+#else
+  speedDomeTilt = 0;
+#endif
 
+#ifdef HeadTiltStabilization
   // Naigon - Head Tilt Stabilization
   // Calculate the pitch to input into the head tilt input in order to keep it level.
   int pitchAdjust = (pitch + pitchOffset) * HeadTiltPitchAndRollProportion * 2.0;
+#else
+  int pitchAdjust = 0;
+#endif
 
 #ifdef reverseDomeTiltPot
   domeTiltPot = (map(analogRead(domeTiltPotPin), 0, 1024, HeadTiltPotMax, -HeadTiltPotMax) + domeTiltPotOffset);
@@ -1135,7 +1138,6 @@ void domeTilt()
     ch3Val = animationState.ch3;
   }
 
-#ifdef TiltDomeForwardWhenDriving
   // Naigon: BUG
   // Joe's code had a bug here; you need to subtract within the constrain, otherwise driving can cause this value to go
   // outside the bounds and really bad things happen like the drive locking and losing the head.
@@ -1143,12 +1145,7 @@ void domeTilt()
     map(ch3Val, 0, 512, -MaxDomeTiltAngle, MaxDomeTiltAngle) - speedDomeTilt - pitchAdjust,
     MaxDomeTiltAngle revDome2,
     MaxDomeTiltAngle revDome1);   // Reading the stick for angle -40 to 40
-#else
-  joystickDome = constrain(
-    map(ch3Val, 0, 512, -MaxDomeTiltAngle, MaxDomeTiltAngle) - pitchAdjust,
-    MaxDomeTiltAngle revDome2,
-    MaxDomeTiltAngle revDome1);   // Reading the stick for angle -40 to 40
-#endif
+
   Input4  = domeTiltPot + (pitch + pitchOffset);
 
   if ((Setpoint4 > -1) && (Setpoint4 < 1) && (joystickDome == 0))
