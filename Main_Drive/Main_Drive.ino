@@ -151,7 +151,7 @@
 // Naigon - Head Tilt Stabilization
 // Proportional amount of the stabilization to apply to the head tilt. Higher value means it will respond quicker at the expense of more jerk.
 // Value should be between 0.0 and 1.0 inclusively.
-#define HeadTiltPitchAndRollProportion 0.4
+#define HeadTiltPitchAndRollProportion 0.8
 
 //
 // Debug Defines
@@ -1124,7 +1124,8 @@ void domeTilt()
 #ifdef HeadTiltStabilization
   // Naigon - Head Tilt Stabilization
   // Calculate the pitch to input into the head tilt input in order to keep it level.
-  int pitchAdjust = (pitch + pitchOffset) * HeadTiltPitchAndRollProportion * 2.0;
+  // Naigon - TODO: once the ease applicator is created, use it here to increment to pitch adjust.
+  int pitchAdjust = (pitch + pitchOffset) * HeadTiltPitchAndRollProportion;
 #else
   int pitchAdjust = 0;
 #endif
