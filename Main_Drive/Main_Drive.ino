@@ -71,7 +71,7 @@
 
 #define flywheelEase 3        // Speed in which flywheel will increase/decrease during gradual movements
 // S2SEase from Joe: 1.5
-#define S2SEase 1.10          // Speed in which side to side moves. Higher number equates to faster movement
+#define S2SEase 0.5           // Speed in which side to side moves. Higher number equates to faster movement
 #define MaxDomeTiltAngle 22   // Maximum angle in which the dome will tilt. **  Max is 25  **
 
 //#define TiltDomeForwardWhenDriving      // uncomment this if you want to tilt the dome forward when driving. 
@@ -146,12 +146,12 @@
 // Naigon - Head Tilt Stabilization
 // Defines the number of points for the pitch and roll smoothing filter.
 // Higher values make movements much smoother, at the expense of a longer delay before the drive catches up to the actual value.
-#define PitchAndRollFilterCount 8
+#define PitchAndRollFilterCount 4
 
 // Naigon - Head Tilt Stabilization
 // Proportional amount of the stabilization to apply to the head tilt. Higher value means it will respond quicker at the expense of more jerk.
 // Value should be between 0.0 and 1.0 inclusively.
-#define HeadTiltPitchAndRollProportion 0.3
+#define HeadTiltPitchAndRollProportion 0.4
 
 //
 // Debug Defines
@@ -365,8 +365,13 @@ int S2Spot;
 int BTstate = 0;
 int speedDomeTilt = 0;
 
-//PID1 is for the side to side tilt
-double Pk1 = 13;  // was 13
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// PID1 is for side to side tilt
+// Naigon - MK3 Flywheel
+// 
+// The following values need tuning if moving to the MK3 flywheel.
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+double Pk1 = 22;  // was 13
 double Ik1 = 0;
 // Naigon - Change this value from .3 to .1 or 0 to remove shakey side to side
 double Dk1 = 0.0;
@@ -375,14 +380,14 @@ double Setpoint1, Input1, Output1;
 PID PID1(&Input1, &Output1, &Setpoint1, Pk1, Ik1 , Dk1, DIRECT);   
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// PID2 is for side to side stability
+// PID2 is for side to side servo
 // Naigon - MK3 Flywheel
 // 
 // The following values need tuning if moving to the MK3 flywheel.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-double Pk2 = 1.75; // Joe 0.5; M2 Flywheel .4
-double Ik2 = .00; // was .00
-double Dk2 = .01; // was .01
+double Pk2 = 1.00; // Joe 0.5; M2 Flywheel .4
+double Ik2 = 0.00; // was .00
+double Dk2 = 0.01; // was .01
 double Setpoint2, Input2, Output2;
 
 PID PID2(&Input2, &Output2, &Setpoint2, Pk2, Ik2 , Dk2, DIRECT);    // PID Setup - S2S stability   
@@ -1055,9 +1060,9 @@ void mainDrive()
 void sideTilt()
 {
 #ifdef reverseS2S
-  joystickS2S = map(constrain(recFromRemote.ch2, 0, 512), 0, 512, 25, -25); //- is  left, + is  right
+  joystickS2S = map(constrain(recFromRemote.ch2, 0, 512), 0, 512, SideToSideMax, -SideToSideMax); //- is  left, + is  right
 #else
-  joystickS2S = map(constrain(recFromRemote.ch2, 0, 512), 0, 512, -25, 25); //- is  left, + is  right
+  joystickS2S = map(constrain(recFromRemote.ch2, 0, 512), 0, 512, -SideToSideMax, SideToSideMax); //- is  left, + is  right
 #endif
 
   // Setpoint will increase/decrease by S2SEase each time the code runs until it matches the joystick. This slows the side to side movement.  
