@@ -50,22 +50,26 @@ SSD1306AsciiWire oled;
 EasyTransfer RecRemote;
 EasyTransfer SendRemote;
 
-enum BodyStatus
+enum BodyStatus : uint8_t
 {
-  Default = 0,
-  ServoMode = 1,
-  BodyCalibration = 101,
-  DomeCalibration = 102,
+    NormalOperation = 0,
+    BodyCalibration = 1,
+    DomeCalibration = 2,
 };
 
-enum SpeedToggle : uint8_t
+enum BodyMode : uint8_t
 {
-  UnknownSpeed = 0,
-  Slow = 1,
-  Medium = 2,
-  Fast = 3,
-  Stationary = 4,
-  PushToRoll = 5,
+    UnknownSpeed = 0,
+    Slow = 1,
+    SlowWithTilt = 2,
+    Automated = 3,
+    AutomatedServo = 4,
+    Servo = 5,
+    ServoWithTilt = 6,
+    Stationary = 7,
+    Medium = 8,
+    Fast = 9,
+    PushToRoll = 10,
 };
 
 enum Direction : uint8_t
@@ -97,8 +101,8 @@ struct RECEIVE_DATA_STRUCTURE
 {
   double bodyBatt = 0.0;
   double domeBatt = 0.0;
-  int bodyStatus;
-  uint8_t bodySpeed;
+  uint8_t bodyStatus;
+  uint8_t bodyMode;
   uint8_t bodyDirection;
 };
 
@@ -132,7 +136,7 @@ unsigned long bodyCalibrationMillis;
 
 float remoteBatt = 0.0;
 
-uint8_t lastDriveSpeed = SpeedToggle::UnknownSpeed;
+uint8_t lastDriveSpeed = BodyMode::UnknownSpeed;
 uint8_t lastDirection = Direction::UnknownDirection;
 int lastBodyStatus = -1;
 int calibrationMarker;
@@ -161,8 +165,9 @@ void setup()
   pinMode(btStatePin, INPUT); // check for Bluetooth enable
 
   Wire.begin();
+  // Naigon - Since upgrading to Windows 10 with the new Arduino, oled.Set400k stopped working.
+  Wire.setClock(400000L);
   oled.begin(&Adafruit128x64, I2C_ADDRESS);
-  oled.set400kHz();
   oled.setFont(Callibri15);
   //oled.clear();
   oled.println(F("==========================="));
@@ -423,26 +428,35 @@ void printVoltage()
   // Read the speed from the value received from the body as opposed to calculating it directly.
   // Movement speed
   //
+  BodyMode bodyM = (BodyMode)recFromBody.bodyMode;
   oled.setCursor(95, 0);
-  if (recFromBody.bodySpeed == SpeedToggle::Slow)
+  if (bodyM == BodyMode::Slow || bodyM == BodyMode::Servo)
   {
-    oled.println(F("Slow    "));
+    oled.println(F("Slw     "));
   }
-  else if (recFromBody.bodySpeed == SpeedToggle::Medium)
+  else if (bodyM == BodyMode::SlowWithTilt || bodyM == BodyMode::ServoWithTilt)
+  {
+    oled.println(F("SlwT   "));
+  }
+  else if (bodyM == BodyMode::Medium)
   {
     oled.println(F("Med    "));
   }
-  else if (recFromBody.bodySpeed == SpeedToggle::Fast)
+  else if (bodyM == BodyMode::Fast)
   {
-    oled.println(F("Fast    "));
+    oled.println(F("Fst     "));
   }
-  else if (recFromBody.bodySpeed == SpeedToggle::Stationary)
+  else if (bodyM == BodyMode::Stationary)
   {
-    oled.println(F("Wiggle  "));
+    oled.println(F("Wgl     "));
   }
-  else if (recFromBody.bodySpeed == SpeedToggle::PushToRoll)
+  else if (bodyM == BodyMode::PushToRoll)
   {
     oled.println(F("Safe    "));
+  }
+  else if (bodyM == BodyMode::Automated || bodyM == BodyMode::AutomatedServo)
+  {
+    oled.println(F("Auto    "));
   }
   else
   {
@@ -469,7 +483,9 @@ void printVoltage()
   }
 
   oled.print(F("Dome Rotation: "));
-  if (recFromBody.bodyStatus == BodyStatus::ServoMode)
+  if (bodyM == BodyMode::AutomatedServo
+    || bodyM == BodyMode::Servo
+    || bodyM == BodyMode::ServoWithTilt)
   {
     oled.println("Servo");
   }
@@ -502,22 +518,24 @@ void sendAndReceive()
 
 void checkForScreenUpdate()
 {
-  if (recFromBody.bodyStatus <= 100)
+  if (recFromBody.bodyStatus != BodyStatus::NormalOperation)
   {
-    // Naigon - Drive-side (Server-side) Refactor
-    // Update if statement to see if body sent new values for state variables.
-    if (
-      (millis() - previousMillisScreen > 15000 && calibrationMarker == 0)
-      || (stateLast != btConnectedState)
-      || (lastBodyStatus != recFromBody.bodyStatus)
-      || (lastDriveSpeed != recFromBody.bodySpeed)
-      || (lastDirection != recFromBody.bodyDirection)
-      || (printScreen == 1))
-    {
-      previousMillisScreen = millis();
-      printVoltage();
-      printScreen = 0;
-    }
+    return;
+  }
+
+  // Naigon - Drive-side (Server-side) Refactor
+  // Update if statement to see if body sent new values for state variables.
+  if (
+    (millis() - previousMillisScreen > 15000 && calibrationMarker == 0)
+    || (stateLast != btConnectedState)
+    || (lastBodyStatus != recFromBody.bodyStatus)
+    || (lastDriveSpeed != recFromBody.bodyMode)
+    || (lastDirection != recFromBody.bodyDirection)
+    || (printScreen == 1))
+  {
+    previousMillisScreen = millis();
+    printVoltage();
+    printScreen = 0;
   }
 }
 
@@ -539,7 +557,7 @@ void checkBodyStatus()
   // Naigon - Drive-side (Server-side) Refactor
   // Update the variables to use for next iterations comparison.
   lastBodyStatus = recFromBody.bodyStatus;
-  lastDriveSpeed = recFromBody.bodySpeed;
+  lastDriveSpeed = recFromBody.bodyMode;
   lastDirection = recFromBody.bodyDirection;
 }
 

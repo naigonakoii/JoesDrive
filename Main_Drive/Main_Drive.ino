@@ -74,17 +74,12 @@
 #define S2SEase 0.5         // Speed in which side to side moves. Higher number equates to faster movement
 #define MaxDomeTiltAngle 22 // Maximum angle in which the dome will tilt. **  Max is 25  **
 
-//#define TiltDomeForwardWhenDriving      // uncomment this if you want to tilt the dome forward when driving.
 #define HeadTiltStabilization // uncomment this if you want the head to stabilize on top of the body.
 
 //
-// Naigon - Flywheel MK3
-// Lighter flywheel means drive moves more before the ball starts to roll. This value is
-// factored out as a double to allow tuning here.
-//
-// This value should be between 0.0 and 1.0 exclusively.
-// Joe's default is .05
-#define DomeTiltAmount 0.06
+// Naigon - DomeTiltFromJoystick
+// Head tilt is not based on the joystick, and is relative to the difference of the max angle
+#define DomeTiltAmount (MaxDomeTiltAngle - 10)
 
 #define reverseDrive    // uncomment if your drive joystick is reversed
 #define reverseDomeTilt // uncomment if your dome tilt joystick is reversed
@@ -197,18 +192,23 @@ struct RECEIVE_DATA_STRUCTURE_REMOTE
     int ch2; //right joystick left/right
     int ch3; //left joystick up/down
     int ch4; //left joystick left/right
-    int ch5; //flywheel
+    int ch5; //back stick left/right
     // but1 (stick 1) from Joe is selecting between dome servo and dome spin
+    // Naigon - this now cycles through the combined drive mode and dome mode.
     int but1 = 1; //left select
     // but2 from Joe is audio
+    // Naigon - button 2 press plays a happy/neutral sound. Holding plays a longer/sader sound
     int but2 = 1; //left button 1
     // but3 from Joe is audio
+    // Naigon - button 3 press starts music, and cycles tracks. Holding stops music.
     int but3 = 1; //left button 2
-    // but4 from Joe is to trigger dome effects?
+    // but4 from Joe is to trigger Body/dome lighting changes
+    // Naigon - Button 4 TBD
     int but4 = 1; //left button 3
     // but5 (stick 2) toggles fwd/rev
     int but5 = 0; //right select (fwd/rev)
-    // but6 from Joe is for switching between modes
+    // but6 from Joe is for switching between drive speeds
+    // Naigon - Button 6 is now TBD.
     int but6 = 1; //right button 1
     // but7 from Joe is for body calibration only currently when holding
     int but7 = 1; //right button 2
@@ -221,9 +221,9 @@ struct SEND_DATA_STRUCTURE_REMOTE
 {
     double bodyBatt = 0.0;
     double domeBattSend;
-    int bodyStatus = 0;
-    uint8_t bodySpeed;
-    uint8_t bodyDirection;
+    uint8_t bodyStatus = 0;
+    uint8_t bodyMode = 0;
+    uint8_t bodyDirection = 0;
 };
 
 struct RECEIVE_DATA_STRUCTURE_IMU
@@ -233,16 +233,21 @@ struct RECEIVE_DATA_STRUCTURE_IMU
     float roll;
 };
 
-enum SpeedToggle : uint8_t
+enum BodyMode : uint8_t
 {
     UnknownSpeed = 0,
     Slow = 1,
-    Medium = 2,
-    Fast = 3,
-    Stationary = 4,
-    PushToRoll = 5,
+    SlowWithTilt = 2,
+    Automated = 3,
+    AutomatedServo = 4,
+    Servo = 5,
+    ServoWithTilt = 6,
+    Stationary = 7,
+    Medium = 8,
+    Fast = 9,
+    PushToRoll = 10,
 };
-SpeedToggle LastSpeedEntry = SpeedToggle::PushToRoll;
+const BodyMode LastSpeedEntry = BodyMode::PushToRoll;
 
 enum Direction : uint8_t
 {
@@ -251,17 +256,28 @@ enum Direction : uint8_t
     Reverse = 2,
 };
 
+// Naigon - Dome Modes
+// The following dome modes are inferred from the BodyMode.
+enum DomeMode : uint8_t
+{
+    FullSpinMode = 0,
+    ServoMode = 1,
+};
+
 //
 // Naigon - Drive-side (Server-side) Refactor
 // Body status is used as an enum to send to the remote. It is the same variable that Joe was sending; this enum just
 // quantifies the values, changes the representation (ie 1 used to be body calibration), and adds the Servo value so
 // the remote knows to display servo in the corner.
-enum BodyStatus
+//
+// Naigon - Dome Modes
+// Through continued refactoring, BodyStatus now only represents the calibration modes. Dome is combined with the drive
+// speed which is now renamed as driveMode.
+enum BodyStatus : uint8_t
 {
-    Default = 0,
-    Servo = 1,
-    BodyCalibration = 101,
-    DomeCalibration = 102,
+    NormalOperation = 0,
+    BodyCalibration = 1,
+    DomeCalibration = 2,
 };
 
 // Naigon - Head Tilt Stabilization
@@ -299,6 +315,7 @@ MotorPWM drivePwm(drivePWM1, drivePWM2, 0, 2);
 MotorPWM sideToSidePWM(s2sPWM1, s2sPWM2, SideToSideMax, 1);
 MotorPWM headTiltPWM(domeTiltPWM1, domeTiltPWM2, HeadTiltPotThresh, 0);
 MotorPWM domeSpinPWM(domeSpinPWM1, domeSpinPWM2, 0, 20);
+MotorPWM domeServoPWM(domeSpinPWM1, domeSpinPWM2, 0, 4);
 MotorPWM flywheelPWM(flywheelSpinPWM1, flywheelSpinPWM2, 0, 10);
 
 int ch4Servo; //left joystick left/right when using servo mode
@@ -415,7 +432,7 @@ double Setpoint5a;
 
 //PID5 is for the dome spin servo
 double Kp5 = 4, Ki5 = 0, Kd5 = 0;
-double Setpoint5, Input5, Output5, Output5a;
+double Setpoint5, Input5, Output5;
 
 PID PID5(&Input5, &Output5, &Setpoint5, Kp5, Ki5, Kd5, DIRECT);
 
@@ -533,7 +550,7 @@ void setup()
     }
 
     // Always startup on slow speed.
-    sendToRemote.bodySpeed = SpeedToggle::Slow;
+    sendToRemote.bodyMode = BodyMode::Slow;
 }
 
 //     ================================================================================================================
@@ -803,35 +820,48 @@ void setDriveSpeed()
 {
     incrementBodySpeedToggle();
 
-    if (sendToRemote.bodySpeed == SpeedToggle::Slow)
-    {
-        driveSpeed = DRIVE_SPEED_SLOW;
-    }
-    else if (sendToRemote.bodySpeed == SpeedToggle::Medium)
+    if (sendToRemote.bodyMode == BodyMode::Medium)
     {
         driveSpeed = DRIVE_SPEED_MEDIUM;
     }
-    else if (sendToRemote.bodySpeed == SpeedToggle::Fast)
+    else if (sendToRemote.bodyMode == BodyMode::Fast)
     {
         driveSpeed = DRIVE_SPEED_HIGH;
     }
-    else if (sendToRemote.bodySpeed == SpeedToggle::Stationary)
+    else if (sendToRemote.bodyMode == BodyMode::Stationary)
     {
         // For safety, set the drive speed back to slow, even though the stick shouldn't use it.
         driveSpeed = DRIVE_SPEED_SLOW / 2;
     }
+    else
+    {
+        driveSpeed = DRIVE_SPEED_SLOW;
+    }
 
     // Indicate if the droid is in stationary mode only when in the stationary state.
-    IsStationary = sendToRemote.bodySpeed == SpeedToggle::Stationary
+    IsStationary = sendToRemote.bodyMode == BodyMode::Stationary
         ? true
         : false;
+    
+    // Naigon - Dome Modes
+    // The dome servo or normal state is now parsed from the bodyMode.
+    servoMode =
+        sendToRemote.bodyMode == BodyMode::Servo
+            || sendToRemote.bodyMode == BodyMode::ServoWithTilt
+            || sendToRemote.bodyMode == BodyMode::AutomatedServo
+        ? DomeMode::ServoMode
+        : DomeMode::FullSpinMode;
 }
 
 void incrementBodySpeedToggle()
 {
-    // Only increment when the button was pressed and released.
-    if (button6Handler.GetState() != ButtonState::Pressed)
+    if (button1Handler.GetState() != ButtonState::Pressed
+        || sendToRemote.bodyStatus != BodyStatus::NormalOperation
+        // Naigon - Safe Joystick Button Toggle
+        || abs(recFromRemote.ch3 - 255) >= JoystickMinMovement
+        || abs(recFromRemote.ch4 - 255) >= JoystickMinMovement)
     {
+        // Only increment when the button was pressed and released, and the joystick was (mostly) centered.
         return;
     }
 
@@ -841,10 +871,10 @@ void incrementBodySpeedToggle()
     // changes and should be the state "master", while the remote ect should just send commands. This will allow
     // secondary controllers to operate on the drive and the drive can maintain a state.
     //
-    sendToRemote.bodySpeed =
-        sendToRemote.bodySpeed >= (int)LastSpeedEntry || sendToRemote.bodySpeed == SpeedToggle::UnknownSpeed
+    sendToRemote.bodyMode =
+        sendToRemote.bodyMode >= (int)LastSpeedEntry || sendToRemote.bodyMode == BodyMode::UnknownSpeed
             ? 1
-            : sendToRemote.bodySpeed + 1;
+            : sendToRemote.bodyMode + 1;
 }
 
 void reverseDirection()
@@ -879,7 +909,8 @@ void bodyCalib()
         timeBodyCalibration();
     }
     else if (
-        (recFromRemote.but8 == 1 || recFromRemote.but7 == 0 || recFromRemote.motorEnable == 0) && bodyCalibState != 0)
+        (recFromRemote.but8 == 1 || recFromRemote.but7 == 0 || recFromRemote.motorEnable == 0)
+        && bodyCalibState != 0)
     {
         bodyCalibState = 0;
     }
@@ -927,7 +958,7 @@ void movement()
     {
         unsigned long currentMillis = millis();
 
-        if (sendToRemote.bodySpeed == SpeedToggle::PushToRoll)
+        if (sendToRemote.bodyMode == BodyMode::PushToRoll)
         {
             //
             // Naigon - Safe Mode
@@ -958,6 +989,15 @@ void movement()
     {
         turnOffAllTheThings();
     }
+
+    if (servoMode == DomeMode::FullSpinMode || autoDisable == 1 || recFromRemote.motorEnable == 1)
+    {
+        domeSpin();
+    }
+    else if (servoMode == DomeMode::ServoMode && autoDisable == 0)
+    {
+        domeSpinServo();
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -965,35 +1005,9 @@ void movement()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void domeCalib()
 {
-    ButtonState state = button1Handler.GetState();
-
-    if (
-        (sendToRemote.bodyStatus == BodyStatus::Default || sendToRemote.bodyStatus == BodyStatus::Servo)
-        && state == ButtonState::Held)
+    if (sendToRemote.bodyStatus == BodyStatus::NormalOperation && button1Handler.GetState() == ButtonState::Held)
     {
         sendToRemote.bodyStatus = BodyStatus::DomeCalibration;
-    }
-    else if (
-        (sendToRemote.bodyStatus == BodyStatus::Default || sendToRemote.bodyStatus == BodyStatus::Servo)
-        && abs(recFromRemote.ch3 - 255) < JoystickMinMovement
-        && abs(recFromRemote.ch4 - 255) < JoystickMinMovement
-        && state == ButtonState::Pressed)
-    {
-        // Naigon - Safe Joystick Button Toggle
-        // Only swap the states when the joystick is not in movement.
-        servoMode = servoMode == BodyStatus::Servo
-            ? BodyStatus::Default
-            : BodyStatus::Servo;
-        sendToRemote.bodyStatus = servoMode;
-    }
-
-    if (servoMode == BodyStatus::Default || autoDisable == 1 || recFromRemote.motorEnable == 1)
-    {
-        domeSpin();
-    }
-    else if (servoMode == BodyStatus::Servo && autoDisable == 0)
-    {
-        domeSpinServo();
     }
 }
 
@@ -1115,20 +1129,22 @@ void domeTilt()
     //The pot will get HIGH as it moves back, and LOW as it moves forward
     //
 
-#ifdef TiltDomeForwardWhenDriving
+    BodyMode bodyM = (BodyMode)sendToRemote.bodyMode;
     // speedDomeTilt offsets the dome based on the main drive to tilt it in the direction of movement.
-    speedDomeTilt = Setpoint3 < 3 && Setpoint3 > -3
-        ? 0
-        : Output3 * DomeTiltAmount;
-#else
-    speedDomeTilt = 0;
-#endif
+    // Naigon - Dome Modes: Add the tilt based on the main stick if the mode uses tilt.
+    speedDomeTilt =
+        (Setpoint3 >= 3 || Setpoint3 <= -3)
+        && (bodyM == BodyMode::SlowWithTilt || bodyM == BodyMode::ServoWithTilt)
+            ? joystickDrive * DomeTiltAmount / driveSpeed
+            : 0;
 
 #ifdef HeadTiltStabilization
     // Naigon - Head Tilt Stabilization
     // Calculate the pitch to input into the head tilt input in order to keep it level.
     // Naigon - TODO: once the ease applicator is created, use it here to increment to pitch adjust.
-    int pitchAdjust = (pitch + pitchOffset) * HeadTiltPitchAndRollProportion;
+    int pitchAdjust = sendToRemote.bodyMode != BodyMode::PushToRoll
+        ? (pitch + pitchOffset) * HeadTiltPitchAndRollProportion
+        : 0;
 #else
     int pitchAdjust = 0;
 #endif
@@ -1174,7 +1190,7 @@ void domeTilt()
 }
 
 // ------------------------------------------------------------------------------------
-// Dome spin
+// Dome spin - Manual
 // ------------------------------------------------------------------------------------
 void domeSpin()
 {
@@ -1211,6 +1227,67 @@ void domeSpin()
 
     // Joe has always allowed the dome to spin regardless of whether the motors were enabled or not, which I like.
     writeMotorPwm(domeSpinPWM, currentDomeSpeed, 0 /*input*/, true /*requireBT*/, false /*requireMotorEnable*/);
+}
+
+// ------------------------------------------------------------------------------------
+// Dome spin - Servo
+// ------------------------------------------------------------------------------------
+void domeSpinServo()
+{
+#ifndef reverseDomeRotation
+    ch4Servo = map(recFromRemote.ch4, 0, 512, 70, -70);
+#else
+    ch4Servo = map(recFromRemote.ch4, 0, 512, -70, 70);
+#endif
+
+
+#ifdef reverseDomeSpinPot
+    int minSpin = -180;
+    int maxSpin = 180;
+#else
+    int minSpin = 180;
+    int maxSpin = -180;
+#endif
+
+    if (sendToRemote.bodyDirection == Direction::Forward)
+    {
+        Input5 = ((map(analogRead(domeSpinPot), 0, 1023, minSpin, maxSpin) + domeSpinOffset) - 180);
+    }
+    else
+    {
+        Input5 = map(analogRead(domeSpinPot), 0, 1023, minSpin, maxSpin) + domeSpinOffset;
+    }
+
+    if (Input5 < -180)
+    {
+        Input5 += 360;
+    }
+    else if (Input5 > 180)
+    {
+        Input5 -= 360;
+    }
+    else
+    {
+        Input5 = Input5;
+    }
+
+    if ((Setpoint5 > -5) && (Setpoint5 < 5) && (ch4Servo == 0))
+    {
+        Setpoint5 = 0;
+    }
+    else if ((ch4Servo > Setpoint5) && (ch4Servo != Setpoint5))
+    {
+        Setpoint5 += 5;
+    }
+    else if ((ch4Servo < Setpoint5) && (ch4Servo != Setpoint5))
+    {
+        Setpoint5 -= 5;
+    }
+
+    constrain(Setpoint5, -70, 70);
+    PID5.Compute();
+
+    writeMotorPwm(domeServoPWM, Output5, 0, false /*requireBT*/, false /*requireMotorEnable*/);
 }
 
 // ------------------------------------------------------------------------------------
@@ -1334,84 +1411,6 @@ void turnOffAllTheThings()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Set dome rotation to servo mode
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void domeSpinServo()
-{
-#ifndef reverseDomeRotation
-    ch4Servo = map(recFromRemote.ch4, 0, 512, 70, -70);
-#else
-    ch4Servo = map(recFromRemote.ch4, 0, 512, -70, 70);
-#endif
-
-#ifdef reverseDomeSpinPot
-    if (recFromRemote.but5 == 1)
-    {
-        Input5 = ((map(analogRead(domeSpinPot), 0, 1023, -180, 180) + domeSpinOffset) - 180);
-    }
-    else
-    {
-        Input5 = map(analogRead(domeSpinPot), 0, 1023, -180, 180) + domeSpinOffset;
-    }
-#else
-    if (recFromRemote.but5 == 1)
-    {
-        Input5 = ((map(analogRead(domeSpinPot), 0, 1023, 180, -180) + domeSpinOffset) - 180);
-    }
-    else
-    {
-        Input5 = map(analogRead(domeSpinPot), 0, 1023, 180, -180) + domeSpinOffset;
-    }
-#endif
-    if (Input5 < -180)
-    {
-        Input5 += 360;
-    }
-    else if (Input5 > 180)
-    {
-        Input5 -= 360;
-    }
-    else
-    {
-        Input5 = Input5;
-    }
-
-    if ((Setpoint5 > -5) && (Setpoint5 < 5) && (ch4Servo == 0))
-    {
-        Setpoint5 = 0;
-    }
-    else if ((ch4Servo > Setpoint5) && (ch4Servo != Setpoint5))
-    {
-        Setpoint5 += 5;
-    }
-    else if ((ch4Servo < Setpoint5) && (ch4Servo != Setpoint5))
-    {
-        Setpoint5 -= 5;
-    }
-
-    constrain(Setpoint5, -70, 70);
-    PID5.Compute();
-
-    if (Output5 < -4)
-    {
-        Output5a = constrain(abs(Output5), 0, 255);
-        analogWrite(domeSpinPWM1, Output5a);
-        analogWrite(domeSpinPWM2, 0);
-    }
-    else if (Output5 > 4)
-    {
-        Output5a = constrain(abs(Output5), 0, 255);
-        analogWrite(domeSpinPWM2, Output5a);
-        analogWrite(domeSpinPWM1, 0);
-    }
-    else
-    {
-        analogWrite(domeSpinPWM2, 0);
-        analogWrite(domeSpinPWM1, 0);
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Count how long right select is pressed.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void timeBodyCalibration()
@@ -1450,8 +1449,8 @@ void waitForConfirmationToSetOffsets()
     else if (countdown >= 500)
     {
         // Naigon - Drive-side (Server-side) Refactor
-        // Set the body status to whether servo mode is active or not so that can be displayed.
-        sendToRemote.bodyStatus = servoMode;
+        // Reset the body status.
+        sendToRemote.bodyStatus = BodyStatus::NormalOperation;
         countdown = 0;
     }
 }
@@ -1486,7 +1485,7 @@ void setOffsetsAndSaveToEEPROM()
         SaveToEEPROM = 0;
         // Naigon - Drive-side (Server-side) Refactor
         // Set the status to the correct servo mode so the remote will display properly.
-        sendToRemote.bodyStatus = servoMode;
+        sendToRemote.bodyStatus = BodyStatus::NormalOperation;
         countdown = 0;
         //playSound = 1;
     }
@@ -1507,7 +1506,7 @@ void setDomeSpinOffset()
     // delay(200);
     // Naigon - Drive-side (Server-side) Refactor
     // Set the body status to the current servo mode so the remote will display the info.
-    sendToRemote.bodyStatus = servoMode;
+    sendToRemote.bodyStatus = BodyStatus::NormalOperation;
 
     //playSound = 1;
 }
@@ -1529,22 +1528,15 @@ void setOffsetsONLY()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void waitForConfirmationToSetDomeOffsets()
 {
-    if (servoMode == BodyStatus::Servo)
-    {
-        // Naigon - Drive-side (Server-side) Refactor
-        // Might want to remove this so that servo mode persists after dome offset update.
-        servoMode = BodyStatus::Default;
-    }
-
     countdown += .15;
     if (countdown > 5 && recFromRemote.but8 == 0 && recFromRemote.motorEnable == 1)
     {
         setDomeSpinOffset();
-        sendToRemote.bodyStatus = servoMode;
+        sendToRemote.bodyStatus = BodyStatus::NormalOperation;
     }
     else if (countdown >= 250)
     {
-        sendToRemote.bodyStatus = servoMode;
+        sendToRemote.bodyStatus = BodyStatus::NormalOperation;
         countdown = 0;
     }
 }
