@@ -1,12 +1,14 @@
 {
-  "folders": [
-    {
-      "path": "."
-    }
-  ],
-  "settings": {
-    "editor.insertSpaces": true,
-    "editor.tabSize": 2,
-    "C_Cpp.intelliSenseEngine": "Tag Parser"
-  },
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {
+        "editor.detectIndentation": false,
+        "editor.insertSpaces": true,
+        "editor.formatOnSave": false,
+        "editor.tabSize": 4,
+        "C_Cpp.intelliSenseEngine": "Tag Parser"
+    },
 }
