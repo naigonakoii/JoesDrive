@@ -52,3 +52,38 @@ Stationary/Wiggle Mode | Extra drive speed that when selected disables the rear 
 Safe Mode | Extra drive speed that when selected disables remote input, and only engages the main drive stability. This allows pushing the ball safely to allow a specific panel to be facing up for access. In the code it is called 'PushToRoll' but the remote displays 'Safe'.
 Safe Joystick Button Toggle | New feature that prevents the two joysticks from registering a press when the joystick is in use. This prevents accidently reversing the controls during drive, and prevents going into servo mode when using the dome.
 Head Tilt Stability | Keeps the dome centered forward to back regardless of the body underneath (mostly). This mainly prevents the head from dipping backwards when starting rolling.
+
+## Visual Studio Code
+As a big proponent of Visual Studio Code and someone that finds the Arduino IDE quite lacking, I have moved all my Arduino development to Visual Studio Code.
+
+If you want to use Visual Studio Code as well, you first need to download the installer.
+
+On Windows, I recommend the version for all users if this is for your computer, but if you work on a shared computer or one that is owned by your work then you might need the version for just yourself.
+
+https://code.visualstudio.com/
+
+For Mac or Linux, there is only a single version, so it is a bit simpler.
+
+In all cases, you do need to first install the full Arduino IDE as it installs all the necessary prerequisites.
+
+### Install Required Plugins
+After installing VS Code, you can install the C/C++ IntelliSense and Arduino plug-ins. click the plugin button on the left bar, and then search for "C/C++ IntilliSense". On the main window, click install for this plugin. Repeat the process for "Arduino".
+
+![Install Plugins in Visual Studio Code](VisualStudioCode/InstallPlugins.png)
+
+### Updating .vscode Files
+Because I didn't setup a build system, there are a couple files you will need to modify manually for your system.
+
+First, you need to update the com port that your Arduino and Arduino Pro Mini attach to your computer as. You can update this in the `.vscode/arduino.json` file in both the main drive and remote's code.
+
+![Update arduino.json with the com port associated with your computer](VisualStudioCode/UpdateCom.png)
+
+Finally, if you have your Arduino installed into a drive other and C or D, or you are using Mac or Linux, you will need to update `.vscode/c_cpp_properties.json` as well.
+
+![Updating c_cpp_properties.json in Visual Studio Code](VisualStudioCode/CCPPProperties.png)
+
+For Windows, you can just copy the c:\ directory for each path in both "includePath" and "forcedInclude".
+
+For Mac/Linux, you will need to add an entirely new entry to "configurations". I'll leave that to the end user for now, but in the future, I should be able to get those checked in (at least for Mac which I do run here as well).
+
+
