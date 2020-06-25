@@ -53,6 +53,7 @@ Safe Mode | Extra drive speed that when selected disables remote input, and only
 Safe Joystick Button Toggle | New feature that prevents the two joysticks from registering a press when the joystick is in use. This prevents accidently reversing the controls during drive, and prevents going into servo mode when using the dome.
 Head Tilt Stability | Keeps the dome centered forward to back regardless of the body underneath (mostly). This mainly prevents the head from dipping backwards when starting rolling.
 Dome Modes | Adds extra dome modes in addition to just normal and servo, including allowing the dome to tilt when driving forward (which used to be an #ifdef in the code). Left stick now toggles both dome and drive modes which have been combined into one mode. This frees up another button for talking/animations.
+Ease Applicator | Refactor of the main drive methods to use the new IEaseApplicator instances. This prevents a lot of duplication of code.
 
 ## Visual Studio Code
 As a big proponent of Visual Studio Code and someone that finds the Arduino IDE quite lacking, I have moved all my Arduino development to Visual Studio Code.

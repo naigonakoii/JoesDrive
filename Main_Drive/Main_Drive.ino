@@ -23,18 +23,22 @@
 // ====================================================================================================================
 
 
-#include <EEPROMex.h> // https://github.com/thijse/Arduino-EEPROMEx
 #include "Arduino.h"
-#include "Constants.h"
+
+#include <EEPROMex.h> // https://github.com/thijse/Arduino-EEPROMEx
 #include <EasyTransfer.h>
-#include "ButtonHandler.h"
-#include "SoundPlayer.h"
+#include <PID_v1.h> //PID loop from http://playground.arduino.cc/Code/PIDLibrary
+
 #include "Animations.h"
-#include "MotorPWM.h"
+#include "ButtonHandler.h"
+#include "Constants.h"
 #include "EaseApplicator.h"
+#include "MotorPWM.h"
+#include "SoundPlayer.h"
 
 using NaigonBB8::MotorPWM;
 using NaigonBB8::FunctionEaseApplicator;
+using NaigonBB8::FunctionEaseApplicatorType;
 using NaigonBB8::LinearEaseApplicator;
 
 EasyTransfer RecRemote;
@@ -147,8 +151,6 @@ RECEIVE_DATA_STRUCTURE_REMOTE recFromRemote;
 SEND_DATA_STRUCTURE_REMOTE sendToRemote;
 RECEIVE_DATA_STRUCTURE_IMU recIMUData;
 
-#include <PID_v1.h> //PID loop from http://playground.arduino.cc/Code/PIDLibrary
-
 // Naigon - Stationary/Wiggle Mode
 bool IsStationary = false;
 
@@ -164,7 +166,7 @@ ButtonHandler button3Handler(0 /* onVal */, 1000 /* heldDuration */);
 ButtonHandler button5Handler(0 /* onVal */, 2000 /* heldDuration */);
 ButtonHandler button6Handler(0 /* onVal */, 2000 /* heldDuration */);
 
-// Naigon
+// Naigon - Ease Applicator
 // Refactor code to use the new PWM driver.
 MotorPWM drivePwm(drivePWM1, drivePWM2, 0, 2);
 MotorPWM sideToSidePWM(s2sPWM1, s2sPWM2, SideToSideMax, 1);
@@ -172,19 +174,22 @@ MotorPWM headTiltPWM(domeTiltPWM1, domeTiltPWM2, HeadTiltPotThresh, 0);
 MotorPWM domeSpinPWM(domeSpinPWM1, domeSpinPWM2, 0, 20);
 MotorPWM domeServoPWM(domeSpinPWM1, domeSpinPWM2, 0, 4);
 MotorPWM flywheelPWM(flywheelSpinPWM1, flywheelSpinPWM2, 0, 35);
-
-// Naigon - EaseApplicator
+// Naigon - Ease Applicator
 // Refactor the code to use the new IEaseApplicator instances.
-FunctionEaseApplicator driveApplicatorSlow(0.0, 20.0, 0.2, NaigonBB8::FunctionEaseApplicatorType::Quadratic);
-FunctionEaseApplicator driveApplicatorMed(0.0, 28.0, 0.2, NaigonBB8::FunctionEaseApplicatorType::Quadratic);
-FunctionEaseApplicator driveApplicatorHigh(0.0, 38.0, 0.2, NaigonBB8::FunctionEaseApplicatorType::Quadratic);
-FunctionEaseApplicator driveApplicatorWiggle(0.0, 5.0, 0.1, NaigonBB8::FunctionEaseApplicatorType::Quadratic);
+//
+FunctionEaseApplicator driveApplicatorSlow(0.0, 20.0, 0.2, FunctionEaseApplicatorType::Quadratic);
+FunctionEaseApplicator driveApplicatorMed(0.0, 28.0, 0.2, FunctionEaseApplicatorType::Quadratic);
+FunctionEaseApplicator driveApplicatorHigh(0.0, 38.0, 0.2, FunctionEaseApplicatorType::Quadratic);
+FunctionEaseApplicator driveApplicatorWiggle(0.0, 5.0, 0.1, FunctionEaseApplicatorType::Quadratic);
+// Naigon - Ease Applicator: for the drive this pointer will always be the one in use.
 FunctionEaseApplicator *driveApplicator = &driveApplicatorSlow;
-FunctionEaseApplicator sideToSideEaseApplicator(0.0, SideToSideMax, S2SEase, NaigonBB8::FunctionEaseApplicatorType::SCurve);
-FunctionEaseApplicator domeTiltEaseApplicator(0.0, MaxDomeTiltAngle, easeDomeTilt, NaigonBB8::FunctionEaseApplicatorType::SCurve);
+FunctionEaseApplicator sideToSideEaseApplicator(0.0, SideToSideMax, S2SEase, FunctionEaseApplicatorType::SCurve);
+FunctionEaseApplicator domeTiltEaseApplicator(0.0, MaxDomeTiltAngle, easeDomeTilt, FunctionEaseApplicatorType::SCurve);
+FunctionEaseApplicator domeServoEaseApplicator(0.0, DomeSpinServoMax, 5, FunctionEaseApplicatorType::SCurve);
+// Naigon - Ease Applicator: motors/modes where it free spins use the normal linear applicator.
 LinearEaseApplicator domeSpinEaseApplicator(0.0, easeDome);
-FunctionEaseApplicator domeServoEaseApplicator(0.0, DomeSpinServoMax, 5, NaigonBB8::FunctionEaseApplicatorType::SCurve);
 LinearEaseApplicator flywheelEaseApplicator(0.0, flywheelEase);
+
 
 int ch4Servo; //left joystick left/right when using servo mode
 int currentDomeSpeed;
