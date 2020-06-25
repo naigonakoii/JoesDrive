@@ -77,7 +77,13 @@ private:
 };
 
 
-class SCurveEaseApplicator : public IEaseApplicator
+enum FunctionEaseApplicatorType : uint8_t
+{
+    Quadratic = 0,
+    SCurve = 1,
+};
+
+class FunctionEaseApplicator : public IEaseApplicator
 {
 public:
     ///////////////////////////////////////////////////////////////////////////////////
@@ -86,10 +92,14 @@ public:
     //          This class applies an S-curve from 0 to 1 inclusively. That value is
     //          then multiplied by the maxValue to get the result.
     //
-    //          Currently, this function is a piece-wise of two quadratic functions:
+    //          The S-Curve function is a piece-wise of two quadratic functions:
     //
     //          f(x) = 2x^2,            if 0 <= x < .5
     //          f(x) = -2(x-1)^2 + 1,   if .5 <= x <= 1
+    //
+    //          The quadratic function is a simple quadratic
+    //
+    //          f(x) = x^2
     //
     //          x above is internally stored in a LinearEaseApplicator instance, Arduino
     //          that value is fed into the s-function.
@@ -104,7 +114,11 @@ public:
     // @param   incrementAmount
     //          The amount the current instance will be incremented each iteration.
     ///////////////////////////////////////////////////////////////////////////////////
-    SCurveEaseApplicator(double initialValue, double maxValue, double incrementAmount);
+    FunctionEaseApplicator(
+        double initialValue,
+        double maxValue,
+        double incrementAmount,
+        FunctionEaseApplicatorType fType);
 
     double GetMaxValue() const;
 
@@ -116,9 +130,12 @@ public:
     double ComputeValueForCurrentIteration(double target);
 
 private:
+    double ComputeFunction(double unscaled) const;
     double ComputeS(double x) const;
+    double ComputeQ(double x) const;
     double _maxValue;
     LinearEaseApplicator _linearApplicator;
+    FunctionEaseApplicatorType _fType;
 };
 
 }   // namespace NaigonBB8

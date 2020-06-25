@@ -251,7 +251,7 @@
 #include "EaseApplicator.h"
 
 using NaigonBB8::MotorPWM;
-using NaigonBB8::SCurveEaseApplicator;
+using NaigonBB8::FunctionEaseApplicator;
 using NaigonBB8::LinearEaseApplicator;
 
 EasyTransfer RecRemote;
@@ -392,15 +392,15 @@ MotorPWM flywheelPWM(flywheelSpinPWM1, flywheelSpinPWM2, 0, 35);
 
 // Naigon - EaseApplicator
 // Refactor the code to use the new IEaseApplicator instances.
-SCurveEaseApplicator driveApplicatorSlow(0.0, 20.0, 0.1);
-SCurveEaseApplicator driveApplicatorMed(0.0, 28.0, 0.12);
-SCurveEaseApplicator driveApplicatorHigh(0.0, 42.0, 0.2);
-SCurveEaseApplicator driveApplicatorWiggle(0.0, 5.0, 0.1);
-SCurveEaseApplicator *driveApplicator = &driveApplicatorSlow;
-SCurveEaseApplicator sideToSideEaseApplicator(0.0, SideToSideMax, S2SEase);
-SCurveEaseApplicator domeTiltEaseApplicator(0.0, MaxDomeTiltAngle, easeDomeTilt);
+FunctionEaseApplicator driveApplicatorSlow(0.0, 20.0, 0.2, NaigonBB8::FunctionEaseApplicatorType::Quadratic);
+FunctionEaseApplicator driveApplicatorMed(0.0, 28.0, 0.2, NaigonBB8::FunctionEaseApplicatorType::Quadratic);
+FunctionEaseApplicator driveApplicatorHigh(0.0, 38.0, 0.2, NaigonBB8::FunctionEaseApplicatorType::Quadratic);
+FunctionEaseApplicator driveApplicatorWiggle(0.0, 5.0, 0.1, NaigonBB8::FunctionEaseApplicatorType::Quadratic);
+FunctionEaseApplicator *driveApplicator = &driveApplicatorSlow;
+FunctionEaseApplicator sideToSideEaseApplicator(0.0, SideToSideMax, S2SEase, NaigonBB8::FunctionEaseApplicatorType::SCurve);
+FunctionEaseApplicator domeTiltEaseApplicator(0.0, MaxDomeTiltAngle, easeDomeTilt, NaigonBB8::FunctionEaseApplicatorType::SCurve);
 LinearEaseApplicator domeSpinEaseApplicator(0.0, easeDome);
-SCurveEaseApplicator domeServoEaseApplicator(0.0, DomeSpinServoMax, 5);
+FunctionEaseApplicator domeServoEaseApplicator(0.0, DomeSpinServoMax, 5, NaigonBB8::FunctionEaseApplicatorType::SCurve);
 LinearEaseApplicator flywheelEaseApplicator(0.0, flywheelEase);
 
 int ch4Servo; //left joystick left/right when using servo mode

@@ -59,44 +59,64 @@ double LinearEaseApplicator::ComputeValueForCurrentIteration(double target)
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // SCurveEaseApplicator
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-SCurveEaseApplicator::SCurveEaseApplicator(double initialValue, double maxValue, double incrementAmount)
+FunctionEaseApplicator::FunctionEaseApplicator(
+    double initialValue,
+    double maxValue,
+    double incrementAmount,
+    FunctionEaseApplicatorType fType)
     : _linearApplicator(initialValue, incrementAmount)
+    , _fType(fType)
     , _maxValue(maxValue)
 {
 }
 
-double SCurveEaseApplicator::GetMaxValue() const
+double FunctionEaseApplicator::GetMaxValue() const
 {
     return _maxValue;
 }
 
-double SCurveEaseApplicator::GetValue() const
+double FunctionEaseApplicator::GetValue() const
 {
     return ComputeS(_linearApplicator.GetValue());
 }
 
-double SCurveEaseApplicator::GetIncrement() const
+double FunctionEaseApplicator::GetIncrement() const
 {
     return _linearApplicator.GetIncrement();
 }
 
-double SCurveEaseApplicator::ComputeValueForCurrentIteration(double target)
+double FunctionEaseApplicator::ComputeValueForCurrentIteration(double target)
 {
-    return ComputeS(_linearApplicator.ComputeValueForCurrentIteration(target));
+    return ComputeFunction(_linearApplicator.ComputeValueForCurrentIteration(target));
 }
 
-double SCurveEaseApplicator::ComputeS(double x) const
+double FunctionEaseApplicator::ComputeFunction(double unscaled) const
 {
-    double sign = x < 0.0 ? -1.0 : 1.0;
+    double sign = unscaled < 0.0 ? -1.0 : 1.0;
 
-    x = abs(x / _maxValue);
+    // Scale the value to the range 0.0 to 1.0
+    double x = abs(unscaled / _maxValue);
 
-    double fx = x < 0.5
-        ? 2.0 * x * x
-        : -2.0 * (x - 1.0) * (x - 1.0) + 1.0;
-    
+    double fx = _fType == FunctionEaseApplicatorType::SCurve
+        ? ComputeS(x)
+        : ComputeQ(x);
+
+    // Unscale to the original range, and reapply the sign.
     return fx * _maxValue * sign;
 }
+
+double FunctionEaseApplicator::ComputeS(double x) const
+{
+    return x < 0.5
+        ? 2.0 * x * x
+        : -2.0 * (x - 1.0) * (x - 1.0) + 1.0;   
+}
+
+double FunctionEaseApplicator::ComputeQ(double x) const
+{
+    return x * x;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 }   // namespace NaigonBB8
