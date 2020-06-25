@@ -38,8 +38,6 @@
 #define fadePin A4         // Connected to + of one channel on sound board(use resistor to ground)
 #define BTstatePin 33      // Connected to state pin on BT Module
 #define domeTiltPotPin A1  // Connected to Potentiometer on the dome tilt mast
-#define easeDome 20        // Lower number means more easing when spinning
-#define easeDomeTilt 3.5   // Lower number means more easing when moving forward and back a.k.a. slower
 #define domeSpinPot A2     // Pin used to monitor dome spin potentiometer
 #define battMonitor A3     // Pin used to monitor battery voltage
 #define outputVoltage 5.2  // This is the output voltage from the Buck Converter powering the arduino
@@ -69,9 +67,15 @@
 #define PlayTrackPin 42
 #define StopTrackPin 44
 
-#define flywheelEase 3 // Speed in which flywheel will increase/decrease during gradual movements
+//
+// Ease values from Joe. Modify these to increase/decrease the quickness of motor movements.
+//
+#define flywheelEase 6 // Speed in which flywheel will increase/decrease during gradual movements
 // S2SEase from Joe: 1.5
 #define S2SEase 0.5         // Speed in which side to side moves. Higher number equates to faster movement
+#define easeDome 20        // Lower number means more easing when spinning
+#define easeDomeTilt 3.2   // Lower number means more easing when moving forward and back a.k.a. slower
+
 #define MaxDomeTiltAngle 22 // Maximum angle in which the dome will tilt. **  Max is 25  **
 
 #define HeadTiltStabilization // uncomment this if you want the head to stabilize on top of the body.
@@ -94,6 +98,10 @@
 //#define reverseDomeSpinPot
 //#define reverseS2SPot
 
+//
+// Naigon
+// Refactor the reverse functionality to a simple multiply in order to streamline the actual code.
+//
 #ifdef reverseDomeTilt
 #define revDome1
 #define revDome2 *-1
@@ -102,23 +110,77 @@
 #define revDome2
 #endif
 
-// Naigon: Max pot range, Joe's default is 135. This means pot will map to -HeadTiltPotMax, HeadTiltPotMax
+#ifdef reverseDrive
+#define revDrive1
+#define revDrive2 *-1
+#else
+#define revDrive1 *-1
+#define revDrive2
+#endif
+
+#ifdef reverseS2S
+#define revS2S1
+#define revS2S2 *-1
+#else
+#define revS2S1 *-1
+#define revS2S2
+#endif
+
+#ifdef reverseS2SPot
+#define revS2SPot1
+#define revS2SPot2 *-1
+#else
+#define revS2SPot1 *-1
+#define revS2SPot2
+#endif
+
+#ifdef reverseDomeTiltPot
+#define revDomeTiltPot1
+#define revDomeTiltPot2 *-1
+#else
+#define revDomeTiltPot1 *-1
+#define revDomeTiltPot2
+#endif
+
+#ifdef reverseDomeSpin
+#define revDomeSpin1
+#define revDomeSpin2 *-1
+#else
+#define revDomeSpin1 *-1
+#define revDomeSpin2
+#endif
+
+#ifdef reverseDomeRotation
+#define revDomeR1
+#define revDomeR2 *-1
+#else
+#define revDomeR1 *-1
+#define revDomeR2
+#endif
+
+#ifdef reverseFlywheel
+#define revFly1
+#define revFly2 *-1
+#else
+#define revFly1 *-1
+#define revFly2
+#endif
+
+
+// Naigon: Max pot range, Joe's default is 135. This means pot will map to -135, 135
 #define HeadTiltPotMax 135
+#define S2SPotMax 135
+
 // Naigon: Threshold of the pot before actually adjusting the input. Joe's default is 25
 #define HeadTiltPotThresh 25
 // Naigon: Amount to limit the flywheel when in stationary mode. At full 255, the drive when spun up takes a while to
 // slow and respond to the second direction; this allows it to do quicker moves for animatronics, at the expense of not
 // being able to spin as much.
-#define FlywheelStationaryMax 215
+#define FlywheelStationaryMax 255
 // Naigon: Amount to limit the flywheel in normal drive modes. Full 255 can "lock" the droid for a half second or so.
 // To prevent I just cap a bit more than full blast.
 #define FlywheelDriveMax 245
-// Naigon: Default drive speeds
-// Joe had 55, 75, ?
-// I found his defaults TOO powerful so toned it down a bit.
-#define DRIVE_SPEED_SLOW 45
-#define DRIVE_SPEED_MEDIUM 55
-#define DRIVE_SPEED_HIGH 75
+
 //
 // Naigon - MK3 Flywheel - This value should be updated for the MK3 Flywheel, as more weight towards the outside makes
 // it move higher, and it is overall more sensitive.
@@ -126,6 +188,13 @@
 // Defines the side to side output range, ie how much it can move.
 // Joe's default is 25.
 #define SideToSideMax 20
+
+//
+// Naigon: Amount that dome can spin when in servo mode. This was hardcoded inline before; I refactored to a constant
+// for ease of tuning.
+//
+// Joe's default is 70.
+#define DomeSpinServoMax 75
 
 //
 // Naigon - Safe Joystick Button Toggle
@@ -179,8 +248,11 @@
 #include "SoundPlayer.h"
 #include "Animations.h"
 #include "MotorPWM.h"
+#include "EaseApplicator.h"
 
 using NaigonBB8::MotorPWM;
+using NaigonBB8::SCurveEaseApplicator;
+using NaigonBB8::LinearEaseApplicator;
 
 EasyTransfer RecRemote;
 EasyTransfer SendRemote;
@@ -316,7 +388,20 @@ MotorPWM sideToSidePWM(s2sPWM1, s2sPWM2, SideToSideMax, 1);
 MotorPWM headTiltPWM(domeTiltPWM1, domeTiltPWM2, HeadTiltPotThresh, 0);
 MotorPWM domeSpinPWM(domeSpinPWM1, domeSpinPWM2, 0, 20);
 MotorPWM domeServoPWM(domeSpinPWM1, domeSpinPWM2, 0, 4);
-MotorPWM flywheelPWM(flywheelSpinPWM1, flywheelSpinPWM2, 0, 10);
+MotorPWM flywheelPWM(flywheelSpinPWM1, flywheelSpinPWM2, 0, 35);
+
+// Naigon - EaseApplicator
+// Refactor the code to use the new IEaseApplicator instances.
+SCurveEaseApplicator driveApplicatorSlow(0.0, 20.0, 0.1);
+SCurveEaseApplicator driveApplicatorMed(0.0, 28.0, 0.12);
+SCurveEaseApplicator driveApplicatorHigh(0.0, 42.0, 0.2);
+SCurveEaseApplicator driveApplicatorWiggle(0.0, 5.0, 0.1);
+SCurveEaseApplicator *driveApplicator = &driveApplicatorSlow;
+SCurveEaseApplicator sideToSideEaseApplicator(0.0, SideToSideMax, S2SEase);
+SCurveEaseApplicator domeTiltEaseApplicator(0.0, MaxDomeTiltAngle, easeDomeTilt);
+LinearEaseApplicator domeSpinEaseApplicator(0.0, easeDome);
+SCurveEaseApplicator domeServoEaseApplicator(0.0, DomeSpinServoMax, 5);
+LinearEaseApplicator flywheelEaseApplicator(0.0, flywheelEase);
 
 int ch4Servo; //left joystick left/right when using servo mode
 int currentDomeSpeed;
@@ -353,13 +438,7 @@ int joystickDrive;
 
 int ch5PWM;
 
-int driveSpeed = DRIVE_SPEED_SLOW;
-int driveAccel;
-// the speedArray is used to create an S curve for the 'throttle' of bb8
-int speedArray[] = {0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 5, 5, 5, 5, 6, 6, 7, 7, 8, 8, 9,
-                    9, 10, 10, 11, 12, 12, 13, 13, 14, 15, 16, 16, 17, 18, 19, 19, 20, 21, 22, 23, 24, 25, 26, 26, 27, 28, 29, 30,
-                    31, 32, 33, 33, 34, 35, 36, 37, 37, 38, 39, 40, 40, 41, 42, 42, 43, 44, 44, 45, 45, 46, 46, 47, 47, 48, 48, 49,
-                    49, 50, 50, 50, 51, 51, 51, 52, 52, 52, 52, 53, 53, 53, 53, 54, 54, 54, 54, 54, 55, 55, 55, 55, 55};
+int driveSpeed;
 
 int joystickS2S;
 
@@ -377,7 +456,6 @@ int domeServo = 0;
 int S2Spot;
 
 int BTstate = 0;
-int speedDomeTilt = 0;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // PID1 is for side to side tilt
@@ -822,21 +900,24 @@ void setDriveSpeed()
 
     if (sendToRemote.bodyMode == BodyMode::Medium)
     {
-        driveSpeed = DRIVE_SPEED_MEDIUM;
+        driveApplicator = &driveApplicatorMed;
     }
     else if (sendToRemote.bodyMode == BodyMode::Fast)
     {
-        driveSpeed = DRIVE_SPEED_HIGH;
+        driveApplicator = &driveApplicatorHigh;
     }
     else if (sendToRemote.bodyMode == BodyMode::Stationary)
     {
         // For safety, set the drive speed back to slow, even though the stick shouldn't use it.
-        driveSpeed = DRIVE_SPEED_SLOW / 2;
+        driveApplicator = &driveApplicatorWiggle;
     }
     else
     {
-        driveSpeed = DRIVE_SPEED_SLOW;
+        // For all other modes, just default to the slow speed as it honestly works the best.
+        driveApplicator = &driveApplicatorSlow;
     }
+
+    driveSpeed = driveApplicator->GetMaxValue();
 
     // Indicate if the droid is in stationary mode only when in the stationary state.
     IsStationary = sendToRemote.bodyMode == BodyMode::Stationary
@@ -1022,43 +1103,18 @@ void domeCalib()
 // ------------------------------------------------------------------------------------
 void mainDrive()
 {
-#ifdef reverseDrive
-    joystickDrive = map(recFromRemote.ch1, 0, 512, driveSpeed, (driveSpeed * -1)); //Read joystick - change -55/55 to adjust for speed.
-#else
-    joystickDrive = map(recFromRemote.ch1, 0, 512, (driveSpeed * -1), driveSpeed);                  //Read joystick - change -55/55 to adjust for speed.
-#endif
-
     // Naigon - Stationary/Wiggle Mode
     // When in wiggle/stationary mode, don't use the joystick to move at all.
-    if (IsStationary == true)
-    {
-        joystickDrive = 0;
-    }
+    joystickDrive = IsStationary == true
+        ? 0
+        : map(recFromRemote.ch1, 0, 512, driveSpeed revDrive1, driveSpeed revDrive2); //Read joystick - change -55/55 to adjust for speed.
 
     // Moves through speedArray to match joystick. speedArray is set up to create an 's curve' for increasing/decreasing speed
 
-    if ((joystickDrive > driveAccel) && (driveAccel >= 0))
-    {
-        driveAccel++;
-        Setpoint3 = speedArray[constrain(abs(driveAccel), 0, 110)];
-    }
-    else if ((joystickDrive < driveAccel) && (driveAccel >= 0))
-    {
-        driveAccel--;
-        Setpoint3 = speedArray[constrain(abs(driveAccel), 0, 110)];
-    }
-    else if ((joystickDrive > driveAccel) && (driveAccel <= 0))
-    {
-        driveAccel++;
-        Setpoint3 = (speedArray[constrain(abs(driveAccel), 0, 110)] * -1);
-    }
-    else if ((joystickDrive < driveAccel) && (driveAccel <= 0))
-    {
-        driveAccel--;
-        Setpoint3 = (speedArray[constrain(abs(driveAccel), 0, 110)] * -1);
-    }
-
-    Setpoint3 = constrain(Setpoint3, -55, 55);
+    Setpoint3 = constrain(
+        driveApplicator->ComputeValueForCurrentIteration(joystickDrive),
+        -55,
+        55);
 
     Input3 = (pitch + pitchOffset); // - domeOffset;
     // domeTiltOffset used to keep the ball from rolling when dome is tilted front/back
@@ -1078,34 +1134,17 @@ void mainDrive()
 //
 void sideTilt()
 {
-#ifdef reverseS2S
-    joystickS2S = map(constrain(recFromRemote.ch2, 0, 512), 0, 512, SideToSideMax, -SideToSideMax); //- is  left, + is  right
-#else
-    joystickS2S = map(constrain(recFromRemote.ch2, 0, 512), 0, 512, -SideToSideMax, SideToSideMax); //- is  left, + is  right
-#endif
+    joystickS2S = map(constrain(recFromRemote.ch2, 0, 512), 0, 512, SideToSideMax revS2S1, SideToSideMax revS2S2); //- is  left, + is  right
 
     // Setpoint will increase/decrease by S2SEase each time the code runs until it matches the joystick. This slows the side to side movement.
+    Setpoint2 = constrain(
+        sideToSideEaseApplicator.ComputeValueForCurrentIteration(joystickS2S),
+        -SideToSideMax,
+        SideToSideMax);
 
-    if ((Setpoint2 > -S2SEase) && (Setpoint2 < S2SEase) && (joystickS2S == 0))
-    {
-        Setpoint2 = 0;
-    }
-    else if ((joystickS2S > Setpoint2) && (joystickS2S != Setpoint2))
-    {
-        Setpoint2 += S2SEase;
-    }
-    else if ((joystickS2S < Setpoint2) && (joystickS2S != Setpoint2))
-    {
-        Setpoint2 -= S2SEase;
-    }
-
-#ifdef reverseS2SPot
-    S2Spot = map(analogRead(S2SpotPin), 0, 1024, 135, -135);
-#else
-    S2Spot = map(analogRead(S2SpotPin), 0, 1024, -135, 135);
-#endif
+    S2Spot = map(analogRead(S2SpotPin), 0, 1024, S2SPotMax revS2SPot1, S2SPotMax revS2SPot2);
     Input2 = roll + rollOffset;
-    Setpoint2 = constrain(Setpoint2, -SideToSideMax, SideToSideMax);
+    
     PID2.Compute(); //PID2 is used to control the 'servo' control of the side to side movement.
 
     Input1 = S2Spot + potOffsetS2S;
@@ -1132,10 +1171,10 @@ void domeTilt()
     BodyMode bodyM = (BodyMode)sendToRemote.bodyMode;
     // speedDomeTilt offsets the dome based on the main drive to tilt it in the direction of movement.
     // Naigon - Dome Modes: Add the tilt based on the main stick if the mode uses tilt.
-    speedDomeTilt =
+    double speedDomeTilt =
         (Setpoint3 >= 3 || Setpoint3 <= -3)
         && (bodyM == BodyMode::SlowWithTilt || bodyM == BodyMode::ServoWithTilt)
-            ? joystickDrive * DomeTiltAmount / driveSpeed
+            ? joystickDrive * (double)DomeTiltAmount / (double)driveSpeed
             : 0;
 
 #ifdef HeadTiltStabilization
@@ -1149,11 +1188,12 @@ void domeTilt()
     int pitchAdjust = 0;
 #endif
 
-#ifdef reverseDomeTiltPot
-    domeTiltPot = (map(analogRead(domeTiltPotPin), 0, 1024, HeadTiltPotMax, -HeadTiltPotMax) + domeTiltPotOffset);
-#else
-    domeTiltPot = (map(analogRead(domeTiltPotPin), 0, 1024, -HeadTiltPotMax, HeadTiltPotMax) + domeTiltPotOffset);
-#endif
+    domeTiltPot = map(
+        analogRead(domeTiltPotPin),
+        0,
+        1024,
+        HeadTiltPotMax revDomeTiltPot1,
+        HeadTiltPotMax revDomeTiltPot2) + domeTiltPotOffset;
 
     int ch3Val = recFromRemote.ch3;
     if (animationState.hasResult && animationState.ch3 != NOT_RUNNING && abs(ch3Val) < 10)
@@ -1165,27 +1205,15 @@ void domeTilt()
     // Joe's code had a bug here; you need to subtract within the constrain, otherwise driving can cause this value to go
     // outside the bounds and really bad things happen like the drive locking and losing the head.
     joystickDome = constrain(
-        map(ch3Val, 0, 512, -MaxDomeTiltAngle, MaxDomeTiltAngle) - speedDomeTilt - pitchAdjust,
+        map(ch3Val, 0, 512, -MaxDomeTiltAngle, MaxDomeTiltAngle) - (int)speedDomeTilt - pitchAdjust,
         MaxDomeTiltAngle revDome2,
         MaxDomeTiltAngle revDome1); // Reading the stick for angle -40 to 40
 
     Input4 = domeTiltPot + (pitch + pitchOffset);
-
-    if ((Setpoint4 > -1) && (Setpoint4 < 1) && (joystickDome == 0))
-    {
-        Setpoint4 = 0;
-    }
-    else if (joystickDome > Setpoint4)
-    {
-        Setpoint4 += easeDomeTilt;
-    }
-    else if (joystickDome < Setpoint4)
-    {
-        Setpoint4 -= easeDomeTilt;
-    }
-
+    Setpoint4 = domeTiltEaseApplicator.ComputeValueForCurrentIteration(joystickDome);
     Setpoint4 = constrain(Setpoint4, -MaxDomeTiltAngle, MaxDomeTiltAngle);
     PID4.Compute();
+
     writeMotorPwm(headTiltPWM, Output4, domeTiltPot, false /*requireBT*/, false /*requireMotorEnable*/);
 }
 
@@ -1194,36 +1222,12 @@ void domeTilt()
 // ------------------------------------------------------------------------------------
 void domeSpin()
 {
-#ifdef reverseDomeSpin
-    domeRotation = map(recFromRemote.ch4, 0, 512, 255, -255);
-#else
-    domeRotation = map(recFromRemote.ch4, 0, 512, -255, 255);
-#endif
+    domeRotation = map(recFromRemote.ch4, 0, 512, 255 revDomeSpin1, 255 revDomeSpin2);
 
-    if (domeRotation < 3 && domeRotation > -3 && currentDomeSpeed > -15 && currentDomeSpeed < 15)
-    {
-        domeRotation = 0;
-        currentDomeSpeed = 0;
-    }
-
-    if ((domeRotation > currentDomeSpeed) && (currentDomeSpeed >= 0))
-    {
-        currentDomeSpeed += easeDome;
-    }
-    else if ((domeRotation < currentDomeSpeed) && (currentDomeSpeed >= 0))
-    {
-        currentDomeSpeed -= easeDome;
-    }
-    else if ((domeRotation > currentDomeSpeed) && (currentDomeSpeed <= 0))
-    {
-        currentDomeSpeed += easeDome;
-    }
-    else if ((domeRotation < currentDomeSpeed) && (currentDomeSpeed <= 0))
-    {
-        currentDomeSpeed -= easeDome;
-    }
-
-    currentDomeSpeed = constrain(currentDomeSpeed, -255, 255);
+    currentDomeSpeed = constrain(
+        domeSpinEaseApplicator.ComputeValueForCurrentIteration(domeRotation),
+        -255,
+        255);
 
     // Joe has always allowed the dome to spin regardless of whether the motors were enabled or not, which I like.
     writeMotorPwm(domeSpinPWM, currentDomeSpeed, 0 /*input*/, true /*requireBT*/, false /*requireMotorEnable*/);
@@ -1234,12 +1238,7 @@ void domeSpin()
 // ------------------------------------------------------------------------------------
 void domeSpinServo()
 {
-#ifndef reverseDomeRotation
-    ch4Servo = map(recFromRemote.ch4, 0, 512, 70, -70);
-#else
-    ch4Servo = map(recFromRemote.ch4, 0, 512, -70, 70);
-#endif
-
+    ch4Servo = map(recFromRemote.ch4, 0, 512, DomeSpinServoMax revDomeR1, DomeSpinServoMax revDomeR2);
 
 #ifdef reverseDomeSpinPot
     int minSpin = -180;
@@ -1249,14 +1248,9 @@ void domeSpinServo()
     int maxSpin = -180;
 #endif
 
-    if (sendToRemote.bodyDirection == Direction::Forward)
-    {
-        Input5 = ((map(analogRead(domeSpinPot), 0, 1023, minSpin, maxSpin) + domeSpinOffset) - 180);
-    }
-    else
-    {
-        Input5 = map(analogRead(domeSpinPot), 0, 1023, minSpin, maxSpin) + domeSpinOffset;
-    }
+    Input5 = sendToRemote.bodyDirection == Direction::Forward
+        ? map(analogRead(domeSpinPot), 0, 1023, minSpin, maxSpin) + domeSpinOffset - 180
+        : map(analogRead(domeSpinPot), 0, 1023, minSpin, maxSpin) + domeSpinOffset;
 
     if (Input5 < -180)
     {
@@ -1266,25 +1260,11 @@ void domeSpinServo()
     {
         Input5 -= 360;
     }
-    else
-    {
-        Input5 = Input5;
-    }
 
-    if ((Setpoint5 > -5) && (Setpoint5 < 5) && (ch4Servo == 0))
-    {
-        Setpoint5 = 0;
-    }
-    else if ((ch4Servo > Setpoint5) && (ch4Servo != Setpoint5))
-    {
-        Setpoint5 += 5;
-    }
-    else if ((ch4Servo < Setpoint5) && (ch4Servo != Setpoint5))
-    {
-        Setpoint5 -= 5;
-    }
-
-    constrain(Setpoint5, -70, 70);
+    Setpoint5 = constrain(
+        domeServoEaseApplicator.ComputeValueForCurrentIteration(ch4Servo),
+        -DomeSpinServoMax,
+        DomeSpinServoMax);
     PID5.Compute();
 
     writeMotorPwm(domeServoPWM, Output5, 0, false /*requireBT*/, false /*requireMotorEnable*/);
@@ -1295,83 +1275,24 @@ void domeSpinServo()
 // ------------------------------------------------------------------------------------
 void flywheelSpin()
 {
-    if (IsStationary)
-    {
-        // Naigon - Stationary/Wiggle Mode
-        // When in stationary mode, use the drive stick as the flywheel, as the drive is disabled.
-#ifdef reverseFlywheel
-        ch5PWM = constrain(map(recFromRemote.ch1, 0, 512, 255, -255), -FlywheelStationaryMax, FlywheelStationaryMax);
-#else
-        ch5PWM = constrain(map(recFromRemote.ch1, 0, 512, -255, 255), -FlywheelStationaryMax, FlywheelStationaryMax);
-#endif
-    }
-    else
-    {
-#ifdef reverseFlywheel
-        ch5PWM = constrain(map(recFromRemote.ch5, 0, 512, 255, -255), -FlywheelDriveMax, FlywheelDriveMax);
-#else
-        ch5PWM = constrain(map(recFromRemote.ch5, 0, 512, -255, 255), -FlywheelDriveMax, FlywheelDriveMax);
-#endif
-    }
+    // Naigon - Stationary/Wiggle Mode
+    // When in stationary mode, use the drive stick as the flywheel, as the drive is disabled.
+    ch5PWM = IsStationary == true
+        ? constrain(map(recFromRemote.ch1, 0, 512, 255 revFly1, 255 revFly2), -FlywheelStationaryMax, FlywheelStationaryMax)
+        : constrain(map(recFromRemote.ch5, 0, 512, 255 revFly1, 255 revFly2), -FlywheelDriveMax, FlywheelDriveMax);
 
-    if (ch5PWM > -1 && ch5PWM < 35)
-    {
-        ch5PWM = 0;
-    }
-    else if (ch5PWM < 0 && ch5PWM > -35)
-    {
-        ch5PWM = 0;
-    }
-    else if (ch5PWM > 35)
-    {
-        map(ch5PWM, 35, 255, 0, 255);
-    }
-    else if (ch5PWM < -35)
-    {
-        map(ch5PWM, -35, -255, 0, -255);
-    }
-
-    constrain(ch5PWM, -255, 255);
-
-    if (
-        (ch5PWM < -240 && ((flywheelRotation > -30 && flywheelRotation < 30) || flywheelRotation > 240))
-        || ((ch5PWM > 240) && ((flywheelRotation > -30 && flywheelRotation < 30) || flywheelRotation < -240)))
-    {
-        if (ch5PWM > 240)
-        {
-            flywheelRotation = 255;
-        }
-        else if (ch5PWM < -240)
-        {
-            flywheelRotation = -255;
-        }
-    }
-    else if (flywheelRotation < 0 && ch5PWM > 240)
-    {
-        flywheelRotation = 255;
-    }
-    else if (flywheelRotation > 0 && ch5PWM < -240)
-    {
-        flywheelRotation = 255;
-    }
-    else if (ch5PWM > flywheelRotation)
-    {
-        flywheelRotation += flywheelEase;
-    }
-    else if (ch5PWM < flywheelRotation)
-    {
-        flywheelRotation -= flywheelEase;
-    }
-
-    constrain(flywheelRotation, -255, 255);
+    flywheelRotation = constrain(
+        flywheelEaseApplicator.ComputeValueForCurrentIteration(ch5PWM),
+        -255,
+        255);
 
     writeMotorPwm(flywheelPWM, flywheelRotation, 0 /*input*/, true /*requireBT*/, true /*requireMotorEnable*/);
 }
 
 void writeMotorPwm(MotorPWM &motorPwm, int output, int input, bool requireBT, bool requireMotorEnable)
 {
-    if (
-        (requireBT == true && BTstate != 1) || (requireMotorEnable == true && recFromRemote.motorEnable != 0))
+    if ((requireBT == true && BTstate != 1)
+        || (requireMotorEnable == true && recFromRemote.motorEnable != 0))
     {
         motorPwm.WriteZeros();
     }
@@ -1397,7 +1318,6 @@ void turnOffAllTheThings()
     Setpoint1 = 0;
     Output1 = 0;
     joystickDrive = 0;
-    driveAccel = 0;
     Input3 = 0;
     Setpoint3 = 0;
     Output3 = 0;
@@ -1624,8 +1544,6 @@ void debugRoutines()
 #ifdef debugDrive
     Serial.print(F(" joystickDrive: "));
     Serial.print(joystickDrive);
-    Serial.print(F(" accel: "));
-    Serial.print(driveAccel);
     Serial.print(F(" SetDrive: "));
     Serial.print(Setpoint3);
     Serial.print(F(" InDrive: "));
