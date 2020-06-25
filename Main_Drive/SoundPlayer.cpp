@@ -79,11 +79,11 @@ void WiredSoundPlayer::PlaySound(SoundTypes type)
     {
         if (i == playingIndex || i == trackIndex)
         {
-            digitalWrite(m_mapper.Pin(i), HIGH);
+            digitalWrite(m_mapper.Pin((SoundTypes)i), HIGH);
         }
         else
         {
-            digitalWrite(m_mapper.Pin(i), LOW);
+            digitalWrite(m_mapper.Pin((SoundTypes)i), LOW);
         }
     }
 }
@@ -95,7 +95,7 @@ void WiredSoundPlayer::ClearSounds()
     
     for (int i = 0; i < SoundTypes::COUNT; i++)
     {
-        digitalWrite(m_mapper.Pin(i), LOW);
+        digitalWrite(m_mapper.Pin((SoundTypes)i), LOW);
     }
 }
 
