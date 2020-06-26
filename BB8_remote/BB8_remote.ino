@@ -74,36 +74,36 @@ enum BodyMode : uint8_t
 
 enum Direction : uint8_t
 {
-  UnknownDirection = 0,
-  Forward = 1,
-  Reverse = 2,
+    UnknownDirection = 0,
+    Forward = 1,
+    Reverse = 2,
 };
 
 struct SEND_DATA_STRUCTURE
 {
-  int ch1;      // main drive
-  int ch2;      // tilt / steer
-  int ch3;      // head tilt
-  int ch4;      // head spin
-  int ch5;      // spin Flywheel
-  int but1;     // Select on left joystick
-  int but2;     // left 1
-  int but3;     // left 2
-  int but4;     // left3
-  int but5;     // Select on right joystick
-  int but6;     // right 1
-  int but7;     // right 2
-  int but8;     // right 3
-  int motorEnable; //toggle on top
+    int ch1;         // main drive
+    int ch2;         // tilt / steer
+    int ch3;         // head tilt
+    int ch4;         // head spin
+    int ch5;         // spin Flywheel
+    int but1;        // Select on left joystick
+    int but2;        // left 1
+    int but3;        // left 2
+    int but4;        // left3
+    int but5;        // Select on right joystick
+    int but6;        // right 1
+    int but7;        // right 2
+    int but8;        // right 3
+    int motorEnable; //toggle on top
 };
 
 struct RECEIVE_DATA_STRUCTURE
 {
-  double bodyBatt = 0.0;
-  double domeBatt = 0.0;
-  uint8_t bodyStatus;
-  uint8_t bodyMode;
-  uint8_t bodyDirection;
+    double bodyBatt = 0.0;
+    double domeBatt = 0.0;
+    uint8_t bodyStatus;
+    uint8_t bodyMode;
+    uint8_t bodyDirection;
 };
 
 SEND_DATA_STRUCTURE sendToBody;
@@ -151,92 +151,81 @@ int joystickCalibState;
 
 void setup()
 {
-  Serial.begin(115200);
-  pinMode(rSelect, INPUT_PULLUP);
-  pinMode(rBut1, INPUT_PULLUP);
-  pinMode(rBut2, INPUT_PULLUP);
-  pinMode(rBut3, INPUT_PULLUP);
-  pinMode(lSelect, INPUT_PULLUP);
-  pinMode(lBut1, INPUT_PULLUP);
-  pinMode(lBut2, INPUT_PULLUP);
-  pinMode(lBut3, INPUT_PULLUP);
-  pinMode(enablePin, INPUT_PULLUP);
-  pinMode(btStatePin, INPUT); // check for Bluetooth enable
+    Serial.begin(115200);
+    pinMode(rSelect, INPUT_PULLUP);
+    pinMode(rBut1, INPUT_PULLUP);
+    pinMode(rBut2, INPUT_PULLUP);
+    pinMode(rBut3, INPUT_PULLUP);
+    pinMode(lSelect, INPUT_PULLUP);
+    pinMode(lBut1, INPUT_PULLUP);
+    pinMode(lBut2, INPUT_PULLUP);
+    pinMode(lBut3, INPUT_PULLUP);
+    pinMode(enablePin, INPUT_PULLUP);
+    pinMode(btStatePin, INPUT); // check for Bluetooth enable
 
-  Wire.begin();
-  // Naigon - Since upgrading to Windows 10 with the new Arduino, oled.Set400k stopped working.
-  Wire.setClock(400000L);
-  oled.begin(&Adafruit128x64, I2C_ADDRESS);
-  oled.setFont(Callibri15);
-  //oled.clear();
-  oled.println(F("==========================="));
-  oled.println(F("         Joe's Drive       "));
-  oled.println(F("  Naigon MK3 Flywheel  "));
-  oled.println(F("==========================="));
-  delay(2000);
-  oled.clear();
+    Wire.begin();
+    // Naigon - Since upgrading to Windows 10 with the new Arduino, oled.Set400k stopped working.
+    Wire.setClock(400000L);
+    oled.begin(&Adafruit128x64, I2C_ADDRESS);
+    oled.setFont(Callibri15);
+    //oled.clear();
+    oled.println(F("==========================="));
+    oled.println(F("         Joe's Drive       "));
+    oled.println(F("  Naigon MK3 Flywheel  "));
+    oled.println(F("==========================="));
+    delay(2000);
+    oled.clear();
 
-  ch1Center = EEPROM.readInt(0);
-  ch2Center = EEPROM.readInt(4);
-  ch3Center = EEPROM.readInt(8);
-  ch4Center = EEPROM.readInt(12);
-  ch5Center = EEPROM.readInt(16);
+    ch1Center = EEPROM.readInt(0);
+    ch2Center = EEPROM.readInt(4);
+    ch3Center = EEPROM.readInt(8);
+    ch4Center = EEPROM.readInt(12);
+    ch5Center = EEPROM.readInt(16);
 
-  if (ch1Center < 100)
-  {
-    ch1Center = 512;
-  }
-  if (ch2Center < 100)
-  {
-    ch2Center = 512;
-  }
-  if (ch3Center < 100)
-  {
-    ch3Center = 512;
-  }
-  if (ch4Center < 100)
-  {
-    ch4Center = 512;
-  }
-  if (ch5Center < 100)
-  {
-    ch5Center = 512;
-  }
+    if (ch1Center < 100)
+    {
+        ch1Center = 512;
+    }
+    if (ch2Center < 100)
+    {
+        ch2Center = 512;
+    }
+    if (ch3Center < 100)
+    {
+        ch3Center = 512;
+    }
+    if (ch4Center < 100)
+    {
+        ch4Center = 512;
+    }
+    if (ch5Center < 100)
+    {
+        ch5Center = 512;
+    }
 
-  RecRemote.begin(details(recFromBody), &Serial);
-  SendRemote.begin(details(sendToBody), &Serial);
+    RecRemote.begin(details(recFromBody), &Serial);
+    SendRemote.begin(details(sendToBody), &Serial);
 }
 
 void loop()
 {
-  //Serial.println(sendToBody.ch5);
+    //unsigned long currentMillis = millis();
+    checkForScreenUpdate();
+    checkBodyStatus();
 
-  /*   recvWithStartEndMarkers();
-    if (newData == true) {
-        strcpy(tempChars, receivedChars);
-            // this temporary copy is necessary to protect the original data
-            //   because strtok() used in parseData() replaces the commas with \0
-        parseData();
-        newData = false;
-    }*/
+    // Naigon - Drive-side (Server-side) Refactor
+    // Update the variables to use for next iterations comparison.
+    lastBodyStatus = recFromBody.bodyStatus;
+    lastDriveSpeed = recFromBody.bodyMode;
+    lastDirection = recFromBody.bodyDirection;
 
-  //unsigned long currentMillis = millis();
-  checkForScreenUpdate();
-  checkBodyStatus();
+    if (millis() - previousMillis > interval)
+    {
+        previousMillis = millis();
 
-  // Naigon - Drive-side (Server-side) Refactor
-  // Update the variables to use for next iterations comparison.
-  lastBodyStatus = recFromBody.bodyStatus;
-  lastDriveSpeed = recFromBody.bodyMode;
-  lastDirection = recFromBody.bodyDirection;
-
-  if (millis() - previousMillis > interval)
-  {
-    previousMillis = millis();
-
-    readInputs();
-    sendAndReceive();
-  }
+        readInputs();
+        sendAndReceive();
+    }
 }
 
 //==================================  Times how long far right button is pressed  ====================================
@@ -244,389 +233,359 @@ void loop()
 void timeJoystickCalibration()
 {
 
-  unsigned long currentMillisCenter = millis();
+    unsigned long currentMillisCenter = millis();
 
-  if (sendToBody.but8 == 0 && sendToBody.but7 == 0 && sendToBody.motorEnable == 1 && joystickCalibState == 0)
-  {
-    joystickCalibMillis = millis();
-    joystickCalibState = 1;
-  }
-
-  if (joystickCalibState == 1 && currentMillisCenter - joystickCalibMillis >= 3000)
-  {
-    oled.clear();
-    oled.setFont(Callibri15);
-    oled.println(F("========================="));
-    oled.println(F("   Joystick Calibration"));
-    oled.println(F("========================="));
-    delay(4000);
-    oled.clear();
-    oled.println(F("1. Release joysticks      "));
-    oled.println(F("2. Release all buttons "));
-    oled.print(F("                    "));
-
-    while (digitalRead(lBut1) == 0
-      || digitalRead(lBut2) == 0
-      || digitalRead(lBut3) == 0
-      || digitalRead(rBut1) == 0
-      || digitalRead(rBut2) == 0
-      || digitalRead(rBut3) == 0)
+    if (sendToBody.but8 == 0 && sendToBody.but7 == 0 && sendToBody.motorEnable == 1 && joystickCalibState == 0)
     {
+        joystickCalibMillis = millis();
+        joystickCalibState = 1;
     }
 
-    oled.clear();
-    oled.println(F("1. Release joysticks          "));
-    oled.println(F("2. Press any button         "));
-    oled.print(F("                    "));
-
-    while (digitalRead(lBut1) == 1
-        && digitalRead(lBut2) == 1
-        && digitalRead(lBut3) == 1
-        && digitalRead(rBut1) == 1
-        && digitalRead(rBut2) == 1
-        && digitalRead(rBut3) == 1
-        && digitalRead(enablePin) == 1)
+    if (joystickCalibState == 1 && currentMillisCenter - joystickCalibMillis >= 3000)
     {
-    }
+        oled.clear();
+        oled.setFont(Callibri15);
+        oled.println(F("========================="));
+        oled.println(F("   Joystick Calibration"));
+        oled.println(F("========================="));
+        delay(4000);
+        oled.clear();
+        oled.println(F("1. Release joysticks      "));
+        oled.println(F("2. Release all buttons "));
+        oled.print(F("                    "));
 
-    if (digitalRead(enablePin == 1))
-    {
-      setJoystickCenter();
-      joystickCalibState = 0;
-    }
+        while (
+            digitalRead(lBut1) == 0
+            || digitalRead(lBut2) == 0
+            || digitalRead(lBut3) == 0
+            || digitalRead(rBut1) == 0
+            || digitalRead(rBut2) == 0
+            || digitalRead(rBut3) == 0)
+        {
+        }
 
-    oled.clear();
-    printScreen = 1;
-  }
+        oled.clear();
+        oled.println(F("1. Release joysticks          "));
+        oled.println(F("2. Press any button         "));
+        oled.print(F("                    "));
+
+        while (
+            digitalRead(lBut1) == 1
+            && digitalRead(lBut2) == 1
+            && digitalRead(lBut3) == 1
+            && digitalRead(rBut1) == 1
+            && digitalRead(rBut2) == 1
+            && digitalRead(rBut3) == 1
+            && digitalRead(enablePin) == 1)
+        {
+        }
+
+        if (digitalRead(enablePin == 1))
+        {
+            setJoystickCenter();
+            joystickCalibState = 0;
+        }
+
+        oled.clear();
+        printScreen = 1;
+    }
 }
 
 //==================================  Set joystick centers  ====================================
 
 void setJoystickCenter()
 {
+    ch1Center = ch1a;
+    ch2Center = ch2a;
+    ch3Center = ch3a;
+    ch4Center = ch4a;
+    ch5Center = ch5a;
 
-  ch1Center = ch1a;
-  ch2Center = ch2a;
-  ch3Center = ch3a;
-  ch4Center = ch4a;
-  ch5Center = ch5a;
-
-  EEPROM.writeInt(0, ch1Center);
-  EEPROM.writeInt(4, ch2Center);
-  EEPROM.writeInt(8, ch3Center);
-  EEPROM.writeInt(12, ch4Center);
-  EEPROM.writeInt(16, ch5Center);
-  delay(1000);
+    EEPROM.writeInt(0, ch1Center);
+    EEPROM.writeInt(4, ch2Center);
+    EEPROM.writeInt(8, ch3Center);
+    EEPROM.writeInt(12, ch4Center);
+    EEPROM.writeInt(16, ch5Center);
+    delay(1000);
 }
 
 //==================================  Calibration  ====================================
 
 void bodyCalibration()
 {
-  oled.setCursor(0, 0);
-  oled.setFont(Callibri15);
-  //oled.println(F("========================="));
-  oled.println(F("** Body Calibration **            "));
-  oled.println(F("1. Center BB8.                 "));
-  oled.println(F("2. Disable motors.      "));
-  oled.println(F("3. Press right button.                      "));
+    oled.setCursor(0, 0);
+    oled.setFont(Callibri15);
+    //oled.println(F("========================="));
+    oled.println(F("** Body Calibration **            "));
+    oled.println(F("1. Center BB8.                 "));
+    oled.println(F("2. Disable motors.      "));
+    oled.println(F("3. Press right button.                      "));
 }
 
 void domeCenterCalibration()
 {
-  oled.setCursor(0, 0);
-  oled.setFont(Callibri15);
-  //oled.println(F("========================="));
-  oled.println(F("** Dome Calibration **            "));
-  oled.println(F("1. Face BB-8 'Forward'.                 "));
-  oled.println(F("2. Disable motors.      "));
-  oled.println(F("3. Press right button.                      "));
+    oled.setCursor(0, 0);
+    oled.setFont(Callibri15);
+    //oled.println(F("========================="));
+    oled.println(F("** Dome Calibration **            "));
+    oled.println(F("1. Face BB-8 'Forward'.                 "));
+    oled.println(F("2. Disable motors.      "));
+    oled.println(F("3. Press right button.                      "));
 }
 
 //==================================  Update screen  ====================================
 
 void printVoltage()
 {
-  // Body voltage
-  //
-  oled.setCursor(0, 0);
-  oled.setFont(Callibri15);
-  oled.print(F("Body: "));
-  if (btConnectedState == 1)
-  {
-    oled.print(recFromBody.bodyBatt);
-  }
-  else
-  {
-    oled.print(F("0.00"));
-  }
-  oled.print(F("V          "));
+    // Body voltage
+    //
+    oled.setCursor(0, 0);
+    oled.setFont(Callibri15);
+    oled.print(F("Body: "));
+    if (btConnectedState == 1)
+    {
+        oled.print(recFromBody.bodyBatt);
+    }
+    else
+    {
+        oled.print(F("0.00"));
+    }
+    oled.print(F("V          "));
 
-  // Naigon - Drive-side (Server-side) Refactor
-  // Read the speed from the value received from the body as opposed to calculating it directly.
-  // Movement speed
-  //
-  BodyMode bodyM = (BodyMode)recFromBody.bodyMode;
-  oled.setCursor(95, 0);
-  if (bodyM == BodyMode::Slow || bodyM == BodyMode::Servo)
-  {
-    oled.println(F("Slw     "));
-  }
-  else if (bodyM == BodyMode::SlowWithTilt || bodyM == BodyMode::ServoWithTilt)
-  {
-    oled.println(F("SlwT   "));
-  }
-  else if (bodyM == BodyMode::Medium)
-  {
-    oled.println(F("Med    "));
-  }
-  else if (bodyM == BodyMode::Fast)
-  {
-    oled.println(F("Fst     "));
-  }
-  else if (bodyM == BodyMode::Stationary)
-  {
-    oled.println(F("Wgl     "));
-  }
-  else if (bodyM == BodyMode::PushToRoll)
-  {
-    oled.println(F("Safe    "));
-  }
-  else if (bodyM == BodyMode::Automated || bodyM == BodyMode::AutomatedServo)
-  {
-    oled.println(F("Auto    "));
-  }
-  else
-  {
-    oled.println(F("OFF      "));
-  }
+    // Naigon - Drive-side (Server-side) Refactor
+    // Read the speed from the value received from the body as opposed to calculating it directly.
+    // Movement speed
+    //
+    BodyMode bodyM = (BodyMode)recFromBody.bodyMode;
+    oled.setCursor(95, 0);
+    if (bodyM == BodyMode::Slow || bodyM == BodyMode::Servo)
+    {
+        oled.println(F("Slw     "));
+    }
+    else if (bodyM == BodyMode::SlowWithTilt || bodyM == BodyMode::ServoWithTilt)
+    {
+        oled.println(F("SlwT   "));
+    }
+    else if (bodyM == BodyMode::Medium)
+    {
+        oled.println(F("Med    "));
+    }
+    else if (bodyM == BodyMode::Fast)
+    {
+        oled.println(F("Fst     "));
+    }
+    else if (bodyM == BodyMode::Stationary)
+    {
+        oled.println(F("Wgl     "));
+    }
+    else if (bodyM == BodyMode::PushToRoll)
+    {
+        oled.println(F("Safe    "));
+    }
+    else if (bodyM == BodyMode::Automated || bodyM == BodyMode::AutomatedServo)
+    {
+        oled.println(F("Auto    "));
+    }
+    else
+    {
+        oled.println(F("OFF      "));
+    }
 
-  // Remote voltage
-  //
-  oled.print(F("Remote: "));
-  oled.print(remoteBatt);
-  oled.print(F("V                             "));
+    // Remote voltage
+    //
+    oled.print(F("Remote: "));
+    oled.print(remoteBatt);
+    oled.print(F("V                             "));
 
-  // Movement direction
-  // Naigon - Drive-side (Server-side) Refactor
-  // Get the body direction (Fwd/Reverse) directly from the body as opposed to maintaining it here.
-  oled.setCursor(95, 15);
-  if (recFromBody.bodyDirection == Direction::Reverse)
-  {
-    oled.println(F("Rev          "));
-  }
-  else
-  {
-    oled.println(F("Fwd            "));
-  }
+    // Movement direction
+    // Naigon - Drive-side (Server-side) Refactor
+    // Get the body direction (Fwd/Reverse) directly from the body as opposed to maintaining it here.
+    oled.setCursor(95, 15);
+    if (recFromBody.bodyDirection == Direction::Reverse)
+    {
+        oled.println(F("Rev          "));
+    }
+    else
+    {
+        oled.println(F("Fwd            "));
+    }
 
-  oled.print(F("Dome Rotation: "));
-  if (bodyM == BodyMode::AutomatedServo
-    || bodyM == BodyMode::Servo
-    || bodyM == BodyMode::ServoWithTilt)
-  {
-    oled.println("Servo");
-  }
-  else
-  {
-    oled.println("Spin   ");
-  }
+    oled.print(F("Dome Rotation: "));
+    if (bodyM == BodyMode::AutomatedServo || bodyM == BodyMode::Servo || bodyM == BodyMode::ServoWithTilt)
+    {
+        oled.println("Servo");
+    }
+    else
+    {
+        oled.println("Spin   ");
+    }
 
-  // Bluetooth connected state
-  //
-  oled.print(F("BT: "));
-  if (btConnectedState == 0)
-  {
-    oled.println(F("Not Connected                     "));
-  }
-  else
-  {
-    oled.println(F("Connected                      "));
-  }
+    // Bluetooth connected state
+    //
+    oled.print(F("BT: "));
+    if (btConnectedState == 0)
+    {
+        oled.println(F("Not Connected                     "));
+    }
+    else
+    {
+        oled.println(F("Connected                      "));
+    }
 
-  // Update current values
-  stateLast = btConnectedState;
+    // Update current values
+    stateLast = btConnectedState;
 }
 
 void sendAndReceive()
 {
-  RecRemote.receiveData();
-  SendRemote.sendData();
+    RecRemote.receiveData();
+    SendRemote.sendData();
 }
 
 void checkForScreenUpdate()
 {
-  if (recFromBody.bodyStatus != BodyStatus::NormalOperation)
-  {
-    return;
-  }
+    if (recFromBody.bodyStatus != BodyStatus::NormalOperation)
+    {
+        return;
+    }
 
-  // Naigon - Drive-side (Server-side) Refactor
-  // Update if statement to see if body sent new values for state variables.
-  if (
-    (millis() - previousMillisScreen > 15000)
-    || (stateLast != btConnectedState)
-    || (lastBodyStatus != recFromBody.bodyStatus)
-    || (lastDriveSpeed != recFromBody.bodyMode)
-    || (lastDirection != recFromBody.bodyDirection)
-    || (printScreen == 1))
-  {
-    previousMillisScreen = millis();
-    printVoltage();
-    printScreen = 0;
-  }
+    // Naigon - Drive-side (Server-side) Refactor
+    // Update if statement to see if body sent new values for state variables.
+    if ((millis() - previousMillisScreen > 15000)
+        || (stateLast != btConnectedState)
+        || (lastBodyStatus != recFromBody.bodyStatus)
+        || (lastDriveSpeed != recFromBody.bodyMode)
+        || (lastDirection != recFromBody.bodyDirection)
+        || (printScreen == 1))
+    {
+        previousMillisScreen = millis();
+        printVoltage();
+        printScreen = 0;
+    }
 }
 
 void checkBodyStatus()
 {
-  if (recFromBody.bodyStatus == BodyStatus::BodyCalibration)
-  {
-    bodyCalibration();
-  }
-  else if (recFromBody.bodyStatus == BodyStatus::DomeCalibration)
-  {
-    domeCenterCalibration();
-  }
+    if (recFromBody.bodyStatus == BodyStatus::BodyCalibration)
+    {
+        bodyCalibration();
+    }
+    else if (recFromBody.bodyStatus == BodyStatus::DomeCalibration)
+    {
+        domeCenterCalibration();
+    }
 }
 
 void readInputs()
 {
-  btConnectedState = digitalRead(btStatePin); // check to see when BT is paired
+    btConnectedState = digitalRead(btStatePin); // check to see when BT is paired
 
-  ch1a = analogRead(rVertical);
-  ch2a = analogRead(rHorizontal);
-  ch3a = analogRead(lVertical);
-  ch4a = analogRead(lHorizontal);
-  ch5a = analogRead(Flywheel);
-  // Naigon - Drive-side (Server-side) Refactor
-  // Update to directly send the values to the drive, so that it can determine button pressed state.
-  // This is the crux of the change and all the rest is fallout from making the change here.
-  sendToBody.but1 = digitalRead(lSelect);
-  sendToBody.but2 = digitalRead(lBut1);
-  sendToBody.but3 = digitalRead(lBut2);
-  sendToBody.but4 = digitalRead(lBut3);
-  sendToBody.but5 = digitalRead(rSelect);
-  sendToBody.but6 = digitalRead(rBut1);
-  sendToBody.but7 = digitalRead(rBut2);
-  sendToBody.but8 = digitalRead(rBut3);
-  sendToBody.motorEnable = digitalRead(enablePin);
+    ch1a = analogRead(rVertical);
+    ch2a = analogRead(rHorizontal);
+    ch3a = analogRead(lVertical);
+    ch4a = analogRead(lHorizontal);
+    ch5a = analogRead(Flywheel);
+    // Naigon - Drive-side (Server-side) Refactor
+    // Update to directly send the values to the drive, so that it can determine button pressed state.
+    // This is the crux of the change and all the rest is fallout from making the change here.
+    sendToBody.but1 = digitalRead(lSelect);
+    sendToBody.but2 = digitalRead(lBut1);
+    sendToBody.but3 = digitalRead(lBut2);
+    sendToBody.but4 = digitalRead(lBut3);
+    sendToBody.but5 = digitalRead(rSelect);
+    sendToBody.but6 = digitalRead(rBut1);
+    sendToBody.but7 = digitalRead(rBut2);
+    sendToBody.but8 = digitalRead(rBut3);
+    sendToBody.motorEnable = digitalRead(enablePin);
 
-  remoteBatt = analogRead(battPin);
-  remoteBatt /= 1023;
-  remoteBatt *= 5;
+    remoteBatt = analogRead(battPin);
+    remoteBatt /= 1023;
+    remoteBatt *= 5;
 
-  if (ch1a == ch1Center)
-  {
-    ch1b = 256;
-  }
-  else if (ch1a > ch1Center)
-  {
-    ch1b = map(ch1a, ch1Center, 1023, 255, 0);
-  }
-  else if (ch1a < ch1Center)
-  {
-    ch1b = map(ch1a, 0, ch1Center, 512, 257);
-  }
+    if (ch1a == ch1Center)
+    {
+        ch1b = 256;
+    }
+    else if (ch1a > ch1Center)
+    {
+        ch1b = map(ch1a, ch1Center, 1023, 255, 0);
+    }
+    else if (ch1a < ch1Center)
+    {
+        ch1b = map(ch1a, 0, ch1Center, 512, 257);
+    }
 
-  if (ch2a == ch2Center)
-  {
-    ch2b = 256;
-  }
-  else if (ch2a > ch2Center)
-  {
-    ch2b = map(ch2a, ch2Center, 1023, 255, 0);
-  }
-  else if (ch2a < ch2Center)
-  {
-    ch2b = map(ch2a, 0, ch2Center, 512, 257);
-  }
+    if (ch2a == ch2Center)
+    {
+        ch2b = 256;
+    }
+    else if (ch2a > ch2Center)
+    {
+        ch2b = map(ch2a, ch2Center, 1023, 255, 0);
+    }
+    else if (ch2a < ch2Center)
+    {
+        ch2b = map(ch2a, 0, ch2Center, 512, 257);
+    }
 
-  if (ch3a == ch3Center)
-  {
-    ch3b = 256;
-  }
-  else if (ch3a > ch3Center)
-  {
-    ch3b = map(ch3a, ch3Center, 1023, 255, 0);
-  }
-  else if (ch3a < ch3Center)
-  {
-    ch3b = map(ch3a, 0, ch3Center, 512, 257);
-  }
+    if (ch3a == ch3Center)
+    {
+        ch3b = 256;
+    }
+    else if (ch3a > ch3Center)
+    {
+        ch3b = map(ch3a, ch3Center, 1023, 255, 0);
+    }
+    else if (ch3a < ch3Center)
+    {
+        ch3b = map(ch3a, 0, ch3Center, 512, 257);
+    }
 
-  if (recFromBody.bodyDirection == Direction::Reverse)
-  {
-    sendToBody.ch1 = map(ch1b, 0, 512, 512, 0);
-    sendToBody.ch2 = map(ch2b, 0, 512, 512, 0);
-    sendToBody.ch3 = map(ch3b, 0, 512, 512, 0);
-  }
-  else
-  {
-    sendToBody.ch1 = ch1b;
-    sendToBody.ch2 = ch2b;
-    sendToBody.ch3 = ch3b;
-  }
+    if (recFromBody.bodyDirection == Direction::Reverse)
+    {
+        sendToBody.ch1 = map(ch1b, 0, 512, 512, 0);
+        sendToBody.ch2 = map(ch2b, 0, 512, 512, 0);
+        sendToBody.ch3 = map(ch3b, 0, 512, 512, 0);
+    }
+    else
+    {
+        sendToBody.ch1 = ch1b;
+        sendToBody.ch2 = ch2b;
+        sendToBody.ch3 = ch3b;
+    }
 
-  if (ch4a == ch4Center)
-  {
-    sendToBody.ch4 = 256;
-  }
-  else if (ch4a > ch4Center)
-  {
-    sendToBody.ch4 = map(ch4a, ch4Center, 1023, 255, 0);
-  }
-  else if (ch4a < ch4Center)
-  {
-    sendToBody.ch4 = map(ch4a, 0, ch4Center, 512, 257);
-  }
+    if (ch4a == ch4Center)
+    {
+        sendToBody.ch4 = 256;
+    }
+    else if (ch4a > ch4Center)
+    {
+        sendToBody.ch4 = map(ch4a, ch4Center, 1023, 255, 0);
+    }
+    else if (ch4a < ch4Center)
+    {
+        sendToBody.ch4 = map(ch4a, 0, ch4Center, 512, 257);
+    }
 
-  if (ch5a == ch5Center)
-  {
-    sendToBody.ch5 = 256;
-  }
-  else if (ch5a > ch5Center)
-  {
-    sendToBody.ch5 = constrain(map(ch5a, ch5Center, 780, 255, 0), 0, 512);
-  }
-  else if (ch5a < ch5Center)
-  {
-    sendToBody.ch5 = constrain(map(ch5a, 140, ch5Center, 512, 257), 0, 512);
-  }
+    if (ch5a == ch5Center)
+    {
+        sendToBody.ch5 = 256;
+    }
+    else if (ch5a > ch5Center)
+    {
+        sendToBody.ch5 = constrain(map(ch5a, ch5Center, 780, 255, 0), 0, 512);
+    }
+    else if (ch5a < ch5Center)
+    {
+        sendToBody.ch5 = constrain(map(ch5a, 140, ch5Center, 512, 257), 0, 512);
+    }
 
-  if (sendToBody.but8 == 0 && sendToBody.but7 == 0)
-  {
-    timeJoystickCalibration();
-  }
-  else if (sendToBody.but8 == 1 || sendToBody.but7 == 1 || sendToBody.motorEnable == 0)
-  {
-    joystickCalibState = 0;
-  }
-
-  /*     Serial.print (F("<"));
-          Serial.print (ch1);
-          Serial.print (F(","));
-          Serial.print (ch2);
-          Serial.print (F(","));
-          Serial.print (ch3);
-          Serial.print (F(","));
-          Serial.print (ch4);
-          Serial.print (F(","));
-          Serial.print (but1);
-          Serial.print (F(","));
-          Serial.print (but2);
-          Serial.print (F(","));
-          Serial.print (but3);
-          Serial.print (F(","));
-          Serial.print (but4);
-          Serial.print (F(","));
-          Serial.print (but5);
-          Serial.print (F(","));
-          Serial.print (but6Speed);
-          Serial.print (F(","));
-          Serial.print (but7);
-          Serial.print (F(","));
-          Serial.print (but8);
-          Serial.print (F(","));
-          Serial.print (motorEnable);
-          Serial.println (F(">"));*/
+    if (sendToBody.but8 == 0 && sendToBody.but7 == 0)
+    {
+        timeJoystickCalibration();
+    }
+    else if (sendToBody.but8 == 1 || sendToBody.but7 == 1 || sendToBody.motorEnable == 0)
+    {
+        joystickCalibState = 0;
+    }
 }
