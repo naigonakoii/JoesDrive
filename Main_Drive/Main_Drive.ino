@@ -191,57 +191,56 @@ LinearEaseApplicator domeSpinEaseApplicator(0.0, easeDome);
 LinearEaseApplicator flywheelEaseApplicator(0.0, flywheelEase);
 
 
-int ch4Servo; //left joystick left/right when using servo mode
-int currentDomeSpeed;
-int domeRotation;
-
 int fadeVal = 0;
 int readPinState = 1;
 
+// Joe's Audio Player
+// TODO: I should bring back Joe's code and these vars in an #ifdef for those that are not using my custom driver.
 int soundPins[] = {soundpin1, soundpin2, soundpin3, soundpin4};
 int randSoundPin;
 int soundState;
 int musicState;
 int autoDisableState;
 unsigned long musicStateMillis = 0;
-
+// Auto Disable
 unsigned long autoDisableMotorsMillis = 0;
 int autoDisableDoubleCheck;
 unsigned long autoDisableDoubleCheckMillis = 0;
 int autoDisable;
 bool forcedMotorEnable = false;
-
+// Main loop
 unsigned long lastLoopMillis;
 float lastIMUloop;
 int MiniStatus;
-
-int flywheelRotation;
-
+// Save
 int SaveToEEPROM;
 
 float R1 = resistor1;
 float R2 = resistor2;
 
-int joystickDrive;
+int ch4Servo; //left joystick left/right when using servo mode
+int currentDomeSpeed;
+int domeRotation;
 
-int ch5PWM;
-
+// Drive motor
 int driveSpeed;
-
+int joystickDrive;
+// Side to Side motor
 int joystickS2S;
-
+int S2Spot;
+// Dome tilt
 int joystickDome;
 double domeTiltOffset;
 int domeTiltPot;
-
+// Dome spin
 int domeSpinOffset;
 int servoMode;
+int domeServo = 0;
+// Flywheel Motor Drive
+int ch5PWM;
+int flywheelRotation;
 
 float countdown;
-
-int domeServo = 0;
-
-int S2Spot;
 
 int BTstate = 0;
 
@@ -469,18 +468,8 @@ void sendAndReceive()
 
     if (recIMUData.IMUloop != 0)
     {
-
-#ifdef reversePitch
-        pitch = recIMUData.pitch * -1;
-#else
-        pitch = recIMUData.pitch;
-#endif
-
-#ifdef reverseRoll
-        roll = recIMUData.roll * -1;
-#else
-        roll = recIMUData.roll;
-#endif
+        pitch = recIMUData.pitch * revPitch;
+        roll = recIMUData.roll * revRoll;
     }
 
     if (isFirstPitchAndRoll == true)

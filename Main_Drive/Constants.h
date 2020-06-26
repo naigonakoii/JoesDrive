@@ -89,15 +89,68 @@
 // Head tilt is not based on the joystick, and is relative to the difference of the max angle
 #define DomeTiltAmount (MaxDomeTiltAngle - 10)
 
-#define reverseDrive    // uncomment if your drive joystick is reversed
-#define reverseDomeTilt // uncomment if your dome tilt joystick is reversed
-//#define reverseS2S                      // uncomment if your side to side joystick is reversed
-//#define reverseDomeSpin                 // uncomment if your dome spin joystick is reversed
-//#define reverseFlywheel                 // uncomment if your flywheel joystick is reversed
+// Naigon: Max pot range, Joe's default is 135. This means pot will map to -135, 135
+#define HeadTiltPotMax 135
+#define S2SPotMax 135
 
-#define reversePitch // reverse Pitch. Test this by moving the drive by hand; the weight/stabilization should move WITH you, NOT AGAINST.
-#define reverseRoll  // reverse Roll. Test this by moving the drive by hand; the weight/stabilization should move WITH you, NOT AGAINST.
+// Naigon: Threshold of the pot before actually adjusting the input. Joe's default is 25
+#define HeadTiltPotThresh 25
+// Naigon: Amount to limit the flywheel when in stationary mode. At full 255, the drive when spun up takes a while to
+// slow and respond to the second direction; this allows it to do quicker moves for animatronics, at the expense of not
+// being able to spin as much.
+#define FlywheelStationaryMax 255
+// Naigon: Amount to limit the flywheel in normal drive modes. Full 255 can "lock" the droid for a half second or so.
+// To prevent I just cap a bit more than full blast.
+#define FlywheelDriveMax 245
 
+//
+// Naigon - MK3 Flywheel - This value should be updated for the MK3 Flywheel, as more weight towards the outside makes
+// it move higher, and it is overall more sensitive.
+//
+// Defines the side to side output range, ie how much it can move.
+// Joe's default is 25.
+#define SideToSideMax 20
+
+//
+// Naigon: Amount that dome can spin when in servo mode. This was hardcoded inline before; I refactored to a constant
+// for ease of tuning.
+//
+// Joe's default is 70.
+#define DomeSpinServoMax 75
+
+//
+// Naigon - Safe Joystick Button Toggle
+//
+// Defines the amount that is considered to cause real movement. When the stick is above this value, no press from the
+// stick will be registered.
+#define JoystickMinMovement 10
+
+// Naigon: Defines the length (in MS) for the auto disable feature to kick in.
+// Joe had this hard-coded inline with a value of 3000.
+#define AutoDisableMS 4000
+
+// Naigon - Head Tilt Stabilization
+// Defines the number of points for the pitch and roll smoothing filter.
+// Higher values make movements much smoother, at the expense of a longer delay before the drive catches up to the actual value.
+#define PitchAndRollFilterCount 4
+
+// Naigon - Head Tilt Stabilization
+// Proportional amount of the stabilization to apply to the head tilt. Higher value means it will respond quicker at the expense of more jerk.
+// Value should be between 0.0 and 1.0 inclusively.
+#define HeadTiltPitchAndRollProportion 0.8
+
+//
+// Reverse constants from Joe
+//
+// Uncomment any that need reversing depending on your drive's wiring.
+//
+#define reverseDrive        // uncomment if your drive joystick is reversed
+#define reverseDomeTilt     // uncomment if your dome tilt joystick is reversed
+//#define reverseS2S        // uncomment if your side to side joystick is reversed
+//#define reverseDomeSpin   // uncomment if your dome spin joystick is reversed
+//#define reverseFlywheel   // uncomment if your flywheel joystick is reversed
+#define reversePitch        // reverse Pitch. Test this by moving the drive by hand; the weight/stabilization should move WITH you, NOT AGAINST.
+#define reverseRoll         // reverse Roll. Test this by moving the drive by hand; the weight/stabilization should move WITH you, NOT AGAINST.
 //#define reverseDomeTiltPot
 //#define reverseDomeSpinPot
 //#define reverseS2SPot
@@ -170,56 +223,17 @@
 #define revFly2
 #endif
 
+#ifdef reversePitch
+#define revPitch -1
+#else
+#define revPitch 1
+#endif
 
-// Naigon: Max pot range, Joe's default is 135. This means pot will map to -135, 135
-#define HeadTiltPotMax 135
-#define S2SPotMax 135
-
-// Naigon: Threshold of the pot before actually adjusting the input. Joe's default is 25
-#define HeadTiltPotThresh 25
-// Naigon: Amount to limit the flywheel when in stationary mode. At full 255, the drive when spun up takes a while to
-// slow and respond to the second direction; this allows it to do quicker moves for animatronics, at the expense of not
-// being able to spin as much.
-#define FlywheelStationaryMax 255
-// Naigon: Amount to limit the flywheel in normal drive modes. Full 255 can "lock" the droid for a half second or so.
-// To prevent I just cap a bit more than full blast.
-#define FlywheelDriveMax 245
-
-//
-// Naigon - MK3 Flywheel - This value should be updated for the MK3 Flywheel, as more weight towards the outside makes
-// it move higher, and it is overall more sensitive.
-//
-// Defines the side to side output range, ie how much it can move.
-// Joe's default is 25.
-#define SideToSideMax 20
-
-//
-// Naigon: Amount that dome can spin when in servo mode. This was hardcoded inline before; I refactored to a constant
-// for ease of tuning.
-//
-// Joe's default is 70.
-#define DomeSpinServoMax 75
-
-//
-// Naigon - Safe Joystick Button Toggle
-//
-// Defines the amount that is considered to cause real movement. When the stick is above this value, no press from the
-// stick will be registered.
-#define JoystickMinMovement 10
-
-// Naigon: Defines the length (in MS) for the auto disable feature to kick in.
-// Joe had this hard-coded inline with a value of 3000.
-#define AutoDisableMS 4000
-
-// Naigon - Head Tilt Stabilization
-// Defines the number of points for the pitch and roll smoothing filter.
-// Higher values make movements much smoother, at the expense of a longer delay before the drive catches up to the actual value.
-#define PitchAndRollFilterCount 4
-
-// Naigon - Head Tilt Stabilization
-// Proportional amount of the stabilization to apply to the head tilt. Higher value means it will respond quicker at the expense of more jerk.
-// Value should be between 0.0 and 1.0 inclusively.
-#define HeadTiltPitchAndRollProportion 0.8
+#ifdef reverseRoll
+#define revRoll -1
+#else
+#define revRoll 1
+#endif
 
 //
 // Debug Defines
