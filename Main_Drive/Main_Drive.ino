@@ -139,14 +139,6 @@ enum BodyStatus : uint8_t
     DomeCalibration = 2,
 };
 
-// Naigon - Head Tilt Stabilization
-// To keep the head tilt from being jerky, do some filtering on the pitch and roll over time.
-float pitch;
-float pitchPrev[PitchAndRollFilterCount];
-float roll;
-float rollPrev[PitchAndRollFilterCount];
-bool isFirstPitchAndRoll = true;
-
 RECEIVE_DATA_STRUCTURE_REMOTE recFromRemote;
 SEND_DATA_STRUCTURE_REMOTE sendToRemote;
 RECEIVE_DATA_STRUCTURE_IMU recIMUData;
@@ -165,6 +157,8 @@ ButtonHandler button2Handler(0 /* onVal */, 1000 /* heldDuration */);
 ButtonHandler button3Handler(0 /* onVal */, 1000 /* heldDuration */);
 ButtonHandler button5Handler(0 /* onVal */, 2000 /* heldDuration */);
 ButtonHandler button6Handler(0 /* onVal */, 2000 /* heldDuration */);
+ButtonHandler button7Handler(0 /* onVal */, 2000 /* heldDuration */);
+ButtonHandler button8Handler(0 /* onVal */, 2000 /* heldDuration */);
 
 // Naigon - Ease Applicator
 // Refactor code to use the new PWM driver.
@@ -190,6 +184,20 @@ FunctionEaseApplicator domeServoEaseApplicator(0.0, DomeSpinServoMax, 5, Functio
 LinearEaseApplicator domeSpinEaseApplicator(0.0, easeDome);
 LinearEaseApplicator flywheelEaseApplicator(0.0, flywheelEase);
 
+
+// Naigon - Head Tilt Stabilization
+// To keep the head tilt from being jerky, do some filtering on the pitch and roll over time.
+float pitch;
+float pitchPrev[PitchAndRollFilterCount];
+float roll;
+float rollPrev[PitchAndRollFilterCount];
+bool isFirstPitchAndRoll = true;
+
+// Joe's EEPROM vars
+float pitchOffset;
+float rollOffset;
+int potOffsetS2S;
+int domeTiltPotOffset;
 
 int fadeVal = 0;
 int readPinState = 1;
@@ -218,10 +226,6 @@ int SaveToEEPROM;
 float R1 = resistor1;
 float R2 = resistor2;
 
-int ch4Servo; //left joystick left/right when using servo mode
-int currentDomeSpeed;
-int domeRotation;
-
 // Drive motor
 int driveSpeed;
 int joystickDrive;
@@ -234,13 +238,14 @@ double domeTiltOffset;
 int domeTiltPot;
 // Dome spin
 int domeSpinOffset;
+int domeRotation;
+int currentDomeSpeed;
 int servoMode;
 int domeServo = 0;
+int ch4Servo; //left joystick left/right when using servo mode
 // Flywheel Motor Drive
 int ch5PWM;
 int flywheelRotation;
-
-float countdown;
 
 int BTstate = 0;
 
@@ -301,14 +306,6 @@ double Setpoint5, Input5, Output5;
 
 PID PID5(&Input5, &Output5, &Setpoint5, Kp5, Ki5, Kd5, DIRECT);
 
-long setCalibMillis;
-
-float pitchOffset;
-float rollOffset;
-int potOffsetS2S;
-int domeTiltPotOffset;
-
-int bodyCalibState = 0;
 
 #ifdef WirelessSound
 // In the future if an XBee is hooked to the Arduino Mega the hard-wired pins will not be needed.
@@ -327,6 +324,7 @@ NaigonBB8::SoundMapper mapper(
     StopTrackPin);
 NaigonBB8::ISoundPlayer *soundPlayer;
 #endif
+
 
 // ================================================================
 // ===                      INITIAL SETUP                       ===
@@ -438,6 +436,8 @@ void loop()
         button3Handler.UpdateState(recFromRemote.but3);
         button5Handler.UpdateState(recFromRemote.but5);
         button6Handler.UpdateState(recFromRemote.but6);
+        button7Handler.UpdateState(recFromRemote.but7);
+        button8Handler.UpdateState(recFromRemote.but8);
 
         //sounds();
         handleSounds();
@@ -510,11 +510,8 @@ float updatePrevValsAndComputeAvg(float *nums, float currentVal)
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void checkMiniTime()
 {
-    if (recIMUData.IMUloop == 1 && lastIMUloop >= 980)
-    {
-        lastIMUloop = 0;
-    }
-    else if (recIMUData.IMUloop < 1 && lastIMUloop > 3)
+    if ((recIMUData.IMUloop == 1 && lastIMUloop >= 980)
+        || (recIMUData.IMUloop < 1 && lastIMUloop > 3))
     {
         lastIMUloop = 0;
     }
@@ -522,11 +519,7 @@ void checkMiniTime()
     if (recIMUData.IMUloop > lastIMUloop)
     {
         lastIMUloop = recIMUData.IMUloop;
-
-        if (MiniStatus != 1)
-        {
-            MiniStatus = 1;
-        }
+        MiniStatus = 1;
     }
     else if (recIMUData.IMUloop <= lastIMUloop && MiniStatus != 0)
     {
@@ -758,24 +751,48 @@ void reverseDirection()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Body calibration
+// Calibration methods
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void bodyCalib()
 {
-    if (recFromRemote.but8 == 0 && recFromRemote.but7 == 1)
+    if (sendToRemote.bodyStatus == BodyStatus::NormalOperation
+        && button8Handler.GetState() == ButtonState::Held
+        && button7Handler.GetState() == ButtonState::NotPressed)
     {
-        timeBodyCalibration();
+        sendToRemote.bodyStatus = BodyStatus::BodyCalibration;
     }
-    else if (
-        (recFromRemote.but8 == 1 || recFromRemote.but7 == 0 || recFromRemote.motorEnable == 0)
-        && bodyCalibState != 0)
+    else if (sendToRemote.bodyStatus == BodyStatus::BodyCalibration
+        && button8Handler.GetState() == ButtonState::Pressed)
     {
-        bodyCalibState = 0;
+        SaveToEEPROM = 1;
     }
+    else if (sendToRemote.bodyStatus == BodyStatus::BodyCalibration
+        && button7Handler.GetState() == ButtonState::Pressed)
+    {
+        sendToRemote.bodyStatus = BodyStatus::NormalOperation;
+    }
+}
 
-    if (sendToRemote.bodyStatus == BodyStatus::BodyCalibration)
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Dome calibration
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void domeCalib()
+{
+    if (sendToRemote.bodyStatus == BodyStatus::NormalOperation
+        && button1Handler.GetState() == ButtonState::Held)
     {
-        waitForConfirmationToSetOffsets();
+        sendToRemote.bodyStatus = BodyStatus::DomeCalibration;
+    }
+    else if (sendToRemote.bodyStatus == BodyStatus::DomeCalibration
+        && button8Handler.GetState() == ButtonState::Pressed)
+    {
+        setDomeSpinOffset();
+        sendToRemote.bodyStatus = BodyStatus::NormalOperation;
+    }
+    else if (sendToRemote.bodyStatus == BodyStatus::DomeCalibration
+        && button7Handler.GetState() == ButtonState::Pressed)
+    {
+        sendToRemote.bodyStatus = BodyStatus::NormalOperation;
     }
 }
 
@@ -805,11 +822,6 @@ void movement()
     if (SaveToEEPROM != 0)
     {
         setOffsetsAndSaveToEEPROM();
-    }
-
-    if (sendToRemote.bodyStatus == BodyStatus::DomeCalibration)
-    {
-        waitForConfirmationToSetDomeOffsets();
     }
 
     if (recFromRemote.motorEnable == 0 && BTstate == 1 && MiniStatus != 0)
@@ -855,17 +867,6 @@ void movement()
     else if (servoMode == DomeMode::ServoMode && autoDisable == 0)
     {
         domeSpinServo();
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Dome calibration
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void domeCalib()
-{
-    if (sendToRemote.bodyStatus == BodyStatus::NormalOperation && button1Handler.GetState() == ButtonState::Held)
-    {
-        sendToRemote.bodyStatus = BodyStatus::DomeCalibration;
     }
 }
 
@@ -1108,55 +1109,15 @@ void turnOffAllTheThings()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Count how long right select is pressed.
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void timeBodyCalibration()
-{
-    // TODO: Naigon - get rid of this method and use a button handler.
-    unsigned long currentMillisBodyCalib = millis();
-
-    if (recFromRemote.but8 == 0 && recFromRemote.but7 == 1 && bodyCalibState == 0)
-    {
-        setCalibMillis = millis();
-        bodyCalibState = 1;
-    }
-
-    if (bodyCalibState == 1 && currentMillisBodyCalib - setCalibMillis >= 3000)
-    {
-        //setOffsetsAndSaveToEEPROM();
-        sendToRemote.bodyStatus = BodyStatus::BodyCalibration;
-        bodyCalibState = 0;
-    }
-
-#ifdef debugRSelectMillis
-    Serial.print(" currentMillisBodyCalib: ");
-    Serial.print(currentMillisBodyCalib);
-#endif
-}
-
-void waitForConfirmationToSetOffsets()
-{
-    countdown += .15;
-    if (countdown > 10 && recFromRemote.but8 == 0 && recFromRemote.motorEnable == 1)
-    {
-        //countdown = 0;
-        SaveToEEPROM = 1;
-        //sendToRemote.bodyStatus = 0;
-    }
-    else if (countdown >= 500)
-    {
-        // Naigon - Drive-side (Server-side) Refactor
-        // Reset the body status.
-        sendToRemote.bodyStatus = BodyStatus::NormalOperation;
-        countdown = 0;
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Set offsets and save to EEPROM
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void setOffsetsAndSaveToEEPROM()
 {
+    // Naigon - TODOD
+    // Joe has this only save one thing per iteration. I'm not sure if that is due to needing to keep getting update
+    // remote values, but it would be a lot better to just save everything in one go.
+    //
+
     if (SaveToEEPROM == 1)
     {
         pitchOffset = pitch * -1;
@@ -1183,14 +1144,13 @@ void setOffsetsAndSaveToEEPROM()
         // Naigon - Drive-side (Server-side) Refactor
         // Set the status to the correct servo mode so the remote will display properly.
         sendToRemote.bodyStatus = BodyStatus::NormalOperation;
-        countdown = 0;
         //playSound = 1;
     }
 }
 
 void setDomeSpinOffset()
 {
-    if (recFromRemote.but5 == 1)
+    if (sendToRemote.bodyDirection == Direction::Reverse)
     {
         domeSpinOffset = 180 - map(analogRead(domeSpinPot), 0, 1023, 180, -180);
     }
@@ -1218,24 +1178,6 @@ void setOffsetsONLY()
     potOffsetS2S = 0 - (map(analogRead(S2SpotPin), 0, 1024, -135, 135));
     domeTiltPotOffset = 0 - (map(analogRead(domeTiltPotPin), 0, 1024, -HeadTiltPotMax, HeadTiltPotMax));
     //delay(200);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Set dome offsets
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void waitForConfirmationToSetDomeOffsets()
-{
-    countdown += .15;
-    if (countdown > 5 && recFromRemote.but8 == 0 && recFromRemote.motorEnable == 1)
-    {
-        setDomeSpinOffset();
-        sendToRemote.bodyStatus = BodyStatus::NormalOperation;
-    }
-    else if (countdown >= 250)
-    {
-        sendToRemote.bodyStatus = BodyStatus::NormalOperation;
-        countdown = 0;
-    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1310,211 +1252,4 @@ void autoDisableMotors()
             autoDisableDoubleCheck = 0;
         }
     }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Debug
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void debugRoutines()
-{
-    // Uncomment " #Define " above
-#ifdef debugDrive
-    Serial.print(F(" joystickDrive: "));
-    Serial.print(joystickDrive);
-    Serial.print(F(" SetDrive: "));
-    Serial.print(Setpoint3);
-    Serial.print(F(" InDrive: "));
-    Serial.print(Input3);
-    Serial.print(F(" OutDrive: "));
-    Serial.print(Output3);
-#endif
-
-#ifdef debugS2S
-    Serial.print(F(" joystickS2S: "));
-    Serial.print(joystickS2S);
-    Serial.print(F(" Roll: "));
-    Serial.print(roll);
-    Serial.print(F(" RollOffset: "));
-    Serial.print(rollOffset);
-    Serial.print(F(" S2SPot: "));
-    Serial.print(S2Spot);
-    Serial.print(F(" In2: "));
-    Serial.print(Input2);
-    Serial.print(F(" Set2: "));
-    Serial.print(Setpoint2);
-    Serial.print(F(" Out2/Set1: "));
-    Serial.print(Output2);
-    Serial.print(F(" In1: "));
-    Serial.print(Input1);
-    Serial.print(F(" Out1: "));
-    Serial.println(Output1);
-#endif
-
-#ifdef debugDomeTilt
-    Serial.print(F(" joystickDome: "));
-    Serial.print(joystickDome);
-    Serial.print(F(" In4 :"));
-    Serial.print(Input4);
-    Serial.print(F(" Set4 :"));
-    Serial.print(Setpoint4);
-    Serial.print(F(" Out4 :"));
-    Serial.println(Output4);
-#endif
-
-#ifdef debugdomeRotation
-    Serial.print(F(" domeRotation: "));
-    Serial.print(domeRotation);
-    Serial.print(F(" currentDomeSpeed: "));
-    Serial.print(currentDomeSpeed);
-    Serial.print(F(" ch4Servo: "));
-    Serial.print(ch4Servo);
-    Serial.print(F(" In5: "));
-    Serial.print(Input5);
-    Serial.print(F(" Set5: "));
-    Serial.print(Setpoint5);
-    Serial.print(F(" Out5: "));
-    Serial.print(Output5);
-    //Serial.print(F(" yawOffset: "));
-    //Serial.print(yawOffset);
-    Serial.print(F(" domeServo: "));
-    Serial.print(domeServo);
-    //Serial.print(F(" domeYaw: "));
-    //Serial.print(recFromDome.domeYaw);
-    //Serial.print(F(" yaw: "));
-    //Serial.print(yaw);
-    Serial.print(F(" pot: "));
-    Serial.println(analogRead(domeSpinPot));
-#endif
-
-#ifdef debugSound
-    Serial.print(F(" playing sound: "));
-    Serial.println(soundPlayer->SoundTypeCurrentlyPlaying());
-#endif
-
-#ifdef debugPSI
-    Serial.print(F(" readPinState: "));
-    Serial.print(readPinState);
-    Serial.print(F(" fadeVal: "));
-    Serial.print(fadeVal);
-#endif
-
-#ifdef printbodyBatt
-    Serial.print(F(" Vin: "));
-    Serial.print(sendToRemote.bodyBatt);
-#endif
-
-#ifdef printYPR
-    //Serial.print(F(" Yaw: "));
-    //Serial.print(yaw);
-    Serial.print(F(" Roll: "));
-    Serial.print(roll);
-    Serial.print(F("  Pitch: "));
-    Serial.println(pitch);
-#endif
-
-#ifdef printDome
-    //Serial.print(F(" Dome Yaw: "));
-    //Serial.print(recFromDome.domeYaw);
-    Serial.print(F(" Dome Batt: "));
-    Serial.print(recFromDome.domeBatt);
-#endif
-
-#ifdef printRemote
-    Serial.print(F("  Remote: "));
-    Serial.print(recFromRemote.ch1);
-    Serial.print(" , ");
-    Serial.print(recFromRemote.ch2);
-    Serial.print(F(" , "));
-    Serial.print(recFromRemote.ch3);
-    Serial.print(F(" , "));
-    Serial.print(recFromRemote.ch4);
-    Serial.print(F(" , "));
-    Serial.print(recFromRemote.ch5);
-    Serial.print(F(" , "));
-    Serial.print(recFromRemote.but1);
-    Serial.print(F(" , "));
-    Serial.print(recFromRemote.but2);
-    Serial.print(F(" , "));
-    Serial.print(recFromRemote.but3);
-    Serial.print(F(" , "));
-    Serial.print(recFromRemote.but4);
-    Serial.print(F(" , "));
-    Serial.print(recFromRemote.but5);
-    Serial.print(F(" , "));
-    Serial.print(recFromRemote.but6);
-    Serial.print(F(" , "));
-    Serial.print(recFromRemote.but7);
-    Serial.print(F(" , "));
-    Serial.print(recFromRemote.but8);
-    Serial.print(F(" , "));
-    Serial.print(recFromRemote.motorEnable);
-    Serial.print('\n');
-#endif
-
-#ifdef printOffsets
-    Serial.print(" pitchOffset: ");
-    Serial.print(pitchOffset);
-    Serial.print(" rollOffset: ");
-    Serial.print(rollOffset);
-    Serial.print(" potOffsetS2S: ");
-    Serial.print(potOffsetS2S);
-    Serial.print("domeTiltPotOffset: ");
-    Serial.println(domeTiltPotOffset);
-#endif
-
-#ifdef debugRSelectMillis
-    //Serial.print(" currentMillisBodyCalib: ");
-    //Serial.print(currentMillisBodyCalib);
-    Serial.print(" setCalibMillis: ");
-    Serial.print(setCalibMillis);
-    Serial.print(" motorEnable: ");
-    Serial.print(recFromRemote.motorEnable);
-    Serial.print(" bodyCalibState: ");
-    Serial.print(bodyCalibState);
-    Serial.print(" bodyStatus: ");
-    Serial.print(sendToRemote.bodyStatus);
-    Serial.print(" countdown: ");
-    Serial.print(countdown);
-#endif
-
-#ifdef printOutputs
-    Serial.print(F(" Out1: "));
-    Serial.print(abs(Output1));
-    Serial.print(F(" Out2: "));
-    Serial.print(abs(Output2));
-    Serial.print(F(" Out3: "));
-    Serial.print(abs(Output3));
-    Serial.print(F(" Out4: "));
-    Serial.println(abs(Output4));
-#endif
-
-#ifdef printSoundPin
-    Serial.print(F(" Pin1: "));
-    Serial.print(digitalRead(soundpin1));
-    Serial.print(F(" Pin2: "));
-    Serial.print(digitalRead(soundpin2));
-    Serial.print(F(" Pin3: "));
-    Serial.print(digitalRead(soundpin3));
-    Serial.print(F(" Pin4: "));
-    Serial.print(digitalRead(soundpin4));
-    Serial.print(F(" Pin5: "));
-    Serial.print(digitalRead(soundpin5));
-    Serial.print(F(" Pin6: "));
-    Serial.print(digitalRead(soundpin6));
-    Serial.print(F(" soundState: "));
-    Serial.print(soundState);
-    Serial.print(F(" readPinState: "));
-    Serial.print(digitalRead(readpin));
-    Serial.print(F(" randSoundPin: "));
-    Serial.println(randSoundPin);
-#endif
-
-#ifdef debugFlywheelSpin
-    Serial.print(F(" ch5: "));
-    Serial.print(recFromRemote.ch5);
-    Serial.print(F(" ch5PWM: "));
-    Serial.print(ch5PWM);
-    Serial.print(F(" flywheelRotation: "));
-    Serial.println(flywheelRotation);
-#endif
 }

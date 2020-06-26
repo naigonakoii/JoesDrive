@@ -139,7 +139,6 @@ float remoteBatt = 0.0;
 uint8_t lastDriveSpeed = BodyMode::UnknownSpeed;
 uint8_t lastDirection = Direction::UnknownDirection;
 int lastBodyStatus = -1;
-int calibrationMarker;
 
 const byte numChars = 32;
 char receivedChars[numChars];
@@ -225,6 +224,12 @@ void loop()
   checkForScreenUpdate();
   checkBodyStatus();
 
+  // Naigon - Drive-side (Server-side) Refactor
+  // Update the variables to use for next iterations comparison.
+  lastBodyStatus = recFromBody.bodyStatus;
+  lastDriveSpeed = recFromBody.bodyMode;
+  lastDirection = recFromBody.bodyDirection;
+
   if (millis() - previousMillis > interval)
   {
     previousMillis = millis();
@@ -233,57 +238,6 @@ void loop()
     sendAndReceive();
   }
 }
-
-//==================================  Receive data from body  ====================================
-
-/*void recvWithStartEndMarkers() {
-    static boolean recvInProgress = false;
-    static byte ndx = 0;
-    char startMarker = '<';
-    char endMarker = '>';
-    char rc;
-
-    while (Serial.available() > 0 && newData == false) {
-        rc = Serial.read();
-
-        if (recvInProgress == true) {
-            if (rc != endMarker) {
-                receivedChars[ndx] = rc;
-                ndx++;
-                if (ndx >= numChars) {
-                    ndx = numChars - 1;
-                }
-            }
-            else {
-                receivedChars[ndx] = '\0'; // terminate the string
-                recvInProgress = false;
-                ndx = 0;
-                newData = true;
-            }
-        }
-
-        else if (rc == startMarker) {
-            recvInProgress = true;
-        }
-    }
-}*/
-
-//==================================  Parse the data received from the body  ====================================
-
-/*void parseData() {      // split the data into its parts
-
-    char * strtokIndx; // this is used by strtok() as an index
-
-    strtokIndx = strtok(tempChars,",");      // get the first part - the string
-    bodyBatt = atof(strtokIndx); 
-    strtokIndx = strtok(NULL, ",");
-    domeBatt = atof(strtokIndx);     // convert this part to a float
-    strtokIndx = strtok(NULL, ","); 
-    bodyStatus = atoi(strtokIndx); 
-    strtokIndx = strtok(NULL, ","); 
-    driveSpeed = atoi(strtokIndx);
-
-}*/
 
 //==================================  Times how long far right button is pressed  ====================================
 
@@ -365,44 +319,28 @@ void setJoystickCenter()
   delay(1000);
 }
 
-//==================================  Calibrate body center  ====================================
+//==================================  Calibration  ====================================
 
 void bodyCalibration()
 {
-  if (calibrationMarker == 0)
-  {
-    oled.setCursor(0, 0);
-    oled.setFont(Callibri15);
-    //oled.println(F("========================="));
-    oled.println(F("** Body Calibration **            "));
-    oled.println(F("1. Center BB8.                 "));
-    oled.println(F("2. Disable motors.      "));
-    oled.println(F("3. Press right button.                      "));
-    calibrationMarker = 1;
-  }
-  if (sendToBody.but8 == 0)
-  {
-    printScreen = 1;
-  }
+  oled.setCursor(0, 0);
+  oled.setFont(Callibri15);
+  //oled.println(F("========================="));
+  oled.println(F("** Body Calibration **            "));
+  oled.println(F("1. Center BB8.                 "));
+  oled.println(F("2. Disable motors.      "));
+  oled.println(F("3. Press right button.                      "));
 }
 
 void domeCenterCalibration()
 {
-  if (calibrationMarker == 0)
-  {
-    oled.setCursor(0, 0);
-    oled.setFont(Callibri15);
-    //oled.println(F("========================="));
-    oled.println(F("** Dome Calibration **            "));
-    oled.println(F("1. Face BB-8 'Forward'.                 "));
-    oled.println(F("2. Disable motors.      "));
-    oled.println(F("3. Press right button.                      "));
-    calibrationMarker = 1;
-  }
-  if (sendToBody.but8 == 0)
-  {
-    printScreen = 1;
-  }
+  oled.setCursor(0, 0);
+  oled.setFont(Callibri15);
+  //oled.println(F("========================="));
+  oled.println(F("** Dome Calibration **            "));
+  oled.println(F("1. Face BB-8 'Forward'.                 "));
+  oled.println(F("2. Disable motors.      "));
+  oled.println(F("3. Press right button.                      "));
 }
 
 //==================================  Update screen  ====================================
@@ -526,7 +464,7 @@ void checkForScreenUpdate()
   // Naigon - Drive-side (Server-side) Refactor
   // Update if statement to see if body sent new values for state variables.
   if (
-    (millis() - previousMillisScreen > 15000 && calibrationMarker == 0)
+    (millis() - previousMillisScreen > 15000)
     || (stateLast != btConnectedState)
     || (lastBodyStatus != recFromBody.bodyStatus)
     || (lastDriveSpeed != recFromBody.bodyMode)
@@ -541,24 +479,14 @@ void checkForScreenUpdate()
 
 void checkBodyStatus()
 {
-  if (recFromBody.bodyStatus == BodyStatus::BodyCalibration && (calibrationMarker == 0 || calibrationMarker == 1))
+  if (recFromBody.bodyStatus == BodyStatus::BodyCalibration)
   {
     bodyCalibration();
   }
-  else if (recFromBody.bodyStatus == BodyStatus::DomeCalibration && (calibrationMarker == 0 || calibrationMarker == 1))
+  else if (recFromBody.bodyStatus == BodyStatus::DomeCalibration)
   {
     domeCenterCalibration();
   }
-  else
-  {
-    calibrationMarker = 0;
-  }
-
-  // Naigon - Drive-side (Server-side) Refactor
-  // Update the variables to use for next iterations comparison.
-  lastBodyStatus = recFromBody.bodyStatus;
-  lastDriveSpeed = recFromBody.bodyMode;
-  lastDirection = recFromBody.bodyDirection;
 }
 
 void readInputs()
