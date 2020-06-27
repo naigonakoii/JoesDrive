@@ -143,8 +143,13 @@ RECEIVE_DATA_STRUCTURE_REMOTE recFromRemote;
 SEND_DATA_STRUCTURE_REMOTE sendToRemote;
 RECEIVE_DATA_STRUCTURE_IMU recIMUData;
 
+//
+// Feature Enabled/Disable flags
+//
 // Naigon - Stationary/Wiggle Mode
 bool IsStationary = false;
+// Naigon - Dome Automation
+bool IsDomeAutomation = false;
 
 // Naigon - Animations (in progress)
 AnimateYes animate;
@@ -690,18 +695,18 @@ void setDriveSpeed()
     driveSpeed = driveApplicator->GetMaxValue();
 
     // Indicate if the droid is in stationary mode only when in the stationary state.
-    IsStationary = sendToRemote.bodyMode == BodyMode::Stationary
-        ? true
-        : false;
+    IsStationary = sendToRemote.bodyMode == BodyMode::Stationary;
     
+    IsDomeAutomation = sendToRemote.bodyMode == BodyMode::Automated
+        || sendToRemote.bodyMode == BodyMode::AutomatedServo;
+
     // Naigon - Dome Modes
     // The dome servo or normal state is now parsed from the bodyMode.
-    servoMode =
-        sendToRemote.bodyMode == BodyMode::Servo
-            || sendToRemote.bodyMode == BodyMode::ServoWithTilt
-            || sendToRemote.bodyMode == BodyMode::AutomatedServo
-        ? DomeMode::ServoMode
-        : DomeMode::FullSpinMode;
+    servoMode = sendToRemote.bodyMode == BodyMode::Servo
+        || sendToRemote.bodyMode == BodyMode::ServoWithTilt
+        || sendToRemote.bodyMode == BodyMode::AutomatedServo
+            ? DomeMode::ServoMode
+            : DomeMode::FullSpinMode;
 }
 
 void incrementBodySpeedToggle()
@@ -885,9 +890,7 @@ void mainDrive()
     // When in wiggle/stationary mode, don't use the joystick to move at all.
     joystickDrive = IsStationary == true
         ? 0
-        : map(recFromRemote.ch1, 0, 512, driveSpeed revDrive1, driveSpeed revDrive2); //Read joystick - change -55/55 to adjust for speed.
-
-    // Moves through speedArray to match joystick. speedArray is set up to create an 's curve' for increasing/decreasing speed
+        : map(recFromRemote.ch1, 0, 512, driveSpeed revDrive1, driveSpeed revDrive2);
 
     Setpoint3 = constrain(
         driveApplicator->ComputeValueForCurrentIteration(joystickDrive),
@@ -912,7 +915,11 @@ void mainDrive()
 //
 void sideTilt()
 {
-    joystickS2S = map(constrain(recFromRemote.ch2, 0, 512), 0, 512, SideToSideMax revS2S1, SideToSideMax revS2S2); //- is  left, + is  right
+    // Naigon - Dome Automation
+    // Read the left stick left/right when in an automated mode.
+    int remoteInput = IsDomeAutomation ? recFromRemote.ch4 : recFromRemote.ch2;
+
+    joystickS2S = map(constrain(remoteInput, 0, 512), 0, 512, SideToSideMax revS2S1, SideToSideMax revS2S2);
 
     // Setpoint will increase/decrease by S2SEase each time the code runs until it matches the joystick. This slows the side to side movement.
     Setpoint2 = constrain(
@@ -973,7 +980,10 @@ void domeTilt()
         HeadTiltPotMax revDomeTiltPot1,
         HeadTiltPotMax revDomeTiltPot2) + domeTiltPotOffset;
 
-    int ch3Val = recFromRemote.ch3;
+    // Naigon - Dome Automation
+    // Dome tilt is completely controlled by automation.
+    int ch3Val = IsDomeAutomation ? 255 : recFromRemote.ch3;
+
     if (animationState.hasResult && animationState.ch3 != NOT_RUNNING && abs(ch3Val) < 10)
     {
         ch3Val = animationState.ch3;
@@ -1000,7 +1010,11 @@ void domeTilt()
 // ------------------------------------------------------------------------------------
 void domeSpin()
 {
-    domeRotation = map(recFromRemote.ch4, 0, 512, 255 revDomeSpin1, 255 revDomeSpin2);
+    // Naigon - Dome Automation
+    // Dome spin is completely controlled by the automation if the feature is enabled.
+    int ch4Val = IsDomeAutomation ? 255 : recFromRemote.ch4;
+
+    domeRotation = map(ch4Val, 0, 512, 255 revDomeSpin1, 255 revDomeSpin2);
 
     currentDomeSpeed = constrain(
         domeSpinEaseApplicator.ComputeValueForCurrentIteration(domeRotation),
@@ -1016,7 +1030,11 @@ void domeSpin()
 // ------------------------------------------------------------------------------------
 void domeSpinServo()
 {
-    ch4Servo = map(recFromRemote.ch4, 0, 512, DomeSpinServoMax revDomeR1, DomeSpinServoMax revDomeR2);
+    // Naigon - Dome Automation
+    // Dome spin is completely controlled by the automation.
+    int ch4Val = IsDomeAutomation ? 255 : recFromRemote.ch4;
+
+    ch4Servo = map(ch4Val, 0, 512, DomeSpinServoMax revDomeR1, DomeSpinServoMax revDomeR2);
 
 #ifdef reverseDomeSpinPot
     int minSpin = -180;
@@ -1141,8 +1159,6 @@ void setOffsetsAndSaveToEEPROM()
         domeTiltPotOffset = 0 - (map(analogRead(domeTiltPotPin), 0, 1024, -HeadTiltPotMax, HeadTiltPotMax));
         EEPROM.writeInt(12, domeTiltPotOffset);
         SaveToEEPROM = 0;
-        // Naigon - Drive-side (Server-side) Refactor
-        // Set the status to the correct servo mode so the remote will display properly.
         sendToRemote.bodyStatus = BodyStatus::NormalOperation;
         //playSound = 1;
     }
@@ -1150,21 +1166,13 @@ void setOffsetsAndSaveToEEPROM()
 
 void setDomeSpinOffset()
 {
-    if (sendToRemote.bodyDirection == Direction::Reverse)
-    {
-        domeSpinOffset = 180 - map(analogRead(domeSpinPot), 0, 1023, 180, -180);
-    }
-    else
-    {
-        domeSpinOffset = 0 - map(analogRead(domeSpinPot), 0, 1023, 180, -180);
-    }
+    domeSpinOffset = sendToRemote.bodyDirection == Direction::Reverse
+        ? 180 - map(analogRead(domeSpinPot), 0, 1023, 180, -180)
+        : 0 - map(analogRead(domeSpinPot), 0, 1023, 180, -180);
 
     EEPROM.writeInt(16, domeSpinOffset);
     // delay(200);
-    // Naigon - Drive-side (Server-side) Refactor
-    // Set the body status to the current servo mode so the remote will display the info.
     sendToRemote.bodyStatus = BodyStatus::NormalOperation;
-
     //playSound = 1;
 }
 
