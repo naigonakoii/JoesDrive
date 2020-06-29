@@ -105,7 +105,7 @@
 //
 // Defines the side to side output range, ie how much it can move.
 // Joe's default is 25.
-#define MaxSideToSide 20
+#define MaxSideToSide 22
 
 #define MaxDomeTiltAngle 22 // Maximum angle in which the dome will tilt. **  Max is 25  **
 

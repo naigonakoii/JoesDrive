@@ -272,8 +272,8 @@ int BTstate = 0;
 //
 // The following values need tuning if moving to the MK3 flywheel.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-double Pk1 = 22; // was 13
-double Ik1 = 0;
+double Pk1 = 42.0; // was 13
+double Ik1 = 0.0;
 // Naigon - Change this value from .3 to .1 or 0 to remove shakey side to side
 double Dk1 = 0.0;
 double Setpoint1, Input1, Output1;
