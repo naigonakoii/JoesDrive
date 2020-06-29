@@ -55,6 +55,7 @@ Head Tilt Stability | Keeps the dome centered forward to back regardless of the 
 Dome Modes | Adds extra dome modes in addition to just normal and servo, including allowing the dome to tilt when driving forward (which used to be an #ifdef in the code). Left stick now toggles both dome and drive modes which have been combined into one mode. This frees up another button for talking/animations.
 Ease Applicator | Refactor of the main drive methods to use the new IEaseApplicator instances. This prevents a lot of duplication of code, and allows for easier tuning of the ease controls.
 Dome Automation | This is a new mode that allows the head to be controlled automatically when driving. In this mode, the right joystick up/down is for drive, and the left joystick left/right is to steer. Other two directions are disabled. The head will tilt and move randomly with pre-defined Animations.
+Analog Input Refactor | This is the refactoring to make the pots and analog joysticks work off the new AnalogInHandler class.
 
 ## Visual Studio Code
 As a big proponent of Visual Studio Code and someone that finds the Arduino IDE quite lacking, I have moved all my Arduino development to Visual Studio Code.

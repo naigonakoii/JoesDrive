@@ -6,8 +6,9 @@
     ],
     "settings": {
         "editor.detectIndentation": false,
-        "editor.insertSpaces": true,
         "editor.formatOnSave": false,
+        "editor.insertSpaces": true,
+        "editor.renderWhitespace": "all",
         "editor.tabSize": 4,
         "C_Cpp.intelliSenseEngine": "Tag Parser"
     },
