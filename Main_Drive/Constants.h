@@ -94,7 +94,10 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Max joystick/pot values
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#define MaxDrive 55
+#define MaxDrive     55
+#define MaxDriveSlow 20
+#define MaxDriveMed  28
+#define MaxDriveFast 38
 
 //
 // Naigon - MK3 Flywheel - This value should be updated for the MK3 Flywheel, as more weight towards the outside makes
@@ -138,10 +141,6 @@
 // Head tilt is not based on the joystick, and is relative to the difference of the max angle
 #define DomeTiltAmount (MaxDomeTiltAngle - 10)
 
-// Naigon: Defines the length (in MS) for the auto disable feature to kick in.
-// Joe had this hard-coded inline with a value of 3000.
-#define AutoDisableMS 4000
-
 // Naigon - Head Tilt Stabilization
 // Defines the number of points for the pitch and roll smoothing filter.
 // Higher values make movements much smoother, at the expense of a longer delay before the drive catches up to the actual value.
@@ -170,6 +169,16 @@
 #define reverseDomeTiltPot  false
 #define reverseDomeSpinPot  false
 #define reverseS2SPot       false
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Auto Disable
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#define S2SOutThresh   28
+#define DriveOutThresh 12
+// Naigon: Defines the length (in MS) for the auto disable feature to kick in.
+// Joe had this hard-coded inline with a value of 3000.
+#define AutoDisableMS 4000
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 

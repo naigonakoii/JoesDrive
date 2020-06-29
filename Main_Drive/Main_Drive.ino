@@ -168,7 +168,9 @@ ButtonHandler button8Handler(0 /* onVal */, 2000 /* heldDuration */);
 
 // Naigon - Analog Input Refactor
 // Refactor code similar to ButtonHandler to have analog input handlers for joystick axis and pots.
-AnalogInHandler driveStickHandler(0, 512, reverseDrive, -MaxDrive, MaxDrive, 2.0f);
+AnalogInHandler driveStickHandlerSlow(0, 512, reverseDrive, -MaxDriveSlow, MaxDriveSlow, 2.0f);
+AnalogInHandler driveStickHandlerMed(0, 512, reverseDrive, -MaxDriveMed, MaxDriveMed, 2.0f);
+AnalogInHandler driveStickHandlerFast(0, 512, reverseDrive, -MaxDriveFast, MaxDriveFast, 2.0f);
 AnalogInHandler sideToSideStickHandler(0, 512, reverseS2S, -MaxSideToSide, MaxSideToSide, 2.0f);
 AnalogInHandler domeTiltStickHandler(0, 512, reverseDomeTilt, -MaxDomeTiltAngle, MaxDomeTiltAngle, 2.0f);
 AnalogInHandler domeRotationStickHandler(0, 512, reverseDomeSpin, -255, 255, 15.0f);
@@ -179,7 +181,7 @@ AnalogInHandler sideToSidePotHandler(0, 1024, reverseS2SPot, -MaxS2SPot, MaxS2SP
 AnalogInHandler domeTiltPotHandler(0, 1024, reverseDomeTiltPot, -MaxHeadTiltPot, MaxHeadTiltPot, 0.0f);
 AnalogInHandler domeSpinPotHandler(0, 1024, reverseDomeSpinPot, -MaxDomeSpinPot, MaxDomeSpinPot, 0.0f);
 // Pointers to logical mappings. Different drive modes switch these.
-AnalogInHandler *driveStickPtr = &driveStickHandler;
+AnalogInHandler *driveStickPtr = &driveStickHandlerSlow;
 AnalogInHandler *sideToSideStickPtr = &sideToSideStickHandler;
 AnalogInHandler *domeTiltStickPtr = &domeTiltStickHandler;
 AnalogInHandler *domeSpinStickPtr = &domeRotationStickHandler;
@@ -202,7 +204,7 @@ FunctionEaseApplicator driveApplicatorMed(0.0, 28.0, 0.2, FunctionEaseApplicator
 FunctionEaseApplicator driveApplicatorHigh(0.0, 38.0, 0.2, FunctionEaseApplicatorType::Quadratic);
 FunctionEaseApplicator driveApplicatorWiggle(0.0, 5.0, 0.1, FunctionEaseApplicatorType::Quadratic);
 // Naigon - Ease Applicator: for the drive this pointer will always be the one in use.
-FunctionEaseApplicator *driveApplicator = &driveApplicatorSlow;
+FunctionEaseApplicator *driveApplicatorPtr = &driveApplicatorSlow;
 FunctionEaseApplicator sideToSideEaseApplicator(0.0, MaxSideToSide, S2SEase, FunctionEaseApplicatorType::SCurve);
 FunctionEaseApplicator domeTiltEaseApplicator(0.0, MaxDomeTiltAngle, easeDomeTilt, FunctionEaseApplicatorType::SCurve);
 FunctionEaseApplicator domeServoEaseApplicator(0.0, MaxDomeSpinServo, 5, FunctionEaseApplicatorType::SCurve);
@@ -677,24 +679,28 @@ void updateBodyMode()
 
     if (sendToRemote.bodyMode == BodyMode::Medium)
     {
-        driveApplicator = &driveApplicatorMed;
+        driveApplicatorPtr = &driveApplicatorMed;
+        driveStickPtr = &driveStickHandlerMed;
     }
     else if (sendToRemote.bodyMode == BodyMode::Fast)
     {
-        driveApplicator = &driveApplicatorHigh;
+        driveApplicatorPtr = &driveApplicatorHigh;
+        driveStickPtr = &driveStickHandlerFast;
     }
     else if (sendToRemote.bodyMode == BodyMode::Stationary)
     {
         // For safety, set the drive speed back to slow, even though the stick shouldn't use it.
-        driveApplicator = &driveApplicatorWiggle;
+        driveApplicatorPtr = &driveApplicatorWiggle;
+        driveStickPtr = &driveStickHandlerSlow;
     }
     else
     {
         // For all other modes, just default to the slow speed as it honestly works the best.
-        driveApplicator = &driveApplicatorSlow;
+        driveApplicatorPtr = &driveApplicatorSlow;
+        driveStickPtr = &driveStickHandlerSlow;
     }
 
-    driveSpeed = driveApplicator->GetMaxValue();
+    driveSpeed = driveApplicatorPtr->GetMaxValue();
 
     // Indicate if the droid is in stationary mode only when in the stationary state.
     IsStationary = sendToRemote.bodyMode == BodyMode::Stationary;
@@ -936,7 +942,7 @@ void mainDrive()
     int joystickDrive = (int)driveStickPtr->GetMappedValue();
 
     Setpoint3 = constrain(
-        driveApplicator->ComputeValueForCurrentIteration(joystickDrive),
+        driveApplicatorPtr->ComputeValueForCurrentIteration(joystickDrive),
         -MaxDrive,
         MaxDrive);
 
@@ -1240,7 +1246,9 @@ void autoDisableMotors()
         forcedMotorEnable = false;
     }
 
-    if (autoDisableState == 1 && (millis() - autoDisableMotorsMillis) >= (unsigned long)AutoDisableMS && output1A < 25 && output3A < 8)
+    if (autoDisableState == 1
+        && (millis() - autoDisableMotorsMillis) >= (unsigned long)AutoDisableMS
+        && (output1A <= S2SOutThresh && output3A <= DriveOutThresh))
     {
         digitalWrite(enablePin, LOW);
         autoDisable = 1;
@@ -1252,14 +1260,14 @@ void autoDisableMotors()
         autoDisableDoubleCheck = 0;
         autoDisable = 0;
     }
-    else if ((output1A > 25 || output3A > 8) && autoDisableDoubleCheck == 0)
+    else if ((output1A > S2SOutThresh || output3A > DriveOutThresh) && autoDisableDoubleCheck == 0)
     {
         autoDisableDoubleCheckMillis = millis();
         autoDisableDoubleCheck = 1;
     }
     else if ((autoDisableDoubleCheck == 1) && (millis() - autoDisableDoubleCheckMillis >= 100))
     {
-        if (output1A > 30 || output3A > 8)
+        if (output1A > S2SOutThresh || output3A > DriveOutThresh)
         {
             autoDisableState = 0;
             digitalWrite(enablePin, HIGH);
