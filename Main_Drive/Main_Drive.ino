@@ -272,7 +272,7 @@ int BTstate = 0;
 //
 // The following values need tuning if moving to the MK3 flywheel.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-double Pk1 = 42.0; // was 13
+double Pk1 = 32.0; // Joe's 13
 double Ik1 = 0.0;
 // Naigon - Change this value from .3 to .1 or 0 to remove shakey side to side
 double Dk1 = 0.0;
@@ -286,7 +286,7 @@ PID PID1(&Input1, &Output1, &Setpoint1, Pk1, Ik1, Dk1, DIRECT);
 //
 // The following values need tuning if moving to the MK3 flywheel.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-double Pk2 = 1.00; // Joe 0.5; M2 Flywheel .4
+double Pk2 = 1.50; // Joe 0.5; M2 Flywheel .4
 double Ik2 = 0.00; // was .00
 double Dk2 = 0.01; // was .01
 double Setpoint2, Input2, Output2;

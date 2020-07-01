@@ -104,8 +104,8 @@
 // it move higher, and it is overall more sensitive.
 //
 // Defines the side to side output range, ie how much it can move.
-// Joe's default is 25.
-#define MaxSideToSide 22
+// Joe's default is 25. Max is 25.
+#define MaxSideToSide 21
 
 #define MaxDomeTiltAngle 22 // Maximum angle in which the dome will tilt. **  Max is 25  **
 
@@ -174,7 +174,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Auto Disable
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#define S2SOutThresh   28
+#define S2SOutThresh   42
 #define DriveOutThresh 12
 // Naigon: Defines the length (in MS) for the auto disable feature to kick in.
 // Joe had this hard-coded inline with a value of 3000.
