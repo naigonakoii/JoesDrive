@@ -30,17 +30,24 @@
 #include <PID_v1.h> //PID loop from http://playground.arduino.cc/Code/PIDLibrary
 
 #include "AnalogInHandler.h"
-#include "Animations.h"
+#include "Animation.h"
+#include "AnimationDefinitions.h"
 #include "ButtonHandler.h"
 #include "Constants.h"
 #include "EaseApplicator.h"
 #include "MotorPWM.h"
 #include "SoundPlayer.h"
 
-using NaigonBB8::MotorPWM;
+using NaigonBB8::Animation;
+using NaigonBB8::AnimationDefinitions;
+using NaigonBB8::AnimationRunner;
+using NaigonBB8::AnimationState;
+using NaigonBB8::AnimationTarget;
 using NaigonBB8::FunctionEaseApplicator;
 using NaigonBB8::FunctionEaseApplicatorType;
 using NaigonBB8::LinearEaseApplicator;
+using NaigonBB8::MotorPWM;
+using NaigonBB8::SoundTypes;
 
 EasyTransfer RecRemote;
 EasyTransfer SendRemote;
@@ -152,15 +159,20 @@ bool IsStationary = false;
 // Naigon - Dome Automation
 bool IsDomeAutomation = false;
 
-// Naigon - Animations (in progress)
-AnimateYes animate;
-AnimationState animationState;
+// Naigon - Animations
+// Animation definitions live in the AnimationDefinitions.ino file.
+// Forward declare the main variable here.
+AnimationRunner animationRunner(AnimationDefinitions::NumberOfAnimations, AnimationDefinitions::animations);
+bool isAnimationRunning = false;
+// Setting this will force the dome into servo mode just until the head is centered. This resets animations.
+bool runHeadServoUntilCentered = false;
 
 // Naigon - Button Handling
 // NOTE - should implement for all cases where using buttons in Joe's code.
 ButtonHandler button1Handler(0 /* onVal */, 1000 /* heldDuration */);
 ButtonHandler button2Handler(0 /* onVal */, 1000 /* heldDuration */);
 ButtonHandler button3Handler(0 /* onVal */, 1000 /* heldDuration */);
+ButtonHandler button4Handler(0 /* onVal */, 1000 /* heldDuration */);
 ButtonHandler button5Handler(0 /* onVal */, 2000 /* heldDuration */);
 ButtonHandler button6Handler(0 /* onVal */, 2000 /* heldDuration */);
 ButtonHandler button7Handler(0 /* onVal */, 2000 /* heldDuration */);
@@ -175,7 +187,7 @@ AnalogInHandler sideToSideStickHandler(0, 512, reverseS2S, -MaxSideToSide, MaxSi
 AnalogInHandler domeTiltStickHandler(0, 512, reverseDomeTilt, -MaxDomeTiltAngle, MaxDomeTiltAngle, 2.0f);
 AnalogInHandler domeRotationStickHandler(0, 512, reverseDomeSpin, -255, 255, 15.0f);
 AnalogInHandler domeServoStickHandler(0, 512, reverseDomeSpin, -MaxDomeSpinServo, MaxDomeSpinServo, 15.0f);
-AnalogInHandler flywheelStickHandler(0, 512, reverseFlywheel, -MaxFlywheelDrive, MaxFlywheelDrive, 15.0f);
+AnalogInHandler flywheelStickHandler(0, 512, reverseFlywheel, -MaxFlywheelDrive, MaxFlywheelDrive, 50.0f);
 // Pots
 AnalogInHandler sideToSidePotHandler(0, 1024, reverseS2SPot, -MaxS2SPot, MaxS2SPot, 0.0f);
 AnalogInHandler domeTiltPotHandler(0, 1024, reverseDomeTiltPot, -MaxHeadTiltPot, MaxHeadTiltPot, 0.0f);
@@ -212,6 +224,25 @@ FunctionEaseApplicator domeServoEaseApplicator(0.0, MaxDomeSpinServo, 5, Functio
 LinearEaseApplicator domeSpinEaseApplicator(0.0, easeDome);
 LinearEaseApplicator flywheelEaseApplicator(0.0, flywheelEase);
 
+#ifdef WirelessSound
+// In the future if an XBee is hooked to the Arduino Mega the hard-wired pins will not be needed.
+#else
+//
+// Naigon - NEC Audio.
+//
+NaigonBB8::SoundMapper mapper(
+    HappySoundPin,
+    SadSoundPin,
+    ExcitedSoundPin,
+    ScaredSoundPin,
+    ChattySoundPin,
+    AgitatedSoundPin,
+    PlayTrackPin,
+    StopTrackPin);
+NaigonBB8::ISoundPlayer *soundPlayer;
+#endif
+
+SoundTypes forcedSoundType = SoundTypes::NotPlaying;
 
 // Naigon - Head Tilt Stabilization
 // To keep the head tilt from being jerky, do some filtering on the pitch and roll over time.
@@ -323,26 +354,6 @@ double Setpoint5, Input5, Output5;
 
 PID PID5(&Input5, &Output5, &Setpoint5, Kp5, Ki5, Kd5, DIRECT);
 
-
-#ifdef WirelessSound
-// In the future if an XBee is hooked to the Arduino Mega the hard-wired pins will not be needed.
-#else
-//
-// Naigon - NEC Audio.
-//
-NaigonBB8::SoundMapper mapper(
-    HappySoundPin,
-    SadSoundPin,
-    ExcitedSoundPin,
-    ScaredSoundPin,
-    ChattySoundPin,
-    AgitatedSoundPin,
-    PlayTrackPin,
-    StopTrackPin);
-NaigonBB8::ISoundPlayer *soundPlayer;
-#endif
-
-
 // ================================================================
 // ===                      INITIAL SETUP                       ===
 // ================================================================
@@ -431,6 +442,9 @@ void setup()
 
     // Always startup on slow speed.
     sendToRemote.bodyMode = BodyMode::Slow;
+
+    // TODO - could make this based on when a button is pressed or a connection to make it more random.
+    randomSeed(millis());
 }
 
 //     ================================================================================================================
@@ -451,12 +465,12 @@ void loop()
         updateBodyMode();
         updateInputHandlers();
         reverseDirection();
+        updateAnimations();
         //sounds();
         handleSounds();
         psiVal();
         readVin();
         bodyCalib();
-        updateAnimations();
         movement();
         domeCalib();
         lastLoopMillis = millis();
@@ -545,85 +559,6 @@ void checkMiniTime()
     if (lastIMUloop >= 999)
     {
         lastIMUloop = 0;
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Sounds
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/*
-void sounds() {
-  if ((recFromRemote.but2 == 0 || recFromRemote.but7 == 0) && recFromRemote.but8 == 1 && readPinState == 1 && BTstate ==1 && soundState == 0 && playSound == 0) {   
-    playSound = 1;
-  }///*else if (recFromRemote.but2 == 1 && recFromRemote.but7 == 1 && playSound == 0) {
-    //soundState=0;
-    //digitalWrite((soundPins[0]), HIGH);
-    //digitalWrite((soundPins[1]), HIGH);
-    //digitalWrite((soundPins[2]), HIGH);
-    //digitalWrite((soundPins[3]), HIGH);
-    //digitalWrite((soundPins[4]), HIGH);
-  //}//
-          
-  if ((recFromRemote.but3 == 0) && (readPinState == 1) && (BTstate ==1)) {
-    musicState = 1;
-    musicStateMillis = millis();
-    digitalWrite(soundpin6, LOW);
-  }
-  else if (recFromRemote.but3 == 1) {
-    digitalWrite(soundpin6, HIGH);
-  }
-
-  if(playSound == 1) {
-    randSoundPin = random(0, 5);
-    digitalWrite((soundPins[randSoundPin]), LOW);
-    soundMillis = millis();
-    playSound = 2;
-    
-  }
-  else if(playSound == 2 && (millis() - soundMillis > 200)) {
-    digitalWrite((soundPins[randSoundPin]), HIGH);
-    playSound = 0;
-  }
-}
-*/
-void handleSounds()
-{
-    //
-    // Naigon - NEC Audio
-    // This method handles sending sound to the custom Naigon's Electronic Creations gen 3 BB-8 sound player.
-    //
-    bool played = false;
-
-    if (
-        (button2Handler.GetState() == ButtonState::Pressed || button2Handler.GetState() == ButtonState::Held)
-        && soundPlayer->SoundTypeCurrentlyPlaying() == NaigonBB8::SoundTypes::NotPlaying)
-    {
-        // Button will only do a sound that is deemed "happy".
-        int randomType = random(0, 3) * 2;
-        if (button2Handler.GetState() == ButtonState::Held)
-        {
-            randomType += 1;
-        }
-        soundPlayer->PlaySound((NaigonBB8::SoundTypes)randomType);
-        played = true;
-    }
-    else if (button3Handler.GetState() == ButtonState::Pressed
-        && soundPlayer->TrackTypeCurrentlyPlaying() == NaigonBB8::SoundTypes::NotPlaying)
-    {
-        soundPlayer->PlaySound(NaigonBB8::SoundTypes::PlayTrack);
-        played = true;
-    }
-    else if (button3Handler.GetState() == ButtonState::Held
-        && soundPlayer->TrackTypeCurrentlyPlaying() != NaigonBB8::SoundTypes::StopTrack)
-    {
-        soundPlayer->PlaySound(NaigonBB8::SoundTypes::StopTrack);
-        played = true;
-    }
-
-    if (!played)
-    {
-        // If nothing was played, then update this loop with nothing.
-        soundPlayer->PlaySound(NaigonBB8::SoundTypes::NotPlaying);
     }
 }
 
@@ -756,6 +691,7 @@ void updateInputHandlers()
     button1Handler.UpdateState(recFromRemote.but1);
     button2Handler.UpdateState(recFromRemote.but2);
     button3Handler.UpdateState(recFromRemote.but3);
+    button4Handler.UpdateState(recFromRemote.but4);
     button5Handler.UpdateState(recFromRemote.but5);
     button6Handler.UpdateState(recFromRemote.but6);
     button7Handler.UpdateState(recFromRemote.but7);
@@ -817,6 +753,126 @@ void reverseDirection()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Update animations
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void updateAnimations()
+{
+    if (domeTiltStickPtr->HasMovement()
+        || domeSpinStickPtr->HasMovement())
+    {
+        animationRunner.StopCurrentAnimation();
+    }
+
+    if (button4Handler.GetState() == ButtonState::Pressed)
+    {
+        animationRunner.SelectAndStartAnimation(AnimationTarget::AnyAnimation);
+        isAnimationRunning = true;
+    }
+
+    if (animationRunner.IsRunning())
+    {
+        const AnimationState* aState = animationRunner.RunIteration();
+
+        domeTiltStickPtr->UpdateState(aState->GetDomeTiltFB());
+        domeSpinStickPtr->UpdateState(aState->GetDomeSpin());
+        flywheelStickPtr->UpdateState(aState->GetFlywheel());
+
+        forcedSoundType = aState->GetSoundType();
+    }
+    else if (isAnimationRunning)
+    {
+        // There was an active animation running, but now it is no longer running. Temporarily run head servo mode
+        // until the head is back into position.
+        runHeadServoUntilCentered = true;
+        isAnimationRunning = false;
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Sounds
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/*
+void sounds() {
+  if ((recFromRemote.but2 == 0 || recFromRemote.but7 == 0) && recFromRemote.but8 == 1 && readPinState == 1 && BTstate ==1 && soundState == 0 && playSound == 0) {   
+    playSound = 1;
+  }///*else if (recFromRemote.but2 == 1 && recFromRemote.but7 == 1 && playSound == 0) {
+    //soundState=0;
+    //digitalWrite((soundPins[0]), HIGH);
+    //digitalWrite((soundPins[1]), HIGH);
+    //digitalWrite((soundPins[2]), HIGH);
+    //digitalWrite((soundPins[3]), HIGH);
+    //digitalWrite((soundPins[4]), HIGH);
+  //}//
+          
+  if ((recFromRemote.but3 == 0) && (readPinState == 1) && (BTstate ==1)) {
+    musicState = 1;
+    musicStateMillis = millis();
+    digitalWrite(soundpin6, LOW);
+  }
+  else if (recFromRemote.but3 == 1) {
+    digitalWrite(soundpin6, HIGH);
+  }
+
+  if(playSound == 1) {
+    randSoundPin = random(0, 5);
+    digitalWrite((soundPins[randSoundPin]), LOW);
+    soundMillis = millis();
+    playSound = 2;
+    
+  }
+  else if(playSound == 2 && (millis() - soundMillis > 200)) {
+    digitalWrite((soundPins[randSoundPin]), HIGH);
+    playSound = 0;
+  }
+}
+*/
+void handleSounds()
+{
+    //
+    // Naigon - NEC Audio
+    // This method handles sending sound to the custom Naigon's Electronic Creations gen 3 BB-8 sound player.
+    //
+    bool played = false;
+
+    if (forcedSoundType != SoundTypes::NotPlaying)
+    {
+        soundPlayer->PlaySound(forcedSoundType);
+        played = true;
+    }
+    else if (
+        (button2Handler.GetState() == ButtonState::Pressed || button2Handler.GetState() == ButtonState::Held)
+        && soundPlayer->SoundTypeCurrentlyPlaying() == SoundTypes::NotPlaying)
+    {
+        // Button will only do a sound that is deemed "happy".
+        int randomType = random(0, 3) * 2;
+        if (button2Handler.GetState() == ButtonState::Held)
+        {
+            randomType += 1;
+        }
+        soundPlayer->PlaySound((SoundTypes)randomType);
+        played = true;
+    }
+    else if (button3Handler.GetState() == ButtonState::Pressed
+        && soundPlayer->TrackTypeCurrentlyPlaying() == SoundTypes::NotPlaying)
+    {
+        soundPlayer->PlaySound(SoundTypes::PlayTrack);
+        played = true;
+    }
+    else if (button3Handler.GetState() == ButtonState::Held
+        && soundPlayer->TrackTypeCurrentlyPlaying() != SoundTypes::StopTrack)
+    {
+        soundPlayer->PlaySound(SoundTypes::StopTrack);
+        played = true;
+    }
+
+    if (!played)
+    {
+        // If nothing was played, then update this loop with nothing.
+        soundPlayer->PlaySound(SoundTypes::NotPlaying);
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Calibration methods
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void bodyCalib()
@@ -863,22 +919,6 @@ void domeCalib()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Update animations
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void updateAnimations()
-{
-    // Naigon - Animations
-    // TODO: Finish the animation code here.
-    /*
-  if (recFromRemote.but7 == 0 && !animate.GetIsRunning())
-  {
-      animate.Start();
-  }
-  animationState = animate.RunIteration();
-  */
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Actual movement
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void movement()
@@ -916,13 +956,14 @@ void movement()
         turnOffAllTheThings(true /*disableDrive*/);
     }
 
-    if (servoMode == DomeMode::FullSpinMode || autoDisable == 1 || recFromRemote.motorEnable == 1)
-    {
-        domeSpin();
-    }
-    else if (servoMode == DomeMode::ServoMode && autoDisable == 0)
+    if ((servoMode == DomeMode::ServoMode || runHeadServoUntilCentered)
+        && autoDisable == 0)
     {
         domeSpinServo();
+    }
+    else if (servoMode == DomeMode::FullSpinMode || autoDisable == 1 || recFromRemote.motorEnable == 1)
+    {
+        domeSpin();
     }
 }
 
@@ -1024,11 +1065,6 @@ void domeTilt()
     // Dome tilt is completely controlled by automation.
     int ch3Val = (int)domeTiltStickPtr->GetMappedValue();
 
-    if (animationState.hasResult && animationState.ch3 != NOT_RUNNING && abs(ch3Val) < 10)
-    {
-        ch3Val = animationState.ch3;
-    }
-
     // Naigon: BUG
     // Joe's code had a bug here; you need to subtract within the constrain, otherwise driving can cause this value to go
     // outside the bounds and really bad things happen like the drive locking and losing the head.
@@ -1088,6 +1124,10 @@ void domeSpinServo()
     PID5.Compute();
 
     writeMotorPwm(domeServoPWM, Output5, 0, false /*requireBT*/, false /*requireMotorEnable*/);
+
+    // Naigon - Animations
+    // Stop forcing the head servo mode now that it is back into position.
+    if (runHeadServoUntilCentered && abs(Output5) < 10) { runHeadServoUntilCentered = false; }
 }
 
 // ------------------------------------------------------------------------------------

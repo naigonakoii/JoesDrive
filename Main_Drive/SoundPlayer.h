@@ -17,7 +17,7 @@ namespace NaigonBB8
 #include "Arduino.h"
 
 // Naigon sound pins
-enum SoundTypes
+enum SoundTypes : int8_t
 {
     NotPlaying = -1,
     Happy = 0,

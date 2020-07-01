@@ -47,7 +47,7 @@ Feature | Description
 MK3 Flywheel | Code changes required to get the drive working after physically installing the Naigon MK3 Flywheel.
 NEC Audio | Code that drives the custom audio player built off an Igniter 3 (contact if you wish to purchase).
 Drive-Side (Server-Side) Refactor | Drive mode, Fwd/Reverse, and calibration selection driven from the server. Think of turning the remote into a "dumb" react-like terminal.
-Animations | (In progress) Canned animations that allow a single button press to do animatronics.
+Animations | Canned animations that allow a single button press to do animatronics, along with auto moving the head while driving in one of the two automated modes. This feature is my biggest improvement to the drive so far.
 Stationary/Wiggle Mode | Extra drive speed that when selected disables the rear PSP flywheel stick, and moves flywheel to the drive stick. No driving in this mode. NOTE: In the code it is called 'Stationary' mode, but the remote displays it as 'Wiggle'.
 Safe Mode | Extra drive speed that when selected disables remote input, and only engages the main drive stability. This allows pushing the ball safely to allow a specific panel to be facing up for access. In the code it is called 'PushToRoll' but the remote displays 'Safe'.
 Safe Joystick Button Toggle | New feature that prevents the two joysticks from registering a press when the joystick is in use. This prevents accidently reversing the controls during drive, and prevents going into servo mode when using the dome.
