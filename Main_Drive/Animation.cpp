@@ -120,109 +120,77 @@ const AnimationState* ScriptedAnimation::RunIteration()
 // Generated Animation
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-uint8_t weightedPercentBasedSelection(const int percents[], int size, uint8_t defaultValue);
+uint8_t weightedPercentBasedSelection(const uint16_t percents[], uint16_t size, uint16_t totPercent, uint8_t defaultValue);
 
-enum AnimationAction : uint8_t
+// --------------------------------------------------------------------------------------------------------------------
+// GeneratedAnimationPercents Class Methods
+// --------------------------------------------------------------------------------------------------------------------
+GeneratedAnimationPercents::GeneratedAnimationPercents(
+    const AnimationAction *actionArray,
+    const uint16_t *actionPercents,
+    uint8_t actionSize,
+    const uint16_t *msArray,
+    const uint16_t *msPercents,
+    uint8_t msSize,
+    const uint16_t *frStickArray,
+    const uint16_t *frStickPercents,
+    uint8_t frStickSize,
+    const uint16_t *lrStickArray,
+    const uint16_t *lrStickPercents,
+    uint8_t lrStickSize)
+    : _actionArray(actionArray)
+    , _actionPercents(actionPercents)
+    , _actionSize(actionSize)
+    , _msArray(msArray)
+    , _msPercents(msPercents)
+    , _msSize(msSize)
+    , _frStickArray(frStickArray)
+    , _frStickPercents(frStickPercents)
+    , _frStickSize(frStickSize)
+    , _lrStickArray(lrStickArray)
+    , _lrStickPercents(lrStickPercents)
+    , _lrStickSize(lrStickSize)
+    , _actionTot(0)
+    , _msTot(0)
+    , _frStickTot(0)
+    , _lrStickTot(0)
 {
-    EndAnimation = 0,
-    SpinDome,
-    TiltDomeFB,
-    TiltDomeLR,
-    SideToSide,
-    Flywheel,
-    PlaySound,
-    ENDAnimationAction,
-};
+    for (uint16_t i = 0; i < _actionSize; i++)
+    {
+        _actionTot += _actionPercents[i];
+    }
 
-enum LeftRightStick : uint8_t
-{
-    FullLeft = 0,
-    ThreeFourthLeft,
-    TwoThirdLeft,
-    OneHalfLeft,
-    OneHalfRight,
-    TwoThirdRight,
-    ThreeFourthRight,
-    FullRight,
-    ENDLeftRightStick,
-};
+    for (uint16_t i = 0; i < _msSize; i++)
+    {
+        _msTot += _msPercents[i];
+    }
 
-enum ForwardReverseStick : uint8_t
-{
-    FullForward = 0,
-    ThreeFourthForward,
-    TwoThirdForward,
-    OneHalfForward,
-    OneHalfReverse,
-    TwoThirdReverse,
-    ThreeFourthReverse,
-    FullReverse,
-    ENDForwardReverseStick,
-};
+    for (uint16_t i = 0; i < _frStickSize; i++)
+    {
+        _frStickTot += _frStickPercents[i];
+    }
 
-enum MillisSelection : uint8_t
-{
-    OneHundredMS = 0,
-    TwoFiftyMS,
-    ThreeFiftyMS,
-    FiveHundredMS,
-    SevenFiftyMS,
-    OneSecond,
-    ENDMillis,
-};
-
-//
-// Ensure these add to 100
-//
-const int percentTotals[] = { 5, 30, 20, 0, 10, 5, 30, };
-const int percentStickLR[] { 15, 12, 8, 15, 15, 8, 12, 15, };
-const int percentStickFR[] { 40, 25, 15, 5, 5, 5, 5, };
-const int percentMillis[] { 5, 20, 20, 20, 20, 15, };
-
-const int stickFRVals[] =
-{
-    ForwardFull,
-    ForwardThreeFourths,
-    ForwardTwoThirds,
-    ForwardHalf,
-    ReverseHalf,
-    ReverseTwoThirds,
-    ReverseThreeFourths,
-    ReverseFull,
-};
-
-const int stickLRVals[] =
-{
-    LeftFull,
-    LeftThreeFourths,
-    LeftTwoThirds,
-    LeftHalf,
-    RightHalf,
-    RightTwoThirds,
-    RightThreeFourths,
-    RightFull,
-};
-
-const int millisVals[] =
-{
-    100,
-    250,
-    350,
-    500,
-    750,
-    1000,
-};
+    for (uint16_t i = 0; i < _lrStickSize; i++)
+    {
+        _lrStickTot += _lrStickPercents[i];
+    }
+}
+// --------------------------------------------------------------------------------------------------------------------
 
 // --------------------------------------------------------------------------------------------------------------------
 // GeneratedAnimation Class Methods
 // --------------------------------------------------------------------------------------------------------------------
 GeneratedAnimation::GeneratedAnimation(
     AnimationTarget aTarget,
+    GeneratedAnimationPercents *percents,
     uint8_t minNumAnimationSteps,
+    uint8_t maxConcurentActions,
     uint16_t soundTimeout,
     bool allowAutoStop)
     : _animationTarget(aTarget)
+    , _percents(percents)
     , _minNumAnimationSteps(minNumAnimationSteps)
+    , _maxConcurentActions(maxConcurentActions)
     , _soundTimeout(soundTimeout)
     , _autoStop(allowAutoStop)
     , _currentResult(
@@ -265,7 +233,7 @@ void GeneratedAnimation::Stop()
 
 const AnimationState* GeneratedAnimation::RunIteration()
 {
-    if (_animationStepCount == 0 || (millis() - _currentMillis) > _nextAnimationMS)
+    if (_animationStepCount == 0 || (millis() - _currentMillis) > _currentResult._millisOnState)
     {
         _currentMillis = millis();
         AutoGenerateNextState();
@@ -280,13 +248,14 @@ void GeneratedAnimation::AutoGenerateNextState()
     Clear();
 
     uint8_t millisBucketIndex = weightedPercentBasedSelection(
-        percentMillis,
-        MillisSelection::ENDMillis,
-        MillisSelection::ThreeFiftyMS);
+        _percents->_msPercents,
+        _percents->_msSize,
+        _percents->_msTot /* totPercent */,
+        _percents->_msSize / 2);
 
-    _currentResult._millisOnState = millisVals[millisBucketIndex];
+    _currentResult._millisOnState = _percents->_msArray[millisBucketIndex];
 
-    int numConcurentActions = random(3) + 1;
+    int numConcurentActions = random(_maxConcurentActions) + 1;
 
     for (int i = 0; i < numConcurentActions; i++)
     {
@@ -312,14 +281,6 @@ void GeneratedAnimation::AutoGenerateNextState()
         }
         else
         {
-            if (_animationTarget == AnimationTarget::DomeAnimation
-                    && action != AnimationAction::SpinDome)
-            {
-                // Dome Animation target only supports dome spin. Give an extra 30% change to do it here.
-                int spinExtra = random(100);
-                if (spinExtra > 33) { continue; }
-            }
-
             int stickAmount = AutoGenerateStickAmount(action);
             switch (action)
             {
@@ -346,10 +307,13 @@ void GeneratedAnimation::AutoGenerateNextState()
 
 uint8_t GeneratedAnimation::AutoGenerateAction()
 {
-    return weightedPercentBasedSelection(
-        percentTotals,
-        AnimationAction::ENDAnimationAction,
+    uint8_t index = weightedPercentBasedSelection(
+        _percents->_actionPercents,
+        _percents->_actionSize,
+        _percents->_actionTot,
         AnimationAction::SpinDome);
+
+    return _percents->_actionArray[index];
 }
 
 int GeneratedAnimation::AutoGenerateStickAmount(uint8_t action)
@@ -359,20 +323,22 @@ int GeneratedAnimation::AutoGenerateStickAmount(uint8_t action)
     if (animationAction == AnimationAction::TiltDomeFB)
     {
         uint8_t index = weightedPercentBasedSelection(
-            percentStickFR,
-            ForwardReverseStick::ENDForwardReverseStick,
-            ForwardReverseStick::FullForward);
+            _percents->_frStickPercents,
+            _percents->_frStickSize,
+            _percents->_frStickTot,
+            0);
 
-        return stickFRVals[index];
+        return _percents->_frStickArray[index];
     }
     else
     {
         uint8_t index = weightedPercentBasedSelection(
-            percentStickLR,
-            LeftRightStick::ENDLeftRightStick,
-            LeftRightStick::OneHalfRight);
+            _percents->_lrStickPercents,
+            _percents->_lrStickSize,
+            _percents->_lrStickTot,
+            _percents->_lrStickSize / 2);
 
-        return stickLRVals[index];
+        return _percents->_lrStickArray[index];
     }
 }
 
@@ -388,10 +354,10 @@ void GeneratedAnimation::Clear()
     _currentResult._millisOnState = 0;
 }
 
-uint8_t weightedPercentBasedSelection(const int percents[], int size, uint8_t defaultValue)
+uint8_t weightedPercentBasedSelection(const uint16_t percents[], uint16_t size, uint16_t totPercent, uint8_t defaultValue)
 {
     // Randomly select the percentage.
-    int opPercent = random(100);
+    int opPercent = random(totPercent);
 
     uint16_t count = 0;
     for (int j = 0; j < size; j++)
@@ -405,6 +371,8 @@ uint8_t weightedPercentBasedSelection(const int percents[], int size, uint8_t de
 
     return defaultValue;
 }
+// --------------------------------------------------------------------------------------------------------------------
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 

@@ -21,24 +21,38 @@ AnimationRunner::AnimationRunner(int numAnimations, IAnimation *animations[])
     : _animations(animations)
     , _currentAnimation(nullptr)
     , _numAnimations(numAnimations)
-    , _numOfHeadAnimations(0)
-    , _numOfFullAnimations(0)
+    , _numBank1(0)
+    , _numBank2(0)
+    , _numBank3(0)
+    , _numBank4(0)
 {
     for (int i = 0; i < _numAnimations; i++)
     {
         //
         // Get a count of the number of each type of animation. This is needed to randomly select one later.
         //
-        if (_animations[i]->Target() == AnimationTarget::FullAnimation
-            || _animations[i]->Target() == AnimationTarget::AnyAnimation)
+        if (_animations[i]->Target() == AnimationTarget::Bank1
+            || _animations[i]->Target() == AnimationTarget::AnyBank)
         {
-            _numOfFullAnimations++;
+            _numBank1++;
         }
 
-        if (_animations[i]->Target() == AnimationTarget::DomeAnimation
-            || _animations[i]->Target() == AnimationTarget::AnyAnimation)
+        if (_animations[i]->Target() == AnimationTarget::Bank2
+            || _animations[i]->Target() == AnimationTarget::AnyBank)
         {
-            _numOfHeadAnimations++;
+            _numBank2++;
+        }
+
+        if (_animations[i]->Target() == AnimationTarget::Bank3
+            || _animations[i]->Target() == AnimationTarget::AnyBank)
+        {
+            _numBank3++;
+        }
+
+        if (_animations[i]->Target() == AnimationTarget::Bank4
+            || _animations[i]->Target() == AnimationTarget::AnyBank)
+        {
+            _numBank4++;
         }
     }
 }
@@ -67,13 +81,21 @@ void AnimationRunner::SelectAndStartAnimation(AnimationTarget aTarget)
 
     int r = random(_numAnimations);
 
-    if (aTarget == AnimationTarget::DomeAnimation)
+    if (aTarget == AnimationTarget::Bank1)
     {
-        r = random(_numOfHeadAnimations);
+        r = random(_numBank1);
     }
-    else if (aTarget == AnimationTarget::FullAnimation)
+    else if (aTarget == AnimationTarget::Bank2)
     {
-        r = random(_numOfFullAnimations);
+        r = random(_numBank2);
+    }
+    else if (aTarget == AnimationTarget::Bank3)
+    {
+        r = random(_numBank3);
+    }
+    else if (aTarget == AnimationTarget::Bank4)
+    {
+        r = random(_numBank4);
     }
 
     int count = 0, i = 0;
@@ -82,9 +104,9 @@ void AnimationRunner::SelectAndStartAnimation(AnimationTarget aTarget)
         //
         // Find the randomly selected animation from the index.
         //
-        if (aTarget == AnimationTarget::AnyAnimation
+        if (aTarget == AnimationTarget::AnyBank
             || _animations[i]->Target() == aTarget
-            || _animations[i]->Target() == AnimationTarget::AnyAnimation)
+            || _animations[i]->Target() == AnimationTarget::AnyBank)
         {
             count++;
         }

@@ -80,7 +80,7 @@ public:
     void SelectAndStartAnimation(AnimationTarget aTarget);
 
 private:
-    int _numOfHeadAnimations, _numOfFullAnimations, _numAnimations;
+    int _numBank1, _numBank2, _numBank3, _numBank4, _numAnimations;
     IAnimation* _currentAnimation;
     IAnimation **_animations;
 };

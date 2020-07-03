@@ -41,12 +41,14 @@
 
 using namespace NaigonBB8::AnimationConstants;
 
+using NaigonBB8::AnimationAction;
 using NaigonBB8::AnimationRunner;
 using NaigonBB8::AnimationState;
 using NaigonBB8::AnimationTarget;
 using NaigonBB8::FunctionEaseApplicator;
 using NaigonBB8::FunctionEaseApplicatorType;
 using NaigonBB8::GeneratedAnimation;
+using NaigonBB8::GeneratedAnimationPercents;
 using NaigonBB8::IAnimation;
 using NaigonBB8::LinearEaseApplicator;
 using NaigonBB8::MotorPWM;
@@ -164,22 +166,85 @@ RECEIVE_DATA_STRUCTURE_IMU recIMUData;
 bool IsStationary = false;
 // Naigon - Dome Automation
 bool IsDomeAutomation = false;
-
+bool ForceStopAutomation = false;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// DomeAnimation
+// Shared Animation
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+const uint16_t stickFRVals[] =
+{
+    ForwardFull,
+    ForwardThreeFourths,
+    ForwardTwoThirds,
+    ForwardHalf,
+    ReverseHalf,
+    ReverseTwoThirds,
+    ReverseThreeFourths,
+    ReverseFull,
+};
+
+const uint16_t stickLRVals[] =
+{
+    LeftFull,
+    LeftThreeFourths,
+    LeftTwoThirds,
+    LeftHalf,
+    RightHalf,
+    RightTwoThirds,
+    RightThreeFourths,
+    RightFull,
+};
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Dome Animations for Automated Modes - Bank 1
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+const AnimationAction domeActions[] = {
+    AnimationAction::Pause,
+    AnimationAction::SpinDome,
+    AnimationAction::PlaySound,
+    AnimationAction::TiltDomeFB, };
+
+const uint16_t domeActPer[] =
+{
+    73, // Pause
+     7, // Spin Dome
+    15, // Play Sound
+     5, // Tilt Dome
+};
+
+const uint16_t millisVals[] = { 100, 250, 350, 500, 750, 1000, };
+const uint16_t millisPer[]  = {  10,  20,  20,  25,  15,   10, };
+
+const uint16_t percentDomeStickLR[] { 8, 12,  15, 15, 15, 15, 12, 8, };
+
+const uint16_t percentDomeStickFR[] { 35, 25, 15, 5, 5, 5, 5, 5, };
+
+GeneratedAnimationPercents domeAnimationPercents(
+    domeActions,
+    domeActPer,
+    4,
+    millisVals,
+    millisPer,
+    6,
+    stickFRVals,
+    percentDomeStickFR,
+    8,
+    stickLRVals,
+    percentDomeStickLR,
+    8);
 
 // Since moving just the head is pretty basic, going with full generation here to save variable space.
 GeneratedAnimation headMovement(
-    AnimationTarget::DomeAnimation,
+    AnimationTarget::Bank1,
+    &domeAnimationPercents,
     3 /* minNumAnimationSteps */,
-    1000 /* soundTimeout */, true /* allowAutoStop */);
+    4 /* maxConcurentActions */,
+    8000 /* soundTimeout */,
+    false /* allowAutoStop */);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Full Animations
+// Scripted Animations for Button 4 Press - Bank2
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 AnimationState tiltHeadAndLookBothWays1State[] = {
@@ -191,7 +256,7 @@ AnimationState tiltHeadAndLookBothWays1State[] = {
     AnimationState(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 500),
     AnimationState(Centered, Centered, ForwardHalf, Centered, Centered,  Centered, SoundTypes::NotPlaying, 100),
 };
-ScriptedAnimation tiltHeadAndLookBothWays1(AnimationTarget::FullAnimation, 6, tiltHeadAndLookBothWays1State);
+ScriptedAnimation tiltHeadAndLookBothWays1(AnimationTarget::Bank2, 6, tiltHeadAndLookBothWays1State);
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Array of entire animations that will be used to initialize the AnimationRunner in the main file.
@@ -505,8 +570,8 @@ void loop()
         // These methods do not need the body mode updated.
         checkMiniTime();
         BTenable();
-        updateBodyMode();
         updateInputHandlers();
+        updateBodyMode();
         reverseDirection();
         updateAnimations();
         //sounds();
@@ -649,8 +714,55 @@ void BTenable()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Update values for the current iteration based on the selected BodyMode
+// Update values for the current iteration
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void updateInputHandlers()
+{
+    // Naigon - Safe Joystick Button Toggle
+    // This method needs to be before body mode selection. However, this method depends on the body mode. This just
+    // means that the values will be one iteration behind the body mode, which is okay in my opinion.
+    //
+
+    // Update button state for the rest of the functions.
+    button1Handler.UpdateState(recFromRemote.but1);
+    button2Handler.UpdateState(recFromRemote.but2);
+    button3Handler.UpdateState(recFromRemote.but3);
+    button4Handler.UpdateState(recFromRemote.but4);
+    button5Handler.UpdateState(recFromRemote.but5);
+    button6Handler.UpdateState(recFromRemote.but6);
+    button7Handler.UpdateState(recFromRemote.but7);
+    button8Handler.UpdateState(recFromRemote.but8);
+
+    int dr, s, dt, ds, fl;
+
+    if (sendToRemote.bodyMode == BodyMode::PushToRoll)
+    {
+        // Naigon - Safe Joystick Button Toggle: Refactored here due to Analog Joystick Refactor
+        // Safe mode will keep the default 255 and will not read from the actual sticks.
+        dr = s = dt = ds = fl = 255;
+    }
+    else
+    {
+        dr = IsStationary ? 255 : recFromRemote.ch1;
+        s = IsDomeAutomation ? recFromRemote.ch4 : recFromRemote.ch2;
+        dt = IsDomeAutomation ? 255 : recFromRemote.ch3;
+        ds = IsDomeAutomation ? 255 : recFromRemote.ch4;
+        fl = IsStationary ? recFromRemote.ch1 : recFromRemote.ch5;
+    }
+
+    // Joysticks
+    driveStickPtr->UpdateState(dr);
+    sideToSideStickPtr->UpdateState(s);
+    domeTiltStickPtr->UpdateState(dt);
+    domeSpinStickPtr->UpdateState(ds);
+    flywheelStickPtr->UpdateState(fl);
+
+    // Pots
+    domeTiltPotHandler.UpdateState(analogRead(domeTiltPotPin));
+    domeSpinPotHandler.UpdateState(analogRead(domeSpinPotPin));
+    sideToSidePotHandler.UpdateState(analogRead(S2SpotPin));
+}
+
 void updateBodyMode()
 {
     incrementBodyModeToggle();
@@ -682,9 +794,12 @@ void updateBodyMode()
 
     // Indicate if the droid is in stationary mode only when in the stationary state.
     IsStationary = sendToRemote.bodyMode == BodyMode::Stationary;
-    
+
+    bool isDomeAutomationPrev = IsDomeAutomation;
     IsDomeAutomation = sendToRemote.bodyMode == BodyMode::Automated
         || sendToRemote.bodyMode == BodyMode::AutomatedServo;
+
+    ForceStopAutomation = isDomeAutomationPrev && !IsDomeAutomation;
 
     // Naigon - Dome Modes
     // The dome servo or normal state is now parsed from the bodyMode.
@@ -728,48 +843,6 @@ void incrementBodyModeToggle()
             : sendToRemote.bodyMode + 1;
 }
 
-void updateInputHandlers()
-{
-    // Update button state for the rest of the functions.
-    button1Handler.UpdateState(recFromRemote.but1);
-    button2Handler.UpdateState(recFromRemote.but2);
-    button3Handler.UpdateState(recFromRemote.but3);
-    button4Handler.UpdateState(recFromRemote.but4);
-    button5Handler.UpdateState(recFromRemote.but5);
-    button6Handler.UpdateState(recFromRemote.but6);
-    button7Handler.UpdateState(recFromRemote.but7);
-    button8Handler.UpdateState(recFromRemote.but8);
-
-    int dr, s, dt, ds, fl;
-
-    if (sendToRemote.bodyMode == BodyMode::PushToRoll)
-    {
-        // Naigon - Safe Joystick Button Toggle: Refactored here due to Analog Joystick Refactor
-        // Safe mode will keep the default 255 and will not read from the actual sticks.
-        dr = s = dt = ds = fl = 255;
-    }
-    else
-    {
-        dr = IsStationary ? 255 : recFromRemote.ch1;
-        s = IsDomeAutomation ? recFromRemote.ch4 : recFromRemote.ch2;
-        dt = IsDomeAutomation ? 255 : recFromRemote.ch3;
-        ds = IsDomeAutomation ? 255 : recFromRemote.ch4;
-        fl = IsStationary ? recFromRemote.ch1 : recFromRemote.ch5;
-    }
-
-    // Joysticks
-    driveStickPtr->UpdateState(dr);
-    sideToSideStickPtr->UpdateState(s);
-    domeTiltStickPtr->UpdateState(dt);
-    domeSpinStickPtr->UpdateState(ds);
-    flywheelStickPtr->UpdateState(fl);
-
-    // Pots
-    domeTiltPotHandler.UpdateState(analogRead(domeTiltPotPin));
-    domeSpinPotHandler.UpdateState(analogRead(domeSpinPotPin));
-    sideToSidePotHandler.UpdateState(analogRead(S2SpotPin));
-}
-
 void reverseDirection()
 {
     // Naigon - Safe Joystick Button Toggle.
@@ -800,19 +873,65 @@ void reverseDirection()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void updateAnimations()
 {
+    //
+    // First, turn off any animations that are running if the drive was disabled, and abandon since animations are only
+    // allowed if the drive is enabled.
+    //
+    if (recFromRemote.motorEnable != 0)
+    {
+        animationRunner.StopCurrentAnimation();
+        return;
+    }
+
+    //
+    // Next, stop current automations if it is a forced stop (currently switching out of automation mode)
+    //
+    if (ForceStopAutomation)
+    {
+        animationRunner.StopCurrentAnimation();
+    }
+
+    //
+    // Now that we know the drive is enabled, set an animation based on button inputs or the current mode.
+    //
     if (button4Handler.GetState() == ButtonState::Pressed)
     {
-        animationRunner.SelectAndStartAnimation(AnimationTarget::DomeAnimation);
+        animationRunner.SelectAndStartAnimation(AnimationTarget::Bank2);
+        isAnimationRunning = true;
+    }
+    else if (IsDomeAutomation && !animationRunner.IsRunning())
+    {
+        animationRunner.SelectAndStartAnimation(AnimationTarget::Bank1);
         isAnimationRunning = true;
     }
 
+    //
+    // Next, actually handle any updates from currently running animations.
+    //
     if (animationRunner.IsRunning())
     {
         const AnimationState* aState = animationRunner.RunIteration();
 
-        domeTiltStickPtr->UpdateState(aState->GetDomeTiltFB());
-        domeSpinStickPtr->UpdateState(aState->GetDomeSpin());
-        flywheelStickPtr->UpdateState(aState->GetFlywheel());
+        if (!domeSpinStickPtr->HasMovement())
+        {
+            // Dome spin is allowed when driving as it is pretty safe.
+            domeSpinStickPtr->UpdateState(aState->GetDomeSpin());
+        }
+        if (!domeTiltStickPtr->HasMovement()
+            && !driveStickPtr->HasMovement())
+        {
+            domeTiltStickPtr->UpdateState(aState->GetDomeTiltFB());
+        }
+        if (!flywheelStickPtr->HasMovement()
+            && !driveStickPtr->HasMovement())
+        {
+            flywheelStickPtr->UpdateState(aState->GetFlywheel());
+        }
+        if (!sideToSideStickPtr->HasMovement()
+            && !driveStickPtr->HasMovement())
+        {
+            sideToSideStickPtr->UpdateState(aState->GetSideToSide());
+        }
 
         forcedSoundType = aState->GetSoundType();
     }
@@ -955,7 +1074,7 @@ void domeCalib()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Actual movement
+// Motor movement
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void movement()
 {
@@ -993,7 +1112,8 @@ void movement()
     }
 
     if ((servoMode == DomeMode::ServoMode || runHeadServoUntilCentered)
-        && autoDisable == 0)
+        && autoDisable == 0
+        && recFromRemote.motorEnable == 0)
     {
         domeSpinServo();
     }
