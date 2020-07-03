@@ -19,15 +19,40 @@
 namespace NaigonBB8
 {
 
-// Forward declare sound types
-enum SoundTypes : int8_t;
+namespace AnimationConstants
+{
+const int RightHalf = 255 / 2;
+const int LeftHalf = 512 - RightHalf;
 
-// Get methods return this value if the animation does not specific action for that
-// drive.
-#define NOT_RUNNING -2048
+const int RightTwoThirds = 255 / 3;
+const int LeftTwoThirds = 512 - RightTwoThirds;
+
+const int RightThreeFourths = 255 / 4;
+const int LeftThreeFourths = 512 - RightThreeFourths;
+
+const int RightFull = 0;
+const int LeftFull = 512;
+
+const int Centered = 255;
+
+#define ForwardHalf RightHalf
+#define ReverseHalf  LeftHalf
+
+#define ForwardTwoThirds RightTwoThirds
+#define ReverseTwoThirds LeftTwoThirds
+
+#define ForwardThreeFourths RightThreeFourths
+#define ReverseThreeFourths LeftThreeFourths
+
+#define ForwardFull RightFull
+#define ReverseFull LeftFull
+}   //namepsace AnimationConstants
 
 // Forward declare Animation for helper classes.
-class Animation;
+class ScriptedAnimation;
+
+// Forward declare sound types
+enum SoundTypes : int8_t;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // @summary Class that defines animation parameters for a single animation step.
@@ -35,6 +60,9 @@ class Animation;
 class AnimationState
 {
 public:
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Instantiate a new instance of the AnimationState class.
+    ///////////////////////////////////////////////////////////////////////////////////
     AnimationState(
         int drive,
         int sideToSide,
@@ -45,12 +73,53 @@ public:
         SoundTypes soundType,
         int millisOnState);
 
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Gets the current drive stick value for this instance.
+    //
+    // @ret     Drive stick value in the range of 0-512.
+    ///////////////////////////////////////////////////////////////////////////////////
     int GetDrive() const;
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Gets the side to side stick value for this instance.
+    //
+    // @ret     Side to side stick value in the range of 0-512.
+    ///////////////////////////////////////////////////////////////////////////////////
     int GetSideToSide() const;
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Gets the forward/reverse dome stick value for this instance.
+    //
+    // @ret     Forward/reverse dome tilt stick value in the range of 0-512.
+    ///////////////////////////////////////////////////////////////////////////////////
     int GetDomeTiltFB() const;
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Gets the left/right dome tilt stick value for this instance.
+    //
+    // @ret     Left/right dome tilt stick value in the range of 0-512.
+    ///////////////////////////////////////////////////////////////////////////////////
     int GetDomeTiltLR() const;
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Gets the dome spin stick value for this instance.
+    //
+    // @ret     Dome spin stick value in the range of 0-512.
+    ///////////////////////////////////////////////////////////////////////////////////
     int GetDomeSpin() const;
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Gets the flywheel stick value for this instance.
+    //
+    // @ret     Flywheel stick value in the range of 0-512.
+    ///////////////////////////////////////////////////////////////////////////////////
     int GetFlywheel() const;
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Gets the current sound to play.
+    //
+    // @ret     SoundTypes value for which sound to play.
+    ///////////////////////////////////////////////////////////////////////////////////
     SoundTypes GetSoundType() const;
 
 private:
@@ -58,13 +127,16 @@ private:
     // Motor motions. These act as virtual stick controllers, as if the drive itself
     // has another remote operator.
     //
-    int _drive = NOT_RUNNING;
-    int _sideToSide = NOT_RUNNING;
-    int _domeTiltFB = NOT_RUNNING;
-    int _domeTiltLR = NOT_RUNNING;
-    int _domeSpin = NOT_RUNNING;
-    int _flywheel = NOT_RUNNING;
+    int _drive;
+    int _sideToSide;
+    int _domeTiltFB;
+    int _domeTiltLR;
+    int _domeSpin;
+    int _flywheel;
 
+    //
+    // Sound selection
+    //
     SoundTypes _soundType;
 
     //
@@ -72,27 +144,106 @@ private:
     // starts.
     //
     int _millisOnState;
-    friend class Animation;
+    friend class ScriptedAnimation;
+    friend class GeneratedAnimation;
 };
 
+///////////////////////////////////////////////////////////////////////////////////////
+// @summary Enum that defines the valid animation targets. These are buckets that are
+//          used to logically separate the animations. That way different buttons can
+//          enact upon a specific subset of all the animations. Specifically, when in
+//          the two automation drive modes, only DomeAnimation can be choosen to
+//          prevent weird issues from happening while driving.
+///////////////////////////////////////////////////////////////////////////////////////
 enum AnimationTarget : uint8_t
 {
     // Special signal that an animation can be used for any purpose.
     AnyAnimation = 0,
     DomeAnimation = 1,
-    FullAnimation = 2,
+    FlywheelAnimation = 2,
+    FullAnimation = 3,
 };
 
-class Animation
+///////////////////////////////////////////////////////////////////////////////////////
+// @summary Interface for a single animation definition. All types of animations
+//          implement this interface.
+///////////////////////////////////////////////////////////////////////////////////////
+struct IAnimation
+{
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Method returns if the animation is currently running.
+    //
+    // @ret     true if the animation is currently running; otherwise, false.
+    ///////////////////////////////////////////////////////////////////////////////////
+    virtual bool IsRunning() const = 0;
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary AnimationTarget which this animation is for.
+    //
+    // @ret     AnimationTarget enum value.
+    ///////////////////////////////////////////////////////////////////////////////////
+    virtual AnimationTarget Target() const = 0;
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Starts the animation.
+    ///////////////////////////////////////////////////////////////////////////////////
+    virtual void Start() = 0;
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Stops the animation.
+    ///////////////////////////////////////////////////////////////////////////////////
+    virtual void Stop() = 0;
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary RunIteration is responsible for performing the animation for the
+    //          current Arduino loop step. It should be called once per every iteration
+    //          of the Arduino main loop.
+    //
+    //          This method can cause the animation to exit the running state; ensure
+    //          to check that before using the resulting state of this method.
+    //
+    // @ret     Returns the state animation that should be used by the main program for
+    //          the current Arduino loop iteration.
+    ///////////////////////////////////////////////////////////////////////////////////
+    virtual const AnimationState* RunIteration() = 0;
+};
+
+
+///////////////////////////////////////////////////////////////////////////////////////
+// @summary Class that defines a scripted animation. These animations are built up
+//          using arrays of AnimationState objects that are defined in the initial
+//          program. These allow the perfect animations to be defined, but are space
+//          intensive which is why I have other types of animations that are not
+//          completely defined in advance but rather use heuristics.
+///////////////////////////////////////////////////////////////////////////////////////
+class ScriptedAnimation : public IAnimation
 {
 public:
-    Animation(AnimationTarget aTarget, int numOfSteps, const AnimationState* animationStates);
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Constructs a new instance of the ScriptedAnimation class.
+    //
+    // @param   aTarget
+    //          Target in which this instacne is grouped with.
+    //
+    // @param   numOfSteps
+    //          This is the size of the animationStates array, which is how many
+    //          steps the script will run.
+    //
+    // @param   animationStates
+    //          Array of all the steps that will be executed for this script.
+    ///////////////////////////////////////////////////////////////////////////////////
+    ScriptedAnimation(
+        AnimationTarget aTarget,
+        int numOfSteps,
+        const AnimationState* animationStates);
+
+    //
+    // IAnimation interface implementation
+    //
     bool IsRunning() const;
     AnimationTarget Target() const;
-
     void Start();
     void Stop();
-
     const AnimationState* RunIteration();
 
 private:
@@ -104,21 +255,74 @@ private:
     AnimationTarget _animationTarget;
 };
 
-class AnimationRunner
+
+///////////////////////////////////////////////////////////////////////////////////////
+// @summary Class that is used to generate animation scripts according to heuristics
+//          passed into the class.
+//
+//          While the ScriptedAnimation class above allows for fine-tuning perfect
+//          animation sequences, it comes a the cost of eating a lot of the limited
+//          variable memory space of the system. Thus, to prevent having to script
+//          many small but similar animations, this class instead can be used.
+//
+//          The basic idea of the class is that instead of getting a passed in array
+//          of AnimationState variables, this class will have one state that it
+//          generates based on some canned rules and some parameters passed into the
+//          class. It then returns that state until the randomly selected time has
+//          expired, and it will create a new state again using the same rules to
+//          randomly reconfigure the state. This simulates an animation array being
+//          passed in, and allows for my animations without taking a lot of variable
+//          memory space.
+///////////////////////////////////////////////////////////////////////////////////////
+class GeneratedAnimation : public IAnimation
 {
 public:
-    AnimationRunner(int numAnimations, const Animation* animations);
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Construts a new instace of the GeneratedAnimation class.
+    //
+    // @param   aTarget
+    //          AnimationTarget for whcih this animation is applicapable.
+    //
+    // @param   minNumAnimationSteps
+    //          Defines the minimum number of steps the animation should run before it
+    //          can stop. Ignored if allowAutoStop is set to false.
+    //
+    // @param   soundTimeout
+    //          Length in milliseconds before another sound can be generated. Higher
+    //          values prevent spamming the system with talking, but less overall
+    //          sounds will be generated.
+    //
+    // @param   allowAutoStop
+    //          If true, the animation will be able to stop itself after at least
+    //          minNumAnimationSteps have been completed. If false, the animation runs
+    //          indefinitely until it is manually stopped by calling the Stop() method.
+    ///////////////////////////////////////////////////////////////////////////////////
+    GeneratedAnimation(
+        AnimationTarget aTarget,
+        uint8_t minNumAnimationSteps,
+        uint16_t soundTimeout,
+        bool allowAutoStop);
 
+    //
+    // IAnimation interface implementation
+    //
     bool IsRunning() const;
-
-    void StopCurrentAnimation();
+    AnimationTarget Target() const;
+    void Start();
+    void Stop();
     const AnimationState* RunIteration();
-    void SelectAndStartAnimation(AnimationTarget aTarget);
 
 private:
-    const Animation* _animations;
-    const Animation* _currentAnimation;
-    int _numOfHeadAnimations, _numOfFullAnimations, _numAnimations;
+    void AutoGenerateNextState();
+    uint8_t AutoGenerateAction();
+    int AutoGenerateStickAmount(uint8_t action);
+    void Clear();
+
+    AnimationTarget _animationTarget;
+    unsigned long _currentMillis, _nextAnimationMS, _soundTimeout, _lastSoundMillis;
+    uint8_t _minNumAnimationSteps, _animationStepCount;
+    bool _isRunning, _autoStop;
+    AnimationState _currentResult;
 };
 
 }   //namepsace NaigonBB8

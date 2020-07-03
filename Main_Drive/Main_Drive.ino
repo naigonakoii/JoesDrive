@@ -31,23 +31,29 @@
 
 #include "AnalogInHandler.h"
 #include "Animation.h"
-#include "AnimationDefinitions.h"
+//#include "AnimationDefinitions.h"
+#include "AnimationRunner.h"
 #include "ButtonHandler.h"
 #include "Constants.h"
 #include "EaseApplicator.h"
 #include "MotorPWM.h"
 #include "SoundPlayer.h"
 
-using NaigonBB8::Animation;
-using NaigonBB8::AnimationDefinitions;
+using namespace NaigonBB8::AnimationConstants;
+
 using NaigonBB8::AnimationRunner;
 using NaigonBB8::AnimationState;
 using NaigonBB8::AnimationTarget;
 using NaigonBB8::FunctionEaseApplicator;
 using NaigonBB8::FunctionEaseApplicatorType;
+using NaigonBB8::GeneratedAnimation;
+using NaigonBB8::IAnimation;
 using NaigonBB8::LinearEaseApplicator;
 using NaigonBB8::MotorPWM;
+using NaigonBB8::ScriptedAnimation;
 using NaigonBB8::SoundTypes;
+
+//using NaigonBB8::animationDefinitions;
 
 EasyTransfer RecRemote;
 EasyTransfer SendRemote;
@@ -159,10 +165,47 @@ bool IsStationary = false;
 // Naigon - Dome Automation
 bool IsDomeAutomation = false;
 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// DomeAnimation
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Since moving just the head is pretty basic, going with full generation here to save variable space.
+GeneratedAnimation headMovement(
+    AnimationTarget::DomeAnimation,
+    3 /* minNumAnimationSteps */,
+    1000 /* soundTimeout */, true /* allowAutoStop */);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Full Animations
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+AnimationState tiltHeadAndLookBothWays1State[] = {
+    // ----------- Drive   | Side    | DomeTFB    | DomeTLR | DomeSpin | Flywhl  | Sound                 | MS
+    AnimationState(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 250),
+    AnimationState(Centered, Centered, ForwardFull, Centered, Centered,  Centered, SoundTypes::Excited,      0),
+    AnimationState(Centered, Centered, ForwardFull, Centered, Centered,  Centered, SoundTypes::NotPlaying, 200),
+    AnimationState(Centered, Centered, ForwardFull, Centered, RightHalf, Centered, SoundTypes::NotPlaying, 500),
+    AnimationState(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 500),
+    AnimationState(Centered, Centered, ForwardHalf, Centered, Centered,  Centered, SoundTypes::NotPlaying, 100),
+};
+ScriptedAnimation tiltHeadAndLookBothWays1(AnimationTarget::FullAnimation, 6, tiltHeadAndLookBothWays1State);
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Array of entire animations that will be used to initialize the AnimationRunner in the main file.
+/* static */
+IAnimation *animations[] =
+{
+    &headMovement,
+    &tiltHeadAndLookBothWays1,
+};
+
 // Naigon - Animations
-// Animation definitions live in the AnimationDefinitions.ino file.
-// Forward declare the main variable here.
-AnimationRunner animationRunner(AnimationDefinitions::NumberOfAnimations, AnimationDefinitions::animations);
+// Animation definitions live in the AnimationDefinitions.cpp file.
+// Passed in first parameter needs to match the animations array above.
+AnimationRunner animationRunner(2, animations);
 bool isAnimationRunning = false;
 // Setting this will force the dome into servo mode just until the head is centered. This resets animations.
 bool runHeadServoUntilCentered = false;
@@ -757,15 +800,9 @@ void reverseDirection()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void updateAnimations()
 {
-    if (domeTiltStickPtr->HasMovement()
-        || domeSpinStickPtr->HasMovement())
-    {
-        animationRunner.StopCurrentAnimation();
-    }
-
     if (button4Handler.GetState() == ButtonState::Pressed)
     {
-        animationRunner.SelectAndStartAnimation(AnimationTarget::AnyAnimation);
+        animationRunner.SelectAndStartAnimation(AnimationTarget::DomeAnimation);
         isAnimationRunning = true;
     }
 
@@ -818,7 +855,6 @@ void sounds() {
     digitalWrite((soundPins[randSoundPin]), LOW);
     soundMillis = millis();
     playSound = 2;
-    
   }
   else if(playSound == 2 && (millis() - soundMillis > 200)) {
     digitalWrite((soundPins[randSoundPin]), HIGH);
