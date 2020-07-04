@@ -161,17 +161,120 @@ SEND_DATA_STRUCTURE_REMOTE sendToRemote;
 RECEIVE_DATA_STRUCTURE_IMU recIMUData;
 
 //
-// Feature Enabled/Disable flags
+// Naigon - Head Tilt Stabilization
+// State for the IMU data. sendAndReceive() is responsible for fetching these.
+// To keep the head tilt from being jerky, do some filtering on the pitch and roll over time.
+// TODO - Probably should put the filtering on the Arduino Pro Mini that is attached to the IMU.
 //
-// Naigon - Stationary/Wiggle Mode
-bool IsStationary = false;
-// Naigon - Dome Automation
-bool IsDomeAutomation = false;
-bool ForceStopAutomation = false;
+struct IMUData
+{
+    float Pitch;
+    float PitchPrev[PitchAndRollFilterCount];
+    float Roll;
+    float RollPrev[PitchAndRollFilterCount];
+    bool IsFirstPitchAndRoll = true;
+};
+IMUData imu;
+
+//
+// State that persists over multiple Arduino loop() calls for the checkMiniTime method.
+//
+struct IMUState
+{
+    float LastLoopMillis;
+    int MiniStatus;
+};
+IMUState imuState;
+
+//
+// Dirve state
+// State consumed by the movement() method and each motor submethod
+//
+struct DriveState
+{
+    // Naigon - Stationary/Wiggle Mode
+    // Setting this to true will put the drive in wiggle mode.
+    bool IsStationary = false;
+
+    // Setting this will force the dome into servo mode just until the head is centered. This resets animations.
+    bool IsDomeCentering = false;
+
+    // Joe - Dome servo or normal mode (was int servoMode in Joe's code)
+    DomeMode CurrentDomeMode = DomeMode::FullSpinMode;
+
+    // Joe - Allow motors to power down if droid is sitting still.
+    bool AutoDisable;
+};
+DriveState drive;
+
+//
+// Naigon - Animations
+// State consumed by the runAnimations() method.
+//
+struct AnimationStateVars
+{
+    // Indicates if the drive is in an automated mode; all modes can run automation via a button press, but in an
+    // automated mode the animation is run continuously while driving around.
+    bool IsAutomation = false;
+
+    // Indicates if automation mode was exited and animations need to be stopped.
+    // (Currently there's no way to tell the difference between the automation kicked off animation and one via button
+    //  press, so either would be stopped in this case.)
+    bool ForceStopAnimation = false;
+
+    // Indicates if any animation is running. This is needed to know when to force the drive into Servo mode when the
+    // animationRunner indicates an animation has stopped.
+    bool IsAnimationRunning = false;
+};
+AnimationStateVars animation;
+
+//
+// State that is used by the auto disable method that needs to persist over multiple loop() calls.
+//
+struct AutoDisableState
+{
+    unsigned long autoDisableMotorsMillis = 0;
+    int autoDisableDoubleCheck;
+    unsigned long autoDisableDoubleCheckMillis = 0;
+    bool forcedMotorEnable = false;
+    bool isAutoDisabled = true;
+};
+AutoDisableState autoDisable;
+
+//
+// Pot and gyro offsets that are used by the movement() methods. These values are also stored into the EEPROM to
+// persist even after the drive is shut down.
+//
+struct MotionOffsets
+{
+    // Joe's EEPROM vars
+    float Pitch;
+    float Roll;
+    int S2SPot;
+    int DomeTiltPot;
+    int DomeSpin;
+};
+MotionOffsets offsets;
+
+//
+// Joe's Audio Player
+//
+struct AudioParams
+{
+    int readPinState = 1;
+    int randSoundPin;
+    int soundState;
+    int musicState;
+    unsigned long musicStateMillis = 0;
+    int soundPins[4] = { soundpin1, soundpin2, soundpin3, soundpin4 };
+};
+AudioParams audio;
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Shared Animation
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 const uint16_t stickFRVals[] =
 {
     ForwardFull,
@@ -260,8 +363,11 @@ AnimationState tiltHeadAndLookBothWays1State[] = {
 ScriptedAnimation tiltHeadAndLookBothWays1(AnimationTarget::Bank2, 6, tiltHeadAndLookBothWays1State);
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Animation Runner
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 // Array of entire animations that will be used to initialize the AnimationRunner in the main file.
-/* static */
 IAnimation *animations[] =
 {
     &headMovement,
@@ -269,12 +375,7 @@ IAnimation *animations[] =
 };
 
 // Naigon - Animations
-// Animation definitions live in the AnimationDefinitions.cpp file.
-// Passed in first parameter needs to match the animations array above.
 AnimationRunner animationRunner(2, animations);
-bool isAnimationRunning = false;
-// Setting this will force the dome into servo mode just until the head is centered. This resets animations.
-bool runHeadServoUntilCentered = false;
 
 // Naigon - Button Handling
 // NOTE - should implement for all cases where using buttons in Joe's code.
@@ -353,56 +454,15 @@ NaigonBB8::ISoundPlayer *soundPlayer;
 
 SoundTypes forcedSoundType = SoundTypes::NotPlaying;
 
-// Naigon - Head Tilt Stabilization
-// To keep the head tilt from being jerky, do some filtering on the pitch and roll over time.
-float pitch;
-float pitchPrev[PitchAndRollFilterCount];
-float roll;
-float rollPrev[PitchAndRollFilterCount];
-bool isFirstPitchAndRoll = true;
-
-// Joe's EEPROM vars
-float pitchOffset;
-float rollOffset;
-int potOffsetS2S;
-int domeTiltPotOffset;
-
-int fadeVal = 0;
-int readPinState = 1;
-
-// Joe's Audio Player
-// TODO: I should bring back Joe's code and these vars in an #ifdef for those that are not using my custom driver.
-int soundPins[] = {soundpin1, soundpin2, soundpin3, soundpin4};
-int randSoundPin;
-int soundState;
-int musicState;
-int autoDisableState;
-unsigned long musicStateMillis = 0;
-// Auto Disable
-unsigned long autoDisableMotorsMillis = 0;
-int autoDisableDoubleCheck;
-unsigned long autoDisableDoubleCheckMillis = 0;
-int autoDisable;
-bool forcedMotorEnable = false;
-// Main loop
-unsigned long lastLoopMillis;
-float lastIMUloop;
-int MiniStatus;
 // Save
 int SaveToEEPROM;
-
 float R1 = resistor1;
 float R2 = resistor2;
 
 // Drive motor
 int driveSpeed;
-// Dome tilt
-double domeTiltOffset;
-// Dome spin
-int domeSpinOffset;
-int currentDomeSpeed;
-int servoMode;
-int domeServo = 0;
+
+unsigned long lastLoopMillis;
 
 int BTstate = 0;
 
@@ -538,13 +598,13 @@ void setup()
     PID5.SetSampleTime(15);
 
     // *********  Read offsets from EEPROM  **********
-    pitchOffset = EEPROM.readFloat(0);
-    rollOffset = EEPROM.readFloat(4);
-    potOffsetS2S = EEPROM.readInt(8);
-    domeTiltPotOffset = EEPROM.readInt(12);
-    domeSpinOffset = EEPROM.readInt(16);
+    offsets.Pitch = EEPROM.readFloat(0);
+    offsets.Roll = EEPROM.readFloat(4);
+    offsets.S2SPot = EEPROM.readInt(8);
+    offsets.DomeTiltPot = EEPROM.readInt(12);
+    offsets.DomeSpin = EEPROM.readInt(16);
 
-    if (abs(rollOffset) + abs(pitchOffset) + abs(potOffsetS2S) + abs(domeTiltPotOffset) == 0)
+    if (abs(offsets.Roll) + abs(offsets.Pitch) + abs(offsets.S2SPot) + abs(offsets.DomeTiltPot) == 0)
     {
         setOffsetsONLY();
     }
@@ -579,7 +639,12 @@ void loop()
         handleSounds();
         psiVal();
         readVin();
+
         bodyCalib();
+
+
+        debugRoutines();
+        setOffsetsAndSaveToEEPROM();
         movement();
         domeCalib();
         lastLoopMillis = millis();
@@ -598,32 +663,35 @@ void sendAndReceive()
     RecRemote.receiveData();
     SendRemote.sendData();
 
-    if (recIMUData.IMUloop != 0)
+    if (recIMUData.IMUloop == 0)
     {
-        pitch = reversePitch ? recIMUData.pitch * -1 : recIMUData.pitch;
-        roll = reverseRoll ? recIMUData.roll * -1 : recIMUData.roll;
+        return;
     }
 
-    if (isFirstPitchAndRoll)
+    imu.Pitch = reversePitch ? recIMUData.pitch * -1 : recIMUData.pitch;
+    imu.Roll = reverseRoll ? recIMUData.roll * -1 : recIMUData.roll;
+
+    if (imu.IsFirstPitchAndRoll)
     {
         // Naigon - Head Tilt Stabilization
         // Initialize the first time to the current value to prevent anomilies at startup.
         for (int i = 0; i < 4; i++)
         {
-            pitchPrev[i] = pitch;
-            rollPrev[i] = roll;
+            imu.PitchPrev[i] = imu.Pitch;
+            imu.RollPrev[i] = imu.Roll;
         }
-        isFirstPitchAndRoll = false;
+        imu.IsFirstPitchAndRoll = false;
     }
 
     //
     // Naigon - Head Tilt Stablilization
     // The pitch and roll are now computed as a rolling average to filter noise. This prevents jerkyness in any movements
     // based on these values.
-    pitch = updatePrevValsAndComputeAvg(pitchPrev, pitch);
-    roll = updatePrevValsAndComputeAvg(rollPrev, roll);
+    imu.Pitch = updatePrevValsAndComputeAvg(imu.PitchPrev, imu.Pitch);
+    imu.Roll = updatePrevValsAndComputeAvg(imu.RollPrev, imu.Roll);
 }
 
+/* static */
 float updatePrevValsAndComputeAvg(float *nums, float currentVal)
 {
     float sum = 0;
@@ -642,32 +710,32 @@ float updatePrevValsAndComputeAvg(float *nums, float currentVal)
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void checkMiniTime()
 {
-    if ((recIMUData.IMUloop == 1 && lastIMUloop >= 980)
-        || (recIMUData.IMUloop < 1 && lastIMUloop > 3))
+    if ((recIMUData.IMUloop == 1 && imuState.LastLoopMillis >= 980)
+        || (recIMUData.IMUloop < 1 && imuState.LastLoopMillis > 3))
     {
-        lastIMUloop = 0;
+        imuState.LastLoopMillis = 0;
     }
 
-    if (recIMUData.IMUloop > lastIMUloop)
+    if (recIMUData.IMUloop > imuState.LastLoopMillis)
     {
-        lastIMUloop = recIMUData.IMUloop;
-        MiniStatus = 1;
+        imuState.LastLoopMillis = recIMUData.IMUloop;
+        imuState.MiniStatus = 1;
     }
-    else if (recIMUData.IMUloop <= lastIMUloop && MiniStatus != 0)
+    else if (recIMUData.IMUloop <= imuState.LastLoopMillis && imuState.MiniStatus != 0)
     {
-        lastIMUloop++;
+        imuState.LastLoopMillis++;
     }
 
-    if (recIMUData.IMUloop - lastIMUloop < -20 && recIMUData.IMUloop - lastIMUloop > -800)
+    if (recIMUData.IMUloop - imuState.LastLoopMillis < -20 && recIMUData.IMUloop - imuState.LastLoopMillis > -800)
     {
-        MiniStatus = 0;
-        lastIMUloop = 0;
+        imuState.MiniStatus = 0;
+        imuState.LastLoopMillis = 0;
         recIMUData.IMUloop = 0;
     }
 
-    if (lastIMUloop >= 999)
+    if (imuState.LastLoopMillis >= 999)
     {
-        lastIMUloop = 0;
+        imuState.LastLoopMillis = 0;
     }
 }
 
@@ -690,7 +758,7 @@ void readVin()
     //
     // DO NOT TAKE THIS CHANGE
     //
-    sendToRemote.bodyBatt = analogRead(battMonitor); //((analogRead(battMonitor) * outputVoltage) / 1024.0) / (R2 / (R1+R2));
+    sendToRemote.bodyBatt = ((analogRead(battMonitor) * outputVoltage) / 1024.0) / (R2 / (R1 + R2));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -709,8 +777,10 @@ void BTenable()
     { //if motor enable switch is off OR BT disconnected, turn off the motor drivers
         digitalWrite(enablePin, LOW);
         digitalWrite(enablePinDome, LOW);
-        autoDisableState = 0;
-        autoDisableDoubleCheck = 0;
+        // TODO - I think there was a bug here, as in Joe's code this was 0, but from rest of code 0 seems to mean
+        // false.
+        autoDisable.isAutoDisabled = true;
+        autoDisable.autoDisableDoubleCheck = 0;
     }
 }
 
@@ -744,11 +814,11 @@ void updateInputHandlers()
     }
     else
     {
-        dr = IsStationary ? 255 : recFromRemote.ch1;
-        s = IsDomeAutomation ? recFromRemote.ch4 : recFromRemote.ch2;
-        dt = IsDomeAutomation ? 255 : recFromRemote.ch3;
-        ds = IsDomeAutomation ? 255 : recFromRemote.ch4;
-        fl = IsStationary ? recFromRemote.ch1 : recFromRemote.ch5;
+        dr = drive.IsStationary ? 255 : recFromRemote.ch1;
+        s = animation.IsAutomation ? recFromRemote.ch4 : recFromRemote.ch2;
+        dt = animation.IsAutomation ? 255 : recFromRemote.ch3;
+        ds = animation.IsAutomation ? 255 : recFromRemote.ch4;
+        fl = drive.IsStationary ? recFromRemote.ch1 : recFromRemote.ch5;
     }
 
     // Joysticks
@@ -794,17 +864,17 @@ void updateBodyMode()
     driveSpeed = driveApplicatorPtr->GetMaxValue();
 
     // Indicate if the droid is in stationary mode only when in the stationary state.
-    IsStationary = sendToRemote.bodyMode == BodyMode::Stationary;
+    drive.IsStationary = sendToRemote.bodyMode == BodyMode::Stationary;
 
-    bool isDomeAutomationPrev = IsDomeAutomation;
-    IsDomeAutomation = sendToRemote.bodyMode == BodyMode::Automated
+    bool isDomeAutomationPrev = animation.IsAutomation;
+    animation.IsAutomation = sendToRemote.bodyMode == BodyMode::Automated
         || sendToRemote.bodyMode == BodyMode::AutomatedServo;
 
-    ForceStopAutomation = isDomeAutomationPrev && !IsDomeAutomation;
+    animation.ForceStopAnimation = isDomeAutomationPrev && !animation.IsAutomation;
 
     // Naigon - Dome Modes
     // The dome servo or normal state is now parsed from the bodyMode.
-    servoMode = (sendToRemote.bodyMode == BodyMode::Servo
+    drive.CurrentDomeMode = (sendToRemote.bodyMode == BodyMode::Servo
         || sendToRemote.bodyMode == BodyMode::ServoWithTilt
         || sendToRemote.bodyMode == BodyMode::AutomatedServo)
             ? DomeMode::ServoMode
@@ -812,7 +882,7 @@ void updateBodyMode()
 
     // Naigon - Analog Input Refactor
     // Swap the rotation handler depending on if the drive is in servo mode or not.
-    domeSpinStickPtr = recFromRemote.motorEnable == 0 && servoMode == DomeMode::ServoMode
+    domeSpinStickPtr = recFromRemote.motorEnable == 0 && drive.CurrentDomeMode == DomeMode::ServoMode
         ? &domeServoStickHandler
         : &domeRotationStickHandler;
 }
@@ -862,10 +932,6 @@ void reverseDirection()
         sendToRemote.bodyDirection = sendToRemote.bodyDirection == Direction::Forward
             ? Direction::Reverse
             : Direction::Forward;
-
-        // Naigon - Fix for Issue #5
-        // Force the motor to enable here if they were disabled.
-        forcedMotorEnable = true;
     }
 }
 
@@ -887,7 +953,7 @@ void updateAnimations()
     //
     // Next, stop current automations if it is a forced stop (currently switching out of automation mode)
     //
-    if (ForceStopAutomation)
+    if (animation.ForceStopAnimation)
     {
         animationRunner.StopCurrentAnimation();
     }
@@ -898,12 +964,12 @@ void updateAnimations()
     if (button4Handler.GetState() == ButtonState::Pressed)
     {
         animationRunner.SelectAndStartAnimation(AnimationTarget::Bank2);
-        isAnimationRunning = true;
+        animation.IsAnimationRunning = true;
     }
-    else if (IsDomeAutomation && !animationRunner.IsRunning())
+    else if (animation.IsAutomation && !animationRunner.IsRunning())
     {
         animationRunner.SelectAndStartAnimation(AnimationTarget::Bank1);
-        isAnimationRunning = true;
+        animation.IsAnimationRunning = true;
     }
 
     //
@@ -936,12 +1002,12 @@ void updateAnimations()
 
         forcedSoundType = aState->GetSoundType();
     }
-    else if (isAnimationRunning)
+    else if (animation.IsAnimationRunning)
     {
         // There was an active animation running, but now it is no longer running. Temporarily run head servo mode
         // until the head is back into position.
-        runHeadServoUntilCentered = true;
-        isAnimationRunning = false;
+        drive.IsDomeCentering = drive.CurrentDomeMode == DomeMode::ServoMode ? false : true;
+        animation.IsAnimationRunning = false;
     }
 }
 
@@ -1079,14 +1145,7 @@ void domeCalib()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void movement()
 {
-    debugRoutines();
-
-    if (SaveToEEPROM != 0)
-    {
-        setOffsetsAndSaveToEEPROM();
-    }
-
-    if (recFromRemote.motorEnable == 0 && BTstate == 1 && MiniStatus != 0)
+    if (recFromRemote.motorEnable == 0 && BTstate == 1 && imuState.MiniStatus != 0)
     {
         unsigned long currentMillis = millis();
 
@@ -1112,13 +1171,13 @@ void movement()
         turnOffAllTheThings(true /*disableDrive*/);
     }
 
-    if ((servoMode == DomeMode::ServoMode || runHeadServoUntilCentered)
-        && autoDisable == 0
+    if ((drive.CurrentDomeMode == DomeMode::ServoMode || drive.IsDomeCentering)
+        && !drive.AutoDisable
         && recFromRemote.motorEnable == 0)
     {
         domeSpinServo();
     }
-    else if (servoMode == DomeMode::FullSpinMode || autoDisable == 1 || recFromRemote.motorEnable == 1)
+    else if (drive.CurrentDomeMode == DomeMode::FullSpinMode || drive.AutoDisable || recFromRemote.motorEnable == 1)
     {
         domeSpin();
     }
@@ -1144,7 +1203,7 @@ void mainDrive()
         -MaxDrive,
         MaxDrive);
 
-    Input3 = (pitch + pitchOffset); // - domeOffset;
+    Input3 = (imu.Pitch + offsets.Pitch); // - domeOffset;
     // domeTiltOffset used to keep the ball from rolling when dome is tilted front/back
 
     PID3.Compute();
@@ -1171,11 +1230,11 @@ void sideTilt()
         MaxSideToSide);
 
     int S2Spot = (int)sideToSidePotHandler.GetMappedValue();
-    Input2 = roll + rollOffset;
+    Input2 = imu.Roll + offsets.Roll;
     
     PID2.Compute(); //PID2 is used to control the 'servo' control of the side to side movement.
 
-    Input1 = S2Spot + potOffsetS2S;
+    Input1 = S2Spot + offsets.S2SPot;
     Setpoint1 = map(
         constrain(Output2, -MaxSideToSide, MaxSideToSide),
         -MaxSideToSide,
@@ -1210,13 +1269,13 @@ void domeTilt()
     // Calculate the pitch to input into the head tilt input in order to keep it level.
     // Naigon - TODO: once the ease applicator is created, use it here to increment to pitch adjust.
     int pitchAdjust = sendToRemote.bodyMode != BodyMode::PushToRoll
-        ? (pitch + pitchOffset) * HeadTiltPitchAndRollProportion
+        ? (imu.Pitch + offsets.Pitch) * HeadTiltPitchAndRollProportion
         : 0;
 #else
     int pitchAdjust = 0;
 #endif
 
-    int domeTiltPot = (int)domeTiltPotHandler.GetMappedValue() + domeTiltPotOffset;
+    int domeTiltPot = (int)domeTiltPotHandler.GetMappedValue() + offsets.DomeTiltPot;
 
     // Naigon - Dome Automation
     // Dome tilt is completely controlled by automation.
@@ -1230,7 +1289,7 @@ void domeTilt()
         -MaxDomeTiltAngle,
         MaxDomeTiltAngle); // Reading the stick for angle -40 to 40
 
-    Input4 = domeTiltPot + (pitch + pitchOffset);
+    Input4 = domeTiltPot + (imu.Pitch + offsets.Pitch);
     Setpoint4 = domeTiltEaseApplicator.ComputeValueForCurrentIteration(joystickDome);
     Setpoint4 = constrain(Setpoint4, -MaxDomeTiltAngle, MaxDomeTiltAngle);
     PID4.Compute();
@@ -1245,7 +1304,7 @@ void domeSpin()
 {
     int domeRotation = (int)domeSpinStickPtr->GetMappedValue();
 
-    currentDomeSpeed = constrain(
+    int currentDomeSpeed = constrain(
         domeSpinEaseApplicator.ComputeValueForCurrentIteration(domeRotation),
         -255,
         255);
@@ -1262,8 +1321,8 @@ void domeSpinServo()
     int ch4Servo = (int)domeSpinStickPtr->GetMappedValue();
 
     Input5 = sendToRemote.bodyDirection == Direction::Forward
-        ? (int)domeSpinPotHandler.GetMappedValue() + domeSpinOffset - 180
-        : (int)domeSpinPotHandler.GetMappedValue() + domeSpinOffset;
+        ? (int)domeSpinPotHandler.GetMappedValue() + offsets.DomeSpin - 180
+        : (int)domeSpinPotHandler.GetMappedValue() + offsets.DomeSpin;
 
     if (Input5 < -180)
     {
@@ -1284,7 +1343,7 @@ void domeSpinServo()
 
     // Naigon - Animations
     // Stop forcing the head servo mode now that it is back into position.
-    if (runHeadServoUntilCentered && abs(Output5) < 10) { runHeadServoUntilCentered = false; }
+    if (drive.IsDomeCentering && abs(Output5) < 15) { drive.IsDomeCentering = false; }
 }
 
 // ------------------------------------------------------------------------------------
@@ -1353,28 +1412,33 @@ void setOffsetsAndSaveToEEPROM()
     // remote values, but it would be a lot better to just save everything in one go.
     //
 
+    if (SaveToEEPROM == 0)
+    {
+        return;
+    }
+
     if (SaveToEEPROM == 1)
     {
-        pitchOffset = pitch * -1;
-        EEPROM.writeFloat(0, pitchOffset);
+        offsets.Pitch = imu.Pitch * -1;
+        EEPROM.writeFloat(0, offsets.Pitch);
         SaveToEEPROM = 2;
     }
     else if (SaveToEEPROM == 2)
     {
-        rollOffset = roll * -1;
-        EEPROM.writeFloat(4, rollOffset);
+        offsets.Roll = imu.Roll * -1;
+        EEPROM.writeFloat(4, offsets.Roll);
         SaveToEEPROM = 3;
     }
     else if (SaveToEEPROM == 3)
     {
-        potOffsetS2S = 0 - (int)sideToSidePotHandler.GetMappedValue();
-        EEPROM.writeInt(8, potOffsetS2S);
+        offsets.S2SPot = 0 - (int)sideToSidePotHandler.GetMappedValue();
+        EEPROM.writeInt(8, offsets.S2SPot);
         SaveToEEPROM = 4;
     }
     else if (SaveToEEPROM == 4)
     {
-        domeTiltPotOffset = 0 - (int)domeTiltPotHandler.GetMappedValue();
-        EEPROM.writeInt(12, domeTiltPotOffset);
+        offsets.DomeTiltPot = 0 - (int)domeTiltPotHandler.GetMappedValue();
+        EEPROM.writeInt(12, offsets.DomeTiltPot);
         SaveToEEPROM = 0;
         sendToRemote.bodyStatus = BodyStatus::NormalOperation;
         //playSound = 1;
@@ -1385,11 +1449,11 @@ void setDomeSpinOffset()
 {
     // Naigon - TODO: Figure out why it is mapped from 180, -180 as opposed to -180, 180, and change it so that this
     // can be moved to using GetMappedForwardValue.
-    domeSpinOffset = sendToRemote.bodyDirection == Direction::Reverse
+    offsets.DomeSpin = sendToRemote.bodyDirection == Direction::Reverse
         ? 180 - (int)domeSpinPotHandler.GetMappedValue()
         : 0 - (int)domeSpinPotHandler.GetMappedValue();
 
-    EEPROM.writeInt(16, domeSpinOffset);
+    EEPROM.writeInt(16, offsets.DomeSpin);
     // delay(200);
     sendToRemote.bodyStatus = BodyStatus::NormalOperation;
     //playSound = 1;
@@ -1400,10 +1464,10 @@ void setDomeSpinOffset()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void setOffsetsONLY()
 {
-    pitchOffset = 0 - pitch;
-    rollOffset = 0 - roll;
-    potOffsetS2S = 0 - (map(analogRead(S2SpotPin), 0, 1024, -135, 135));
-    domeTiltPotOffset = 0 - (map(analogRead(domeTiltPotPin), 0, 1024, -MaxHeadTiltPot, MaxHeadTiltPot));
+    offsets.Pitch = 0 - imu.Pitch;
+    offsets.Roll = 0 - imu.Roll;
+    offsets.S2SPot = 0 - (map(analogRead(S2SpotPin), 0, 1024, -135, 135));
+    offsets.DomeTiltPot = 0 - (map(analogRead(domeTiltPotPin), 0, 1024, -MaxHeadTiltPot, MaxHeadTiltPot));
     //delay(200);
 }
 
@@ -1422,10 +1486,10 @@ void autoDisableMotors()
         && !domeTiltStickPtr->HasMovement()
         && !domeSpinStickPtr->HasMovement()
         && !flywheelStickPtr->HasMovement()
-        && (autoDisableState == 0))
+        && (!autoDisable.isAutoDisabled))
     {
-        autoDisableMotorsMillis = millis();
-        autoDisableState = 1;
+        autoDisable.autoDisableMotorsMillis = millis();
+        autoDisable.isAutoDisabled = true;
     }
     else if (
         driveStickPtr->HasMovement()
@@ -1434,46 +1498,46 @@ void autoDisableMotors()
         || domeTiltStickPtr->HasMovement()
         || domeSpinStickPtr->HasMovement()
         || flywheelStickPtr->HasMovement()
-        || forcedMotorEnable == true)
+        || autoDisable.forcedMotorEnable == true)
     {
-        autoDisableState = 0;
+        autoDisable.isAutoDisabled = false;
         digitalWrite(enablePin, HIGH);
-        autoDisableDoubleCheck = 0;
-        autoDisable = 0;
-        forcedMotorEnable = false;
+        autoDisable.autoDisableDoubleCheck = 0;
+        drive.AutoDisable = false;
+        autoDisable.forcedMotorEnable = false;
     }
 
-    if (autoDisableState == 1
-        && (millis() - autoDisableMotorsMillis) >= (unsigned long)AutoDisableMS
+    if (autoDisable.isAutoDisabled
+        && (millis() - autoDisable.autoDisableMotorsMillis) >= (unsigned long)AutoDisableMS
         && (output1A <= S2SOutThresh && output3A <= DriveOutThresh))
     {
         digitalWrite(enablePin, LOW);
-        autoDisable = 1;
+        drive.AutoDisable = true;
     }
     else if (output1A > 50 || output3A > 20)
     {
-        autoDisableState = 0;
+        autoDisable.isAutoDisabled = false;
         digitalWrite(enablePin, HIGH);
-        autoDisableDoubleCheck = 0;
-        autoDisable = 0;
+        autoDisable.autoDisableDoubleCheck = 0;
+        drive.AutoDisable = false;
     }
-    else if ((output1A > S2SOutThresh || output3A > DriveOutThresh) && autoDisableDoubleCheck == 0)
+    else if ((output1A > S2SOutThresh || output3A > DriveOutThresh) && autoDisable.autoDisableDoubleCheck == 0)
     {
-        autoDisableDoubleCheckMillis = millis();
-        autoDisableDoubleCheck = 1;
+        autoDisable.autoDisableDoubleCheckMillis = millis();
+        autoDisable.autoDisableDoubleCheck = 1;
     }
-    else if ((autoDisableDoubleCheck == 1) && (millis() - autoDisableDoubleCheckMillis >= 100))
+    else if ((autoDisable.autoDisableDoubleCheck == 1) && (millis() - autoDisable.autoDisableDoubleCheckMillis >= 100))
     {
         if (output1A > S2SOutThresh || output3A > DriveOutThresh)
         {
-            autoDisableState = 0;
+            autoDisable.isAutoDisabled = false;
             digitalWrite(enablePin, HIGH);
-            autoDisableDoubleCheck = 0;
-            autoDisable = 0;
+            autoDisable.autoDisableDoubleCheck = 0;
+            drive.AutoDisable = false;
         }
         else
         {
-            autoDisableDoubleCheck = 0;
+            autoDisable.autoDisableDoubleCheck = 0;
         }
     }
 }
