@@ -1,8 +1,17 @@
 // ====================================================================================================================
-// This work is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License. To view a
-// copy of this license, visit http://creativecommons.org/licenses/by-nc/4.0/ or send a letter to
+// This work is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License. To view a copy
+// of this license, visit http://creativecommons.org/licenses/by-nc/4.0/ or send a letter to
 // Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 // ====================================================================================================================
+
+// ====================================================================================================================
+//             ButtonHandler
+//             Library for wrapping Arduino digital inputs into buttons that have pres and held states.
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//             Scott DeBoer
+//             28 June 2020
+// ====================================================================================================================
+
 
 #ifndef __ButtonHandler_h_
 #define __ButtonHandler_h_
