@@ -346,7 +346,7 @@ GeneratedAnimation headMovement(
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Scripted Animations for Button 4 Press - Bank2
+// Scripted Animations for Button 4 Press - Bank2. BEST IN FULL DOME ROTATION - not as good in servo mode.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 AnimationState tiltHeadAndLookBothWays1State[] = {
@@ -359,6 +359,29 @@ AnimationState tiltHeadAndLookBothWays1State[] = {
     AnimationState(Centered, Centered, ForwardHalf, Centered, Centered,  Centered, SoundTypes::NotPlaying, 100),
 };
 ScriptedAnimation tiltHeadAndLookBothWays1(AnimationTarget::Bank2, 6, tiltHeadAndLookBothWays1State);
+
+AnimationState tiltHeadOppositeWays1State[] = {
+    // ----------- Drive   | Side    | DomeTFB    | DomeTLR | DomeSpin | Flywhl  | Sound                 | MS
+    AnimationState(Centered, Centered, Centered,    Centered, Centered,  Centered, SoundTypes::Chatty,       0),
+    AnimationState(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 500),
+    AnimationState(Centered, Centered, ReverseFull, Centered, RightHalf, Centered, SoundTypes::NotPlaying, 500),
+    AnimationState(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 500),
+    AnimationState(Centered, Centered, ReverseFull, Centered, RightHalf, Centered, SoundTypes::NotPlaying, 500),
+    AnimationState(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 500),
+    AnimationState(Centered, Centered, ReverseFull, Centered, RightHalf, Centered, SoundTypes::NotPlaying, 500),
+    AnimationState(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 500),
+    AnimationState(Centered, Centered, ReverseFull, Centered, RightHalf, Centered, SoundTypes::NotPlaying, 500),
+};
+ScriptedAnimation tiltHeadOppositeWays1(AnimationTarget::Bank2, 9, tiltHeadOppositeWays1State);
+
+// NOTE: The flywheel is somewhat backwards because it is upsidedown on the remote. so even though dome and flywheel
+// are the same direction in code, they will spin in opposite directions, which is intended for this animation.
+AnimationState flywheelSpin1State[] = {
+    // ----------- Drive   | Side    | DomeTFB | DomeTLR | DomeSpin | Flywhl   | Sound                 | MS
+    AnimationState(Centered, Centered, Centered, Centered, LeftHalf,  LeftFull,  SoundTypes::NotPlaying, 500),
+    AnimationState(Centered, Centered, Centered, Centered, RightFull, RightFull, SoundTypes::NotPlaying, 3000),
+};
+ScriptedAnimation flywheelSpin1(AnimationTarget::Bank2, 2, flywheelSpin1State);
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -366,14 +389,20 @@ ScriptedAnimation tiltHeadAndLookBothWays1(AnimationTarget::Bank2, 6, tiltHeadAn
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Array of entire animations that will be used to initialize the AnimationRunner in the main file.
+const int NumAnimations = 4;
 IAnimation *animations[] =
 {
+    // Bank 1
     &headMovement,
+
+    // Bank 2
     &tiltHeadAndLookBothWays1,
+    &tiltHeadOppositeWays1,
+    &flywheelSpin1,
 };
 
 // Naigon - Animations
-AnimationRunner animationRunner(2, animations);
+AnimationRunner animationRunner(NumAnimations, animations);
 
 // Naigon - Button Handling
 // NOTE - should implement for all cases where using buttons in Joe's code.
@@ -955,7 +984,7 @@ void updateAnimations()
     //
     // Next, see if automation mode is toggled in or out
     //
-    if (button6Handler.GetState() == ButtonState::Pressed)
+    if (button8Handler.GetState() == ButtonState::Pressed)
     {
         // Button 6 toggles animations. Mark if leaving the mode as a stop of running animations is required there.
         stopAutomation = animation.IsAutomation;
@@ -970,7 +999,14 @@ void updateAnimations()
     //
     if (button4Handler.GetState() == ButtonState::Pressed)
     {
-        animationRunner.SelectAndStartAnimation(AnimationTarget::Bank2);
+        // Since Bank2 contains all the scripted exact ones, it's important to do those in order. That allows knowing
+        // when one will come, and prevents duplication since they are canned.
+        animationRunner.StartNextAutomation(AnimationTarget::Bank2);
+        animation.IsAnimationRunning = true;
+    }
+    else if (button6Handler.GetState() == ButtonState::Pressed)
+    {
+        animationRunner.SelectAndStartAnimation(AnimationTarget::Bank3);
         animation.IsAnimationRunning = true;
     }
     else if (animation.IsAutomation && !animationRunner.IsRunning())
@@ -978,7 +1014,7 @@ void updateAnimations()
         animationRunner.SelectAndStartAnimation(AnimationTarget::Bank1);
         animation.IsAnimationRunning = true;
     }
-    else if (!animation.IsAutomation && animationRunner.IsRunning())
+    else if (stopAutomation && animationRunner.IsRunning())
     {
         animationRunner.StopCurrentAnimation();
     }

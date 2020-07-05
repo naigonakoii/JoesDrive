@@ -26,6 +26,10 @@ AnimationRunner::AnimationRunner(int numAnimations, IAnimation *animations[])
     , _numBank2(0)
     , _numBank3(0)
     , _numBank4(0)
+    , _current1(0)
+    , _current2(0)
+    , _current3(0)
+    , _current4(0)
 {
     for (int i = 0; i < _numAnimations; i++)
     {
@@ -116,6 +120,44 @@ void AnimationRunner::SelectAndStartAnimation(AnimationTarget aTarget)
 
     // Assign the newly selected animation and start it.
     _currentAnimation = _animations[i];
+    _currentAnimation->Start();
+}
+
+void AnimationRunner::StartNextAutomation(AnimationTarget aTarget)
+{
+    if (_currentAnimation != nullptr && _currentAnimation->IsRunning())
+    {
+        // If one is already running stop it here.
+        _currentAnimation->Stop();
+    }
+
+    switch(aTarget)
+    {
+    case AnimationTarget::Bank1:
+        FindNextAndStart(aTarget, _current1);
+        break;
+    case AnimationTarget::Bank2:
+        FindNextAndStart(aTarget, _current2);
+        break;
+    case AnimationTarget::Bank3:
+        FindNextAndStart(aTarget, _current3);
+        break;
+    case AnimationTarget::Bank4:
+        FindNextAndStart(aTarget, _current4);
+        break;
+    }
+}
+
+void AnimationRunner::FindNextAndStart(AnimationTarget aTarget, int &index)
+{
+    do
+    {
+        index++;
+        if (index >= _numAnimations) { index = 0; }
+    } while (_animations[index]->Target() != aTarget
+        && _animations[index]->Target() != AnimationTarget::AnyBank);
+
+    _currentAnimation = _animations[index];
     _currentAnimation->Start();
 }
 

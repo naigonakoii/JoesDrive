@@ -80,8 +80,22 @@ public:
     ///////////////////////////////////////////////////////////////////////////////////
     void SelectAndStartAnimation(AnimationTarget aTarget);
 
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Start the next animation for the specified AnimationTarget. Loops
+    //          through all animations in order.
+    //
+    // @param   AnimationTarget which should be used. The search stats from the last
+    //          animation of this target and continues until it finds the next of this
+    //          target, or the next marked Any. If the end of the animations array is
+    //          encountered it loops back to the beginning to continue.
+    ///////////////////////////////////////////////////////////////////////////////////
+    void StartNextAutomation(AnimationTarget aTarget);
+
 private:
+    void FindNextAndStart(AnimationTarget aTarget, int &index);
+
     int _numBank1, _numBank2, _numBank3, _numBank4, _numAnimations;
+    int _current1, _current2, _current3, _current4;
     IAnimation* _currentAnimation;
     IAnimation **_animations;
 };
