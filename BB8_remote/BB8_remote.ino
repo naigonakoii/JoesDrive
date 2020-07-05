@@ -62,14 +62,15 @@ enum BodyMode : uint8_t
     UnknownSpeed = 0,
     Slow = 1,
     SlowWithTilt = 2,
-    Automated = 3,
-    AutomatedServo = 4,
-    Servo = 5,
-    ServoWithTilt = 6,
-    Stationary = 7,
-    Medium = 8,
-    Fast = 9,
-    PushToRoll = 10,
+    Servo = 3,
+    ServoWithTilt = 4,
+    Stationary = 5,
+    Medium = 6,
+    Fast = 7,
+    PushToRoll = 8,
+    Automated = 20,
+    AutomatedServo = 21,
+    AutomatedTilt = 22,
 };
 
 enum Direction : uint8_t
@@ -382,9 +383,14 @@ void printVoltage()
     {
         oled.println(F("Safe    "));
     }
-    else if (bodyM == BodyMode::Automated || bodyM == BodyMode::AutomatedServo)
+    else if (bodyM == BodyMode::Automated
+        || bodyM == BodyMode::AutomatedServo)
     {
         oled.println(F("Auto    "));
+    }
+    else if (bodyM == BodyMode::AutomatedTilt)
+    {
+        oled.println(F("aTlt    "));
     }
     else
     {

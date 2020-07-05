@@ -114,16 +114,20 @@ enum BodyMode : uint8_t
     UnknownSpeed = 0,
     Slow = 1,
     SlowWithTilt = 2,
-    Automated = 3,
-    AutomatedServo = 4,
-    Servo = 5,
-    ServoWithTilt = 6,
-    Stationary = 7,
-    Medium = 8,
-    Fast = 9,
-    PushToRoll = 10,
+    Servo = 3,
+    ServoWithTilt = 4,
+    Stationary = 5,
+    Medium = 6,
+    Fast = 7,
+    PushToRoll = 8,
+    Automated = 20,
+    AutomatedServo = 21,
+    AutomatedTilt = 22,
 };
+const BodyMode FirstSpeedEntry = BodyMode::Slow;
 const BodyMode LastSpeedEntry = BodyMode::PushToRoll;
+const BodyMode FirstAutomatedEntry = BodyMode::Automated;
+const BodyMode LastAutomatedEntry = BodyMode::AutomatedTilt;
 
 enum Direction : uint8_t
 {
@@ -216,11 +220,6 @@ struct AnimationStateVars
     // Indicates if the drive is in an automated mode; all modes can run automation via a button press, but in an
     // automated mode the animation is run continuously while driving around.
     bool IsAutomation = false;
-
-    // Indicates if automation mode was exited and animations need to be stopped.
-    // (Currently there's no way to tell the difference between the automation kicked off animation and one via button
-    //  press, so either would be stopped in this case.)
-    bool ForceStopAnimation = false;
 
     // Indicates if any animation is running. This is needed to know when to force the drive into Servo mode when the
     // animationRunner indicates an animation has stopped.
@@ -627,25 +626,24 @@ void loop()
     if (millis() - lastLoopMillis >= 20)
     {
         sendAndReceive();
-        // These methods do not need the body mode updated.
         checkMiniTime();
         BTenable();
+
         updateInputHandlers();
         updateBodyMode();
         reverseDirection();
+
         updateAnimations();
-        //sounds();
         handleSounds();
         psiVal();
         readVin();
 
         bodyCalib();
-
-
+        domeCalib();
         debugRoutines();
+
         setOffsetsAndSaveToEEPROM();
         movement();
-        domeCalib();
         lastLoopMillis = millis();
     }
 }
@@ -835,7 +833,17 @@ void updateInputHandlers()
 
 void updateBodyMode()
 {
-    incrementBodyModeToggle();
+    //
+    // Increment runs through automation and normal modes separately.
+    //
+    if (animation.IsAutomation)
+    {
+        incrementBodyModeToggle(FirstAutomatedEntry, LastAutomatedEntry);
+    }
+    else
+    {
+        incrementBodyModeToggle(FirstSpeedEntry, LastSpeedEntry);
+    }
 
     if (sendToRemote.bodyMode == BodyMode::Medium)
     {
@@ -865,17 +873,11 @@ void updateBodyMode()
     // Indicate if the droid is in stationary mode only when in the stationary state.
     drive.IsStationary = sendToRemote.bodyMode == BodyMode::Stationary;
 
-    bool isDomeAutomationPrev = animation.IsAutomation;
-    animation.IsAutomation = sendToRemote.bodyMode == BodyMode::Automated
-        || sendToRemote.bodyMode == BodyMode::AutomatedServo;
-
-    animation.ForceStopAnimation = isDomeAutomationPrev && !animation.IsAutomation;
-
     // Naigon - Dome Modes
     // The dome servo or normal state is now parsed from the bodyMode.
-    drive.CurrentDomeMode = (sendToRemote.bodyMode == BodyMode::Servo
+    drive.CurrentDomeMode = sendToRemote.bodyMode == BodyMode::Servo
         || sendToRemote.bodyMode == BodyMode::ServoWithTilt
-        || sendToRemote.bodyMode == BodyMode::AutomatedServo)
+        || sendToRemote.bodyMode == BodyMode::AutomatedServo
             ? DomeMode::ServoMode
             : DomeMode::FullSpinMode;
 
@@ -886,7 +888,7 @@ void updateBodyMode()
         : &domeRotationStickHandler;
 }
 
-void incrementBodyModeToggle()
+void incrementBodyModeToggle(uint8_t firstEntry, uint8_t lastEntry)
 {
     if (button1Handler.GetState() != ButtonState::Pressed
         || sendToRemote.bodyStatus != BodyStatus::NormalOperation
@@ -908,8 +910,8 @@ void incrementBodyModeToggle()
     // secondary controllers to operate on the drive and the drive can maintain a state.
     //
     sendToRemote.bodyMode =
-        sendToRemote.bodyMode >= (int)LastSpeedEntry || sendToRemote.bodyMode == BodyMode::UnknownSpeed
-            ? 1
+        sendToRemote.bodyMode >= lastEntry || sendToRemote.bodyMode == BodyMode::UnknownSpeed
+            ? firstEntry
             : sendToRemote.bodyMode + 1;
 }
 
@@ -949,12 +951,18 @@ void updateAnimations()
         return;
     }
 
+    bool stopAutomation = false;
     //
-    // Next, stop current automations if it is a forced stop (currently switching out of automation mode)
+    // Next, see if automation mode is toggled in or out
     //
-    if (animation.ForceStopAnimation)
+    if (button6Handler.GetState() == ButtonState::Pressed)
     {
-        animationRunner.StopCurrentAnimation();
+        // Button 6 toggles animations. Mark if leaving the mode as a stop of running animations is required there.
+        stopAutomation = animation.IsAutomation;
+        animation.IsAutomation = animation.IsAutomation ? false : true;
+        sendToRemote.bodyMode = animation.IsAutomation
+            ? FirstAutomatedEntry
+            : FirstSpeedEntry;
     }
 
     //
@@ -969,6 +977,10 @@ void updateAnimations()
     {
         animationRunner.SelectAndStartAnimation(AnimationTarget::Bank1);
         animation.IsAnimationRunning = true;
+    }
+    else if (!animation.IsAutomation && animationRunner.IsRunning())
+    {
+        animationRunner.StopCurrentAnimation();
     }
 
     //
