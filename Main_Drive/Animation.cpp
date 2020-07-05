@@ -121,6 +121,7 @@ const AnimationState* ScriptedAnimation::RunIteration()
 // Generated Animation
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Private methods which can be considered like private statics off GeneratedAnimationPercents.
 uint8_t weightedPercentBasedSelection(const uint16_t percents[], uint16_t size, uint16_t totPercent, uint8_t defaultValue);
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -138,7 +139,8 @@ GeneratedAnimationPercents::GeneratedAnimationPercents(
     uint8_t frStickSize,
     const uint16_t *lrStickArray,
     const uint16_t *lrStickPercents,
-    uint8_t lrStickSize)
+    uint8_t lrStickSize,
+    uint8_t pausePercent)
     : _actionArray(actionArray)
     , _actionPercents(actionPercents)
     , _actionSize(actionSize)
@@ -151,6 +153,7 @@ GeneratedAnimationPercents::GeneratedAnimationPercents(
     , _lrStickArray(lrStickArray)
     , _lrStickPercents(lrStickPercents)
     , _lrStickSize(lrStickSize)
+    , _pausePercent(pausePercent)
     , _actionTot(0)
     , _msTot(0)
     , _frStickTot(0)
@@ -176,7 +179,6 @@ GeneratedAnimationPercents::GeneratedAnimationPercents(
         _lrStickTot += _lrStickPercents[i];
     }
 }
-// --------------------------------------------------------------------------------------------------------------------
 
 // --------------------------------------------------------------------------------------------------------------------
 // GeneratedAnimation Class Methods
@@ -186,14 +188,12 @@ GeneratedAnimation::GeneratedAnimation(
     GeneratedAnimationPercents *percents,
     uint8_t minNumAnimationSteps,
     uint8_t maxConcurentActions,
-    uint16_t soundTimeout,
-    bool allowAutoStop)
+    uint16_t soundTimeout)
     : _animationTarget(aTarget)
     , _percents(percents)
     , _minNumAnimationSteps(minNumAnimationSteps)
     , _maxConcurentActions(maxConcurentActions)
     , _soundTimeout(soundTimeout)
-    , _autoStop(allowAutoStop)
     , _currentResult(
         Centered,
         Centered,
@@ -256,13 +256,19 @@ void GeneratedAnimation::AutoGenerateNextState()
 
     _currentResult._millisOnState = _percents->_msArray[millisBucketIndex];
 
+    if (random(101) < _percents->_pausePercent)
+    {
+        // Pause is just a cleared state for a specific duration, so we are done.
+        return;
+    }
+
     int numConcurentActions = random(_maxConcurentActions) + 1;
 
     for (int i = 0; i < numConcurentActions; i++)
     {
         AnimationAction action = (AnimationAction)AutoGenerateAction();
 
-        if (action == AnimationAction::EndAnimation && _autoStop && _animationStepCount >= _minNumAnimationSteps)
+        if (action == AnimationAction::EndAnimation && _animationStepCount >= _minNumAnimationSteps)
         {
             Stop();
             return;
@@ -372,9 +378,6 @@ uint8_t weightedPercentBasedSelection(const uint16_t percents[], uint16_t size, 
 
     return defaultValue;
 }
-// --------------------------------------------------------------------------------------------------------------------
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 
 }   // namespace NaigonBB8

@@ -299,20 +299,20 @@ const uint16_t stickLRVals[] =
     RightFull,
 };
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Dome Animations for Automated Modes - Bank 1
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 const AnimationAction domeActions[] = {
-    AnimationAction::Pause,
-    AnimationAction::SpinDome,
     AnimationAction::PlaySound,
+    AnimationAction::SpinDome,
     AnimationAction::TiltDomeFB, };
 
 const uint16_t domeActPer[] =
 {
-    73, // Pause
-     7, // Spin Dome
-    15, // Play Sound
-     5, // Tilt Dome
+    55, // Play Sound
+    25, // Spin Dome
+    20, // Tilt Dome
 };
 
 const uint16_t millisVals[] = { 100, 250, 350, 500, 750, 1000, };
@@ -325,26 +325,25 @@ const uint16_t percentDomeStickFR[] { 35, 25, 15, 5, 5, 5, 5, 5, };
 GeneratedAnimationPercents domeAnimationPercents(
     domeActions,
     domeActPer,
-    4,
+    3 /* actionSize */,
     millisVals,
     millisPer,
-    6,
+    6 /* msSize */,
     stickFRVals,
     percentDomeStickFR,
-    8,
+    8 /* frStickSize */,
     stickLRVals,
     percentDomeStickLR,
-    8);
+    8 /* lrStickSize */,
+    65 /* pausePercent */);
 
 // Since moving just the head is pretty basic, going with full generation here to save variable space.
 GeneratedAnimation headMovement(
     AnimationTarget::Bank1,
     &domeAnimationPercents,
     3 /* minNumAnimationSteps */,
-    4 /* maxConcurentActions */,
-    8000 /* soundTimeout */,
-    false /* allowAutoStop */);
-
+    2 /* maxConcurentActions */,
+    8000 /* soundTimeout */);
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

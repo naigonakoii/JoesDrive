@@ -264,8 +264,7 @@ private:
 ///////////////////////////////////////////////////////////////////////////////////////
 enum AnimationAction : uint8_t
 {
-    Pause = 0,
-    EndAnimation,
+    EndAnimation = 0,
     SpinDome,
     TiltDomeFB,
     TiltDomeLR,
@@ -278,6 +277,58 @@ enum AnimationAction : uint8_t
 class GeneratedAnimationPercents
 {
 public:
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Constructs an instance of the GeneratedAnimationPercents class.
+    //
+    // @param   actionArray
+    //          Array of actions that will be supported by the animation. The size of
+    //          this array must be actionSize.
+    //
+    // @param   actionPercents
+    //          Percent that the corresponding action from actionArray will be executed.
+    //          The size of this array must be actionSize.
+    //
+    // @param   actionSize
+    //          Size of the actionArray and actionPercents arrays.
+    //
+    // @param   msArray
+    //          Supported milliseconds that a randomly selected animation step can run.
+    //          The size of this array must be msSize.
+    //
+    // @param   msPercents
+    //          Percent that the corresponding milliseconds will be selected as the
+    //          duration from msArray. Size of this array must be msSize.
+    //
+    // @param   msSize
+    //          The size of msArray and msPercents arrays.
+    //
+    // @param   frStickArray
+    //          Array of supported forward/reverse movement amounts. The size of this
+    //          array must be frStickSize.
+    //
+    // @param   frStickPercents
+    //          Percent that the corresponding stick value from frStickArray will be
+    //          randomly selected. The size of this array must be frStickSize.
+    //
+    // @param   frStickSize
+    //          The size of frStickArray and frStickPercents arrays.
+    //
+    // @param   lrStickArray
+    //          Array of supoprted left/right movement amounts. The size of this array
+    //          must be lrStickSize.
+    //
+    // @param   lrStickPercents
+    //          Percent that the corresponding stick value from lrStickArray will be
+    //          randomly selected. The size of this array must be lrStickSize.
+    //
+    // @param   lrStickSize
+    //          The size of lrStickArray and lrStickPercents arrays.
+    //
+    // @param   pausePercent
+    //          Percent chance that the current randomly generated action will be a
+    //          puase. Set to zero (0) to only generate non-pause actions; One hundred
+    //          (100) would be to always pause.
+    ///////////////////////////////////////////////////////////////////////////////////
     GeneratedAnimationPercents(
         const AnimationAction *actionArray,
         const uint16_t *actionPercents,
@@ -290,7 +341,8 @@ public:
         uint8_t frStickSize,
         const uint16_t *lrStickArray,
         const uint16_t *lrStickPercents,
-        uint8_t lrStickSize);
+        uint8_t lrStickSize,
+        uint8_t pausePercent);
 
 private:
     const AnimationAction *_actionArray;
@@ -302,6 +354,7 @@ private:
     const uint16_t *_lrStickArray;
     const uint16_t *_lrStickPercents;
     uint8_t _actionSize, _msSize, _frStickSize, _lrStickSize;
+    uint8_t _pausePercent;
     uint16_t _actionTot, _msTot, _frStickTot, _lrStickTot;
 
     friend class GeneratedAnimation;
@@ -354,18 +407,13 @@ public:
     //          values prevent spamming the system with talking, but less overall
     //          sounds will be generated.
     //
-    // @param   allowAutoStop
-    //          If true, the animation will be able to stop itself after at least
-    //          minNumAnimationSteps have been completed. If false, the animation runs
-    //          indefinitely until it is manually stopped by calling the Stop() method.
     ///////////////////////////////////////////////////////////////////////////////////
     GeneratedAnimation(
         AnimationTarget aTarget,
         GeneratedAnimationPercents *percents,
         uint8_t minNumAnimationSteps,
         uint8_t maxConcurentActions,
-        uint16_t soundTimeout,
-        bool allowAutoStop);
+        uint16_t soundTimeout);
 
     //
     // IAnimation interface implementation
@@ -385,7 +433,7 @@ private:
     AnimationTarget _animationTarget;
     unsigned long _currentMillis, _soundTimeout, _lastSoundMillis;
     uint8_t _minNumAnimationSteps, _animationStepCount, _maxConcurentActions;
-    bool _isRunning, _autoStop;
+    bool _isRunning;
     AnimationState _currentResult;
     GeneratedAnimationPercents *_percents;
 };
