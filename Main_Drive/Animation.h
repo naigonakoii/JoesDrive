@@ -56,6 +56,13 @@ class GeneratedAnimation;
 // Forward declare sound types
 enum SoundTypes : int8_t;
 
+enum AnimationDomeMode
+{
+    adEither = 0,
+    adSpin = 1,
+    adServo = 2,
+};
+
 ///////////////////////////////////////////////////////////////////////////////////////
 // @summary Class that defines animation parameters for a single animation step.
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -73,6 +80,7 @@ public:
         int domeSpin,
         int flywheel,
         SoundTypes soundType,
+        AnimationDomeMode domeMode,
         int millisOnState);
 
     ///////////////////////////////////////////////////////////////////////////////////
@@ -124,6 +132,13 @@ public:
     ///////////////////////////////////////////////////////////////////////////////////
     SoundTypes GetSoundType() const;
 
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Gets the specified dome mode for the current animation step.
+    //
+    // @ret     DomeMode requested for the current animation.
+    ///////////////////////////////////////////////////////////////////////////////////
+    AnimationDomeMode GetDomeMode() const;
+
 private:
     //
     // Motor motions. These act as virtual stick controllers, as if the drive itself
@@ -142,6 +157,10 @@ private:
     SoundTypes _soundType;
 
     //
+    // Which dome mode this animation
+    //
+    AnimationDomeMode _domeMode;
+
     // Milliseconds that this state is run for. After the time elapses, the next state
     // starts.
     //
@@ -411,6 +430,7 @@ public:
     GeneratedAnimation(
         AnimationTarget aTarget,
         GeneratedAnimationPercents *percents,
+        AnimationDomeMode domeMode,
         uint8_t minNumAnimationSteps,
         uint8_t maxConcurentActions,
         uint16_t soundTimeout);

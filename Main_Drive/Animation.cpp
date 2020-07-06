@@ -20,7 +20,7 @@ namespace NaigonBB8
 
 using namespace AnimationConstants;
 
-const AnimationStep EMPTY_RESULT(0, 0, 0, 0, 0, 0, SoundTypes::NotPlaying, 0);
+const AnimationStep EMPTY_RESULT(0, 0, 0, 0, 0, 0, SoundTypes::NotPlaying, AnimationDomeMode::adEither, 0);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Animation State
@@ -34,6 +34,7 @@ AnimationStep::AnimationStep(
     int domeSpin,
     int flywheel,
     SoundTypes soundType,
+    AnimationDomeMode domeMode,
     int millisOnState)
     : _drive(drive)
     , _sideToSide(sideToSide)
@@ -42,6 +43,7 @@ AnimationStep::AnimationStep(
     , _domeSpin(domeSpin)
     , _flywheel(flywheel)
     , _soundType(soundType)
+    , _domeMode(domeMode)
     , _millisOnState(millisOnState)
 { }
 
@@ -51,6 +53,7 @@ int AnimationStep::GetDomeTiltFB() const { return _domeTiltFB; }
 int AnimationStep::GetDomeTiltLR() const { return _domeTiltLR; }
 int AnimationStep::GetDomeSpin() const { return _domeSpin; }
 int AnimationStep::GetFlywheel() const { return _flywheel; }
+AnimationDomeMode AnimationStep::GetDomeMode() const { return _domeMode; }
 SoundTypes AnimationStep::GetSoundType() const { return _soundType; }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -186,6 +189,7 @@ GeneratedAnimationPercents::GeneratedAnimationPercents(
 GeneratedAnimation::GeneratedAnimation(
     AnimationTarget aTarget,
     GeneratedAnimationPercents *percents,
+    AnimationDomeMode domeMode,
     uint8_t minNumAnimationSteps,
     uint8_t maxConcurentActions,
     uint16_t soundTimeout)
@@ -202,6 +206,7 @@ GeneratedAnimation::GeneratedAnimation(
         Centered,
         Centered,
         SoundTypes::NotPlaying,
+        domeMode,
         0)
     , _lastSoundMillis(0)
     , _isRunning(false)

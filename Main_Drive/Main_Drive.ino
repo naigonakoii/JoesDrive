@@ -43,6 +43,13 @@
 using namespace NaigonBB8::AnimationConstants;
 
 using NaigonBB8::AnimationAction;
+using NaigonBB8::AnimationDomeMode;
+
+// Include each entry to allow short-hand in animation definitions.
+using NaigonBB8::AnimationDomeMode::adEither;
+using NaigonBB8::AnimationDomeMode::adServo;
+using NaigonBB8::AnimationDomeMode::adSpin;
+
 using NaigonBB8::AnimationRunner;
 using NaigonBB8::AnimationStep;
 using NaigonBB8::AnimationTarget;
@@ -55,6 +62,15 @@ using NaigonBB8::LinearEaseApplicator;
 using NaigonBB8::MotorPWM;
 using NaigonBB8::ScriptedAnimation;
 using NaigonBB8::SoundTypes;
+
+// Include each entry to allow short-hand in animation definitions.
+using NaigonBB8::SoundTypes::Agitated;
+using NaigonBB8::SoundTypes::Chatty;
+using NaigonBB8::SoundTypes::Excited;
+using NaigonBB8::SoundTypes::Happy;
+using NaigonBB8::SoundTypes::NotPlaying;
+using NaigonBB8::SoundTypes::Sad;
+using NaigonBB8::SoundTypes::Scared;
 
 //using NaigonBB8::animationDefinitions;
 
@@ -224,6 +240,10 @@ struct AnimationStateVars
     // Indicates if any animation is running. This is needed to know when to force the drive into Servo mode when the
     // animationRunner indicates an animation has stopped.
     bool IsAnimationRunning = false;
+
+    // Animations can specify if they are specific for dome spin, dome servo, or if it does not matter. Mark it here
+    // so that the mode selection logic can choose the appropriate value.
+    AnimationDomeMode AnimatedDomeMode;
 };
 AnimationStateVars animation;
 
@@ -300,7 +320,7 @@ const uint16_t stickLRVals[] =
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Dome Animations for Automated Modes - Bank 1
+// Continuous generated animations for Automated mode - Bank 1
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 const AnimationAction domeActions[] = {
     AnimationAction::PlaySound,
@@ -340,56 +360,119 @@ GeneratedAnimationPercents domeAnimationPercents(
 GeneratedAnimation headMovement(
     AnimationTarget::Bank1,
     &domeAnimationPercents,
+    AnimationDomeMode::adEither,
     3 /* minNumAnimationSteps */,
     2 /* maxConcurentActions */,
     8000 /* soundTimeout */);
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Scripted Animations for Button 4 Press - Bank2. BEST IN FULL DOME ROTATION - not as good in servo mode.
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Scripted Animations for Button 4 Press - Bank2.
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 AnimationStep tiltHeadAndLookBothWays1State[] = {
-    // ----------- Drive   | Side    | DomeTFB    | DomeTLR | DomeSpin | Flywhl  | Sound                 | MS
-    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 250),
-    AnimationStep(Centered, Centered, ForwardFull, Centered, Centered,  Centered, SoundTypes::Excited,      0),
-    AnimationStep(Centered, Centered, ForwardFull, Centered, Centered,  Centered, SoundTypes::NotPlaying, 200),
-    AnimationStep(Centered, Centered, ForwardFull, Centered, RightHalf, Centered, SoundTypes::NotPlaying, 500),
-    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 500),
-    AnimationStep(Centered, Centered, ForwardHalf, Centered, Centered,  Centered, SoundTypes::NotPlaying, 100),
+    // ----------- Drive   | Side    | DomeTFB    | DomeTLR | DomeSpin | Flywhl | Sound     | Dome  |  MS
+    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, NotPlaying, adSpin, 250),
+    AnimationStep(Centered, Centered, ForwardFull, Centered, Centered,  Centered, Excited,    adSpin,   0),
+    AnimationStep(Centered, Centered, ForwardFull, Centered, Centered,  Centered, NotPlaying, adSpin, 200),
+    AnimationStep(Centered, Centered, ForwardFull, Centered, RightHalf, Centered, NotPlaying, adSpin, 500),
+    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, NotPlaying, adSpin, 500),
+    AnimationStep(Centered, Centered, ForwardHalf, Centered, Centered,  Centered, NotPlaying, adSpin, 100),
 };
 ScriptedAnimation tiltHeadAndLookBothWays1(AnimationTarget::Bank2, 6, tiltHeadAndLookBothWays1State);
 
 AnimationStep tiltHeadOppositeWays1State[] = {
-    // ----------- Drive   | Side    | DomeTFB    | DomeTLR | DomeSpin | Flywhl  | Sound                 | MS
-    AnimationStep(Centered, Centered, Centered,    Centered, Centered,  Centered, SoundTypes::Chatty,       0),
-    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 500),
-    AnimationStep(Centered, Centered, ReverseFull, Centered, RightHalf, Centered, SoundTypes::NotPlaying, 500),
-    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 500),
-    AnimationStep(Centered, Centered, ReverseFull, Centered, RightHalf, Centered, SoundTypes::NotPlaying, 500),
-    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 500),
-    AnimationStep(Centered, Centered, ReverseFull, Centered, RightHalf, Centered, SoundTypes::NotPlaying, 500),
-    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 500),
-    AnimationStep(Centered, Centered, ReverseFull, Centered, RightHalf, Centered, SoundTypes::NotPlaying, 500),
+    // ----------- Drive   | Side    | DomeTFB    | DomeTLR | DomeSpin    | Flywhl  | Sound     | Dome   |  MS
+    AnimationStep(Centered, Centered, Centered,    Centered, LeftTwoThirds, Centered, Chatty,     adServo,   0),
+    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftTwoThirds, Centered, NotPlaying, adServo, 500),
+    AnimationStep(Centered, Centered, ReverseFull, Centered, LeftTwoThirds, Centered, NotPlaying, adServo, 500),
+    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftTwoThirds, Centered, NotPlaying, adServo, 500),
+    AnimationStep(Centered, Centered, ReverseFull, Centered, LeftTwoThirds, Centered, NotPlaying, adServo, 500),
+    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftTwoThirds, Centered, NotPlaying, adServo, 500),
+    AnimationStep(Centered, Centered, ReverseFull, Centered, LeftTwoThirds, Centered, NotPlaying, adServo, 500),
+    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftTwoThirds, Centered, NotPlaying, adServo, 500),
+    AnimationStep(Centered, Centered, ReverseFull, Centered, LeftTwoThirds, Centered, NotPlaying, adServo, 500),
 };
 ScriptedAnimation tiltHeadOppositeWays1(AnimationTarget::Bank2, 9, tiltHeadOppositeWays1State);
 
 // NOTE: The flywheel is somewhat backwards because it is upsidedown on the remote. so even though dome and flywheel
 // are the same direction in code, they will spin in opposite directions, which is intended for this animation.
 AnimationStep flywheelSpin1State[] = {
-    // ----------- Drive   | Side    | DomeTFB | DomeTLR | DomeSpin | Flywhl   | Sound                 | MS
-    AnimationStep(Centered, Centered, Centered, Centered, LeftHalf,  LeftFull,  SoundTypes::NotPlaying, 500),
-    AnimationStep(Centered, Centered, Centered, Centered, RightFull, RightFull, SoundTypes::NotPlaying, 3000),
+    // ----------- Drive   | Side    | DomeTFB | DomeTLR | DomeSpin | Flywhl  | Sound     | Dome  |   MS
+    AnimationStep(Centered, Centered, Centered, Centered, LeftHalf,  LeftFull,  NotPlaying, adSpin,  500),
+    AnimationStep(Centered, Centered, Centered, Centered, RightFull, RightFull, NotPlaying, adSpin, 3000),
 };
 ScriptedAnimation flywheelSpin1(AnimationTarget::Bank2, 2, flywheelSpin1State);
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Generated and scripted animations for Button 6 press - Bank3
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+const AnimationAction bank3DomeActions[] = {
+    AnimationAction::EndAnimation,
+    AnimationAction::PlaySound,
+    AnimationAction::SpinDome,
+    AnimationAction::TiltDomeFB,
+    AnimationAction::Flywheel,
+};
+
+const uint16_t bank3DomeActPer[] =
+{
+    20, // End animation
+    40, // Play Sound
+    15, // Spin Dome
+    15, // Tilt Dome
+    10, // Flywheel
+};
+
+const uint16_t bank3MillisVals[] = { 100, 250, 350, 500, 750, 1000, 1500, };
+const uint16_t bank3MillisPer[]  = {  7,   18,  20,  25,  15,   10,    5, };
+
+const uint16_t bank3PercentDomeStickLR[] { 8, 12,  15, 15, 15, 15, 12, 8, };
+
+const uint16_t bank3PercentDomeStickFR[] { 35, 25, 15, 5, 5, 5, 5, 5, };
+
+GeneratedAnimationPercents bank3Percents(
+    bank3DomeActions,
+    bank3DomeActPer,
+    5 /* actionSize */,
+    bank3MillisVals,
+    bank3MillisPer,
+    7 /* msSize */,
+    stickFRVals,
+    bank3PercentDomeStickFR,
+    8 /* frStickSize */,
+    stickLRVals,
+    bank3PercentDomeStickLR,
+    8 /* lrStickSize */,
+    15 /* pausePercent */);
+
+// Since moving just the head is pretty basic, going with full generation here to save variable space.
+GeneratedAnimation bank3Servo(
+    AnimationTarget::Bank3,
+    &bank3Percents,
+    AnimationDomeMode::adServo,
+    4 /* minNumAnimationSteps */,
+    4 /* maxConcurentActions */,
+    8000 /* soundTimeout */);
+
+GeneratedAnimation bank3Spin(
+    AnimationTarget::Bank3,
+    &bank3Percents,
+    AnimationDomeMode::adSpin,
+    4 /* minNumAnimationSteps */,
+    4 /* maxConcurentActions */,
+    8000 /* soundTimeout */);
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Animation Runner
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Array of entire animations that will be used to initialize the AnimationRunner in the main file.
-const int NumAnimations = 4;
+const int NumAnimations = 6;
 IAnimation *animations[] =
 {
     // Bank 1
@@ -399,10 +482,15 @@ IAnimation *animations[] =
     &tiltHeadAndLookBothWays1,
     &tiltHeadOppositeWays1,
     &flywheelSpin1,
+
+    // Bank 3
+    &bank3Servo,
+    &bank3Spin,
 };
 
 // Naigon - Animations
 AnimationRunner animationRunner(NumAnimations, animations);
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Naigon - Button Handling
 // NOTE - should implement for all cases where using buttons in Joe's code.
@@ -1048,6 +1136,9 @@ void updateAnimations()
         }
 
         forcedSoundType = aStep->GetSoundType();
+
+        // Set the dome mode this animation requires.
+        animation.AnimatedDomeMode = aStep->GetDomeMode();
     }
     else if (animation.IsAnimationRunning)
     {
@@ -1218,16 +1309,31 @@ void movement()
         turnOffAllTheThings(true /*disableDrive*/);
     }
 
-    if ((drive.CurrentDomeMode == DomeMode::ServoMode || drive.IsDomeCentering)
+    // Naigon - Animation
+    // Animation can override the dome spin mode.
+    //
+    DomeMode currentDomeMode = drive.CurrentDomeMode;
+    if (animationRunner.IsRunning() && animation.AnimatedDomeMode != AnimationDomeMode::adEither)
+    {
+        currentDomeMode = animation.AnimatedDomeMode == AnimationDomeMode::adServo
+            ? DomeMode::ServoMode
+            : DomeMode::FullSpinMode;
+    }
+
+    if ((currentDomeMode == DomeMode::ServoMode || drive.IsDomeCentering)
         && !drive.AutoDisable
         && recFromRemote.motorEnable == 0)
     {
         domeSpinServo();
     }
-    else if (drive.CurrentDomeMode == DomeMode::FullSpinMode || drive.AutoDisable || recFromRemote.motorEnable == 1)
+    else if (currentDomeMode == DomeMode::FullSpinMode || drive.AutoDisable || recFromRemote.motorEnable == 1)
     {
         domeSpin();
     }
+
+    // Naigon - Animations
+    // Stop forcing the head servo mode now that it is back into position.
+    if (drive.IsDomeCentering && abs(Output5) < 15) { drive.IsDomeCentering = false; }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1387,10 +1493,6 @@ void domeSpinServo()
     PID5.Compute();
 
     writeMotorPwm(domeServoPWM, Output5, 0, false /*requireBT*/, false /*requireMotorEnable*/);
-
-    // Naigon - Animations
-    // Stop forcing the head servo mode now that it is back into position.
-    if (drive.IsDomeCentering && abs(Output5) < 15) { drive.IsDomeCentering = false; }
 }
 
 // ------------------------------------------------------------------------------------
