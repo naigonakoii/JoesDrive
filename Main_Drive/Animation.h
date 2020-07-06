@@ -59,13 +59,13 @@ enum SoundTypes : int8_t;
 ///////////////////////////////////////////////////////////////////////////////////////
 // @summary Class that defines animation parameters for a single animation step.
 ///////////////////////////////////////////////////////////////////////////////////////
-class AnimationState
+class AnimationStep
 {
 public:
     ///////////////////////////////////////////////////////////////////////////////////
-    // @summary Instantiate a new instance of the AnimationState class.
+    // @summary Instantiate a new instance of the AnimationStep class.
     ///////////////////////////////////////////////////////////////////////////////////
-    AnimationState(
+    AnimationStep(
         int drive,
         int sideToSide,
         int domeTiltFB,
@@ -208,13 +208,13 @@ struct IAnimation
     // @ret     Returns the state animation that should be used by the main program for
     //          the current Arduino loop iteration.
     ///////////////////////////////////////////////////////////////////////////////////
-    virtual const AnimationState* RunIteration() = 0;
+    virtual const AnimationStep* RunIteration() = 0;
 };
 
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // @summary Class that defines a scripted animation. These animations are built up
-//          using arrays of AnimationState objects that are defined in the initial
+//          using arrays of AnimationStep objects that are defined in the initial
 //          program. These allow the perfect animations to be defined, but are space
 //          intensive which is why I have other types of animations that are not
 //          completely defined in advance but rather use heuristics.
@@ -229,16 +229,16 @@ public:
     //          Target in which this instacne is grouped with.
     //
     // @param   numOfSteps
-    //          This is the size of the animationStates array, which is how many
+    //          This is the size of the animationSteps array, which is how many
     //          steps the script will run.
     //
-    // @param   animationStates
+    // @param   animationSteps
     //          Array of all the steps that will be executed for this script.
     ///////////////////////////////////////////////////////////////////////////////////
     ScriptedAnimation(
         AnimationTarget aTarget,
         int numOfSteps,
-        const AnimationState* animationStates);
+        const AnimationStep* animationSteps);
 
     //
     // IAnimation interface implementation
@@ -247,14 +247,14 @@ public:
     AnimationTarget Target() const;
     void Start();
     void Stop();
-    const AnimationState* RunIteration();
+    const AnimationStep* RunIteration();
 
 private:
     bool _isRunning;
     int _currentAnimationIndex;
     unsigned long _currentMillis;
     int _numberOfAnimationSteps;
-    const AnimationState* _animationStates;
+    const AnimationStep* _animationSteps;
     AnimationTarget _animationTarget;
 };
 
@@ -370,7 +370,7 @@ private:
 //          many small but similar animations, this class instead can be used.
 //
 //          The basic idea of the class is that instead of getting a passed in array
-//          of AnimationState variables, this class will have one state that it
+//          of AnimationStep variables, this class will have one state that it
 //          generates based on some canned rules and some parameters passed into the
 //          class. It then returns that state until the randomly selected time has
 //          expired, and it will create a new state again using the same rules to
@@ -422,7 +422,7 @@ public:
     AnimationTarget Target() const;
     void Start();
     void Stop();
-    const AnimationState* RunIteration();
+    const AnimationStep* RunIteration();
 
 private:
     void AutoGenerateNextState();
@@ -434,7 +434,7 @@ private:
     unsigned long _currentMillis, _soundTimeout, _lastSoundMillis;
     uint8_t _minNumAnimationSteps, _animationStepCount, _maxConcurentActions;
     bool _isRunning;
-    AnimationState _currentResult;
+    AnimationStep _currentResult;
     GeneratedAnimationPercents *_percents;
 };
 

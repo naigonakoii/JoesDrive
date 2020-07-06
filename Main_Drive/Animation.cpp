@@ -20,13 +20,13 @@ namespace NaigonBB8
 
 using namespace AnimationConstants;
 
-const AnimationState EMPTY_RESULT(0, 0, 0, 0, 0, 0, SoundTypes::NotPlaying, 0);
+const AnimationStep EMPTY_RESULT(0, 0, 0, 0, 0, 0, SoundTypes::NotPlaying, 0);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Animation State
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-AnimationState::AnimationState(
+AnimationStep::AnimationStep(
     int drive,
     int sideToSide,
     int domeTiltFB,
@@ -45,13 +45,13 @@ AnimationState::AnimationState(
     , _millisOnState(millisOnState)
 { }
 
-int AnimationState::GetDrive() const { return _drive; }
-int AnimationState::GetSideToSide() const { return _sideToSide; }
-int AnimationState::GetDomeTiltFB() const { return _domeTiltFB; }
-int AnimationState::GetDomeTiltLR() const { return _domeTiltLR; }
-int AnimationState::GetDomeSpin() const { return _domeSpin; }
-int AnimationState::GetFlywheel() const { return _flywheel; }
-SoundTypes AnimationState::GetSoundType() const { return _soundType; }
+int AnimationStep::GetDrive() const { return _drive; }
+int AnimationStep::GetSideToSide() const { return _sideToSide; }
+int AnimationStep::GetDomeTiltFB() const { return _domeTiltFB; }
+int AnimationStep::GetDomeTiltLR() const { return _domeTiltLR; }
+int AnimationStep::GetDomeSpin() const { return _domeSpin; }
+int AnimationStep::GetFlywheel() const { return _flywheel; }
+SoundTypes AnimationStep::GetSoundType() const { return _soundType; }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -59,9 +59,9 @@ SoundTypes AnimationState::GetSoundType() const { return _soundType; }
 // Scripted Animation
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-ScriptedAnimation::ScriptedAnimation(AnimationTarget aTarget, int numOfSteps, const AnimationState* animationStates)
+ScriptedAnimation::ScriptedAnimation(AnimationTarget aTarget, int numOfSteps, const AnimationStep* animationSteps)
     : _numberOfAnimationSteps(numOfSteps)
-    , _animationStates(animationStates)
+    , _animationSteps(animationSteps)
     , _animationTarget(aTarget)
     , _isRunning(false)
     , _currentAnimationIndex(0)
@@ -91,7 +91,7 @@ void ScriptedAnimation::Stop()
     _isRunning = false;
 }
 
-const AnimationState* ScriptedAnimation::RunIteration()
+const AnimationStep* ScriptedAnimation::RunIteration()
 {
     if (!_isRunning)
     {
@@ -99,8 +99,8 @@ const AnimationState* ScriptedAnimation::RunIteration()
     }
 
     if (_currentAnimationIndex == -1
-        || _animationStates[_currentAnimationIndex]._millisOnState == 0
-        || (millis() - _currentMillis) > _animationStates[_currentAnimationIndex]._millisOnState)
+        || _animationSteps[_currentAnimationIndex]._millisOnState == 0
+        || (millis() - _currentMillis) > _animationSteps[_currentAnimationIndex]._millisOnState)
     {
         _currentMillis = millis();
         _currentAnimationIndex++;
@@ -112,7 +112,7 @@ const AnimationState* ScriptedAnimation::RunIteration()
         return &EMPTY_RESULT;
     }
 
-    return &_animationStates[_currentAnimationIndex];
+    return &_animationSteps[_currentAnimationIndex];
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -232,7 +232,7 @@ void GeneratedAnimation::Stop()
     _isRunning = false;
 }
 
-const AnimationState* GeneratedAnimation::RunIteration()
+const AnimationStep* GeneratedAnimation::RunIteration()
 {
     if (_animationStepCount == 0 || (millis() - _currentMillis) > _currentResult._millisOnState)
     {

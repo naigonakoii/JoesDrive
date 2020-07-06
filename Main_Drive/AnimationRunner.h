@@ -21,7 +21,7 @@ namespace NaigonBB8
 {
 
 // Forward declarations for Animation classes.
-class AnimationState;
+class AnimationStep;
 enum AnimationTarget : uint8_t;
 struct IAnimation;
 
@@ -69,7 +69,7 @@ public:
     // @ret     Constant pointer to the AnimationState that should be run this
     //          iteration.
     ///////////////////////////////////////////////////////////////////////////////////
-    const AnimationState* RunIteration();
+    const AnimationStep* RunIteration();
 
     ///////////////////////////////////////////////////////////////////////////////////
     // @summary Start a randomly selected animation.

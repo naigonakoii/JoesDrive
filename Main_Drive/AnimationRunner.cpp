@@ -161,7 +161,7 @@ void AnimationRunner::FindNextAndStart(AnimationTarget aTarget, int &index)
     _currentAnimation->Start();
 }
 
-const AnimationState* AnimationRunner::RunIteration()
+const AnimationStep* AnimationRunner::RunIteration()
 {
     if (_currentAnimation != nullptr && _currentAnimation->IsRunning())
     {

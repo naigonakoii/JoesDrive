@@ -44,7 +44,7 @@ using namespace NaigonBB8::AnimationConstants;
 
 using NaigonBB8::AnimationAction;
 using NaigonBB8::AnimationRunner;
-using NaigonBB8::AnimationState;
+using NaigonBB8::AnimationStep;
 using NaigonBB8::AnimationTarget;
 using NaigonBB8::FunctionEaseApplicator;
 using NaigonBB8::FunctionEaseApplicatorType;
@@ -349,37 +349,37 @@ GeneratedAnimation headMovement(
 // Scripted Animations for Button 4 Press - Bank2. BEST IN FULL DOME ROTATION - not as good in servo mode.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-AnimationState tiltHeadAndLookBothWays1State[] = {
+AnimationStep tiltHeadAndLookBothWays1State[] = {
     // ----------- Drive   | Side    | DomeTFB    | DomeTLR | DomeSpin | Flywhl  | Sound                 | MS
-    AnimationState(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 250),
-    AnimationState(Centered, Centered, ForwardFull, Centered, Centered,  Centered, SoundTypes::Excited,      0),
-    AnimationState(Centered, Centered, ForwardFull, Centered, Centered,  Centered, SoundTypes::NotPlaying, 200),
-    AnimationState(Centered, Centered, ForwardFull, Centered, RightHalf, Centered, SoundTypes::NotPlaying, 500),
-    AnimationState(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 500),
-    AnimationState(Centered, Centered, ForwardHalf, Centered, Centered,  Centered, SoundTypes::NotPlaying, 100),
+    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 250),
+    AnimationStep(Centered, Centered, ForwardFull, Centered, Centered,  Centered, SoundTypes::Excited,      0),
+    AnimationStep(Centered, Centered, ForwardFull, Centered, Centered,  Centered, SoundTypes::NotPlaying, 200),
+    AnimationStep(Centered, Centered, ForwardFull, Centered, RightHalf, Centered, SoundTypes::NotPlaying, 500),
+    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 500),
+    AnimationStep(Centered, Centered, ForwardHalf, Centered, Centered,  Centered, SoundTypes::NotPlaying, 100),
 };
 ScriptedAnimation tiltHeadAndLookBothWays1(AnimationTarget::Bank2, 6, tiltHeadAndLookBothWays1State);
 
-AnimationState tiltHeadOppositeWays1State[] = {
+AnimationStep tiltHeadOppositeWays1State[] = {
     // ----------- Drive   | Side    | DomeTFB    | DomeTLR | DomeSpin | Flywhl  | Sound                 | MS
-    AnimationState(Centered, Centered, Centered,    Centered, Centered,  Centered, SoundTypes::Chatty,       0),
-    AnimationState(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 500),
-    AnimationState(Centered, Centered, ReverseFull, Centered, RightHalf, Centered, SoundTypes::NotPlaying, 500),
-    AnimationState(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 500),
-    AnimationState(Centered, Centered, ReverseFull, Centered, RightHalf, Centered, SoundTypes::NotPlaying, 500),
-    AnimationState(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 500),
-    AnimationState(Centered, Centered, ReverseFull, Centered, RightHalf, Centered, SoundTypes::NotPlaying, 500),
-    AnimationState(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 500),
-    AnimationState(Centered, Centered, ReverseFull, Centered, RightHalf, Centered, SoundTypes::NotPlaying, 500),
+    AnimationStep(Centered, Centered, Centered,    Centered, Centered,  Centered, SoundTypes::Chatty,       0),
+    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 500),
+    AnimationStep(Centered, Centered, ReverseFull, Centered, RightHalf, Centered, SoundTypes::NotPlaying, 500),
+    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 500),
+    AnimationStep(Centered, Centered, ReverseFull, Centered, RightHalf, Centered, SoundTypes::NotPlaying, 500),
+    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 500),
+    AnimationStep(Centered, Centered, ReverseFull, Centered, RightHalf, Centered, SoundTypes::NotPlaying, 500),
+    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, SoundTypes::NotPlaying, 500),
+    AnimationStep(Centered, Centered, ReverseFull, Centered, RightHalf, Centered, SoundTypes::NotPlaying, 500),
 };
 ScriptedAnimation tiltHeadOppositeWays1(AnimationTarget::Bank2, 9, tiltHeadOppositeWays1State);
 
 // NOTE: The flywheel is somewhat backwards because it is upsidedown on the remote. so even though dome and flywheel
 // are the same direction in code, they will spin in opposite directions, which is intended for this animation.
-AnimationState flywheelSpin1State[] = {
+AnimationStep flywheelSpin1State[] = {
     // ----------- Drive   | Side    | DomeTFB | DomeTLR | DomeSpin | Flywhl   | Sound                 | MS
-    AnimationState(Centered, Centered, Centered, Centered, LeftHalf,  LeftFull,  SoundTypes::NotPlaying, 500),
-    AnimationState(Centered, Centered, Centered, Centered, RightFull, RightFull, SoundTypes::NotPlaying, 3000),
+    AnimationStep(Centered, Centered, Centered, Centered, LeftHalf,  LeftFull,  SoundTypes::NotPlaying, 500),
+    AnimationStep(Centered, Centered, Centered, Centered, RightFull, RightFull, SoundTypes::NotPlaying, 3000),
 };
 ScriptedAnimation flywheelSpin1(AnimationTarget::Bank2, 2, flywheelSpin1State);
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1024,30 +1024,30 @@ void updateAnimations()
     //
     if (animationRunner.IsRunning())
     {
-        const AnimationState* aState = animationRunner.RunIteration();
+        const AnimationStep* aStep = animationRunner.RunIteration();
 
         if (!domeSpinStickPtr->HasMovement())
         {
             // Dome spin is allowed when driving as it is pretty safe.
-            domeSpinStickPtr->UpdateState(aState->GetDomeSpin());
+            domeSpinStickPtr->UpdateState(aStep->GetDomeSpin());
         }
         if (!domeTiltStickPtr->HasMovement()
             && !driveStickPtr->HasMovement())
         {
-            domeTiltStickPtr->UpdateState(aState->GetDomeTiltFB());
+            domeTiltStickPtr->UpdateState(aStep->GetDomeTiltFB());
         }
         if (!flywheelStickPtr->HasMovement()
             && !driveStickPtr->HasMovement())
         {
-            flywheelStickPtr->UpdateState(aState->GetFlywheel());
+            flywheelStickPtr->UpdateState(aStep->GetFlywheel());
         }
         if (!sideToSideStickPtr->HasMovement()
             && !driveStickPtr->HasMovement())
         {
-            sideToSideStickPtr->UpdateState(aState->GetSideToSide());
+            sideToSideStickPtr->UpdateState(aStep->GetSideToSide());
         }
 
-        forcedSoundType = aState->GetSoundType();
+        forcedSoundType = aStep->GetSoundType();
     }
     else if (animation.IsAnimationRunning)
     {
