@@ -13,48 +13,32 @@
 // ====================================================================================================================
 
 #include "Animation.h"
-#include "SoundPlayer.h"
 
 namespace NaigonBB8
 {
 
 using namespace AnimationConstants;
 
-const AnimationStep EMPTY_RESULT(0, 0, 0, 0, 0, 0, SoundTypes::NotPlaying, AnimationDomeMode::adEither, 0);
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Animation State
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 AnimationStep::AnimationStep(
-    int drive,
-    int sideToSide,
-    int domeTiltFB,
-    int domeTiltLR,
-    int domeSpin,
-    int flywheel,
-    SoundTypes soundType,
+    int motorVals[],
+    uint8_t numMotorVals,
+    SoundId soundType,
     AnimationDomeMode domeMode,
     int millisOnState)
-    : _drive(drive)
-    , _sideToSide(sideToSide)
-    , _domeTiltFB(domeTiltFB)
-    , _domeTiltLR(domeTiltLR)
-    , _domeSpin(domeSpin)
-    , _flywheel(flywheel)
+    : _motorControlActions(motorVals)
+    , _motorControlActionsSize(numMotorVals)
     , _soundType(soundType)
     , _domeMode(domeMode)
     , _millisOnState(millisOnState)
 { }
 
-int AnimationStep::GetDrive() const { return _drive; }
-int AnimationStep::GetSideToSide() const { return _sideToSide; }
-int AnimationStep::GetDomeTiltFB() const { return _domeTiltFB; }
-int AnimationStep::GetDomeTiltLR() const { return _domeTiltLR; }
-int AnimationStep::GetDomeSpin() const { return _domeSpin; }
-int AnimationStep::GetFlywheel() const { return _flywheel; }
 AnimationDomeMode AnimationStep::GetDomeMode() const { return _domeMode; }
-SoundTypes AnimationStep::GetSoundType() const { return _soundType; }
+SoundId AnimationStep::GetSoundId() const { return _soundType; }
+int AnimationStep::GetMotorControlValue(uint8_t controlId) const { return _motorControlActions[controlId]; }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -62,8 +46,13 @@ SoundTypes AnimationStep::GetSoundType() const { return _soundType; }
 // Scripted Animation
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-ScriptedAnimation::ScriptedAnimation(AnimationTarget aTarget, int numOfSteps, const AnimationStep* animationSteps)
+ScriptedAnimation::ScriptedAnimation(
+    AnimationTarget aTarget,
+    int numOfSteps,
+    const AnimationStep *defaultResult,
+    const AnimationStep *animationSteps)
     : _numberOfAnimationSteps(numOfSteps)
+    , _defaultResult(defaultResult)
     , _animationSteps(animationSteps)
     , _animationTarget(aTarget)
     , _isRunning(false)
@@ -98,7 +87,7 @@ const AnimationStep* ScriptedAnimation::RunIteration()
 {
     if (!_isRunning)
     {
-        return &EMPTY_RESULT;
+        return _defaultResult;
     }
 
     if (_currentAnimationIndex == -1
@@ -112,7 +101,7 @@ const AnimationStep* ScriptedAnimation::RunIteration()
     if (_currentAnimationIndex >= _numberOfAnimationSteps)
     {
         _isRunning = false;
-        return &EMPTY_RESULT;
+        return _defaultResult;
     }
 
     return &_animationSteps[_currentAnimationIndex];
@@ -134,6 +123,9 @@ GeneratedAnimationPercents::GeneratedAnimationPercents(
     const AnimationAction *actionArray,
     const uint16_t *actionPercents,
     uint8_t actionSize,
+    const uint8_t *motorControlArray,
+    const uint16_t *motorControlPercents,
+    uint8_t motorControlSize,
     const uint16_t *msArray,
     const uint16_t *msPercents,
     uint8_t msSize,
@@ -143,10 +135,15 @@ GeneratedAnimationPercents::GeneratedAnimationPercents(
     const uint16_t *lrStickArray,
     const uint16_t *lrStickPercents,
     uint8_t lrStickSize,
+    const uint8_t *motorIdsUsingFr,
+    uint8_t motorIdsUsingFRSize,
     uint8_t pausePercent)
     : _actionArray(actionArray)
     , _actionPercents(actionPercents)
     , _actionSize(actionSize)
+    , _controlArray(motorControlArray)
+    , _controlPercents(motorControlPercents)
+    , _controlSize(motorControlSize)
     , _msArray(msArray)
     , _msPercents(msPercents)
     , _msSize(msSize)
@@ -156,8 +153,11 @@ GeneratedAnimationPercents::GeneratedAnimationPercents(
     , _lrStickArray(lrStickArray)
     , _lrStickPercents(lrStickPercents)
     , _lrStickSize(lrStickSize)
+    , _motorIdsUsingFR(motorIdsUsingFr)
+    , _mFrSize(motorIdsUsingFRSize)
     , _pausePercent(pausePercent)
     , _actionTot(0)
+    , _controlTot(0)
     , _msTot(0)
     , _frStickTot(0)
     , _lrStickTot(0)
@@ -165,6 +165,11 @@ GeneratedAnimationPercents::GeneratedAnimationPercents(
     for (uint16_t i = 0; i < _actionSize; i++)
     {
         _actionTot += _actionPercents[i];
+    }
+
+    for (uint16_t i = 0; i < _controlSize; i++)
+    {
+        _controlTot += _controlPercents[i];
     }
 
     for (uint16_t i = 0; i < _msSize; i++)
@@ -192,22 +197,16 @@ GeneratedAnimation::GeneratedAnimation(
     AnimationDomeMode domeMode,
     uint8_t minNumAnimationSteps,
     uint8_t maxConcurentActions,
-    uint16_t soundTimeout)
+    uint8_t numSounds,
+    uint16_t soundTimeout,
+    AnimationStep *initialStep)
     : _animationTarget(aTarget)
     , _percents(percents)
     , _minNumAnimationSteps(minNumAnimationSteps)
     , _maxConcurentActions(maxConcurentActions)
+    , _numSounds(numSounds)
     , _soundTimeout(soundTimeout)
-    , _currentResult(
-        Centered,
-        Centered,
-        Centered,
-        Centered,
-        Centered,
-        Centered,
-        SoundTypes::NotPlaying,
-        domeMode,
-        0)
+    , _currentResult(initialStep)
     , _lastSoundMillis(0)
     , _isRunning(false)
     , _animationStepCount(0)
@@ -239,14 +238,14 @@ void GeneratedAnimation::Stop()
 
 const AnimationStep* GeneratedAnimation::RunIteration()
 {
-    if (_animationStepCount == 0 || (millis() - _currentMillis) > _currentResult._millisOnState)
+    if (_animationStepCount == 0 || (millis() - _currentMillis) > _currentResult->_millisOnState)
     {
         _currentMillis = millis();
         AutoGenerateNextState();
         _animationStepCount++;
     }
 
-    return &_currentResult;
+    return _currentResult;
 }
 
 void GeneratedAnimation::AutoGenerateNextState()
@@ -259,7 +258,7 @@ void GeneratedAnimation::AutoGenerateNextState()
         _percents->_msTot /* totPercent */,
         _percents->_msSize / 2);
 
-    _currentResult._millisOnState = _percents->_msArray[millisBucketIndex];
+    _currentResult->_millisOnState = _percents->_msArray[millisBucketIndex];
 
     if (random(101) < _percents->_pausePercent)
     {
@@ -280,39 +279,20 @@ void GeneratedAnimation::AutoGenerateNextState()
         }
         else if (action == AnimationAction::PlaySound && (millis() - _lastSoundMillis) > _soundTimeout)
         {
-            SoundTypes sound = (SoundTypes)random(SoundTypes::COUNT);
-
-            // Don't use the types that play tracks.
-            _currentResult._soundType = sound == SoundTypes::PlayTrack || sound == SoundTypes::StopTrack
-                ? SoundTypes::Excited
-                : sound;
+            // Assumed that end user included the special "Not Playing" sound, so no need to add one (1).
+            SoundId sound = (SoundId)random(0, _numSounds);
 
             // IMPORTANT - Must set this to zero as otherwise the drive could think to play a ton of sounds in a row.
-            _currentResult._millisOnState = 0;
+            _currentResult->_millisOnState = 0;
             _lastSoundMillis = millis();
         }
         else
         {
-            int stickAmount = AutoGenerateStickAmount(action);
-            switch (action)
-            {
-            case AnimationAction::SpinDome:
-                _currentResult._domeSpin = stickAmount;
-                break;
-            case AnimationAction::TiltDomeFB:
-                _currentResult._domeTiltFB = stickAmount;
-                break;
-            case AnimationAction::TiltDomeLR:
-                _currentResult._domeTiltLR = stickAmount;
-                break;
-            case AnimationAction::SideToSide:
-                _currentResult._sideToSide = stickAmount;
-                break;
-            case AnimationAction::Flywheel:
-                // Flywheel doesn't do much unless it is basically full blast.
-                _currentResult._flywheel = stickAmount < 255 ? RightFull : LeftFull;
-                break;
-            }
+            // Select the motor control from the passed in percents.
+            uint8_t motorControlId = AutoGenerateMotorControlId();
+            int stickAmount = AutoGenerateStickAmount(motorControlId);
+
+            _currentResult->_motorControlActions[motorControlId] = stickAmount < 255 ? RightFull : LeftFull;
         }
     }
 }
@@ -323,16 +303,32 @@ uint8_t GeneratedAnimation::AutoGenerateAction()
         _percents->_actionPercents,
         _percents->_actionSize,
         _percents->_actionTot,
-        AnimationAction::SpinDome);
+        AnimationAction::PlaySound);
 
     return _percents->_actionArray[index];
 }
 
-int GeneratedAnimation::AutoGenerateStickAmount(uint8_t action)
+uint8_t GeneratedAnimation::AutoGenerateMotorControlId()
 {
-    AnimationAction animationAction = (AnimationAction)action;
+    uint8_t index = weightedPercentBasedSelection(
+        _percents->_controlPercents,
+        _percents->_controlSize,
+        _percents->_controlTot,
+        0);
 
-    if (animationAction == AnimationAction::TiltDomeFB)
+    return _percents->_controlArray[index];
+}
+
+int GeneratedAnimation::AutoGenerateStickAmount(uint8_t motorControlId)
+{
+    bool usesFrStick = false;
+    for (uint8_t i = 0; i < _percents->_mFrSize; i++)
+    {
+        usesFrStick = _percents->_motorIdsUsingFR[i] == motorControlId;
+        if (usesFrStick) { continue; }
+    }
+
+    if (usesFrStick)
     {
         uint8_t index = weightedPercentBasedSelection(
             _percents->_frStickPercents,
@@ -356,14 +352,13 @@ int GeneratedAnimation::AutoGenerateStickAmount(uint8_t action)
 
 void GeneratedAnimation::Clear()
 {
-    _currentResult._drive = Centered;
-    _currentResult._sideToSide = Centered;
-    _currentResult._domeSpin = Centered;
-    _currentResult._domeTiltFB = Centered;
-    _currentResult._domeTiltLR = Centered;
-    _currentResult._flywheel = Centered;
-    _currentResult._soundType = SoundTypes::NotPlaying;
-    _currentResult._millisOnState = 0;
+    for (uint8_t i = 0; i < _currentResult->_motorControlActionsSize; i++)
+    {
+        _currentResult->_motorControlActions[i] = Centered;
+    }
+
+    _currentResult->_soundType = 0;
+    _currentResult->_millisOnState = 0;
 }
 
 uint8_t weightedPercentBasedSelection(const uint16_t percents[], uint16_t size, uint16_t totPercent, uint8_t defaultValue)

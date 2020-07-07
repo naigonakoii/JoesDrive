@@ -53,14 +53,33 @@ const int Centered = 255;
 class ScriptedAnimation;
 class GeneratedAnimation;
 
-// Forward declare sound types
-enum SoundTypes : int8_t;
+///////////////////////////////////////////////////////////////////////////////////////
+// @summary Sound Id type. Zero will be not playing; positive values represent unique
+//          sound types that the drive can support.
+//
+//          It is recommended to create an external enum that maps these values to
+//          their logical meaning.
+///////////////////////////////////////////////////////////////////////////////////////
+typedef uint8_t SoundId;
 
 enum AnimationDomeMode
 {
     adEither = 0,
     adSpin = 1,
     adServo = 2,
+};
+
+///////////////////////////////////////////////////////////////////////////////////////
+// @summary Valid actions that the system can take. MotorControl is a special one;
+//          the end user should define a separate enum that further breaks down the
+//          motor control values. 
+///////////////////////////////////////////////////////////////////////////////////////
+enum AnimationAction : uint8_t
+{
+    EndAnimation = 0,
+    PlaySound,
+    MotorControl,
+    ENDAnimationAction,
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -73,64 +92,31 @@ public:
     // @summary Instantiate a new instance of the AnimationStep class.
     ///////////////////////////////////////////////////////////////////////////////////
     AnimationStep(
-        int drive,
-        int sideToSide,
-        int domeTiltFB,
-        int domeTiltLR,
-        int domeSpin,
-        int flywheel,
-        SoundTypes soundType,
+        int motorVals[],
+        uint8_t numMotorVals,
+        SoundId soundType,
         AnimationDomeMode domeMode,
         int millisOnState);
 
     ///////////////////////////////////////////////////////////////////////////////////
-    // @summary Gets the current drive stick value for this instance.
+    // @summary Gets the current stick value for the specified motorId.
     //
-    // @ret     Drive stick value in the range of 0-512.
-    ///////////////////////////////////////////////////////////////////////////////////
-    int GetDrive() const;
-
-    ///////////////////////////////////////////////////////////////////////////////////
-    // @summary Gets the side to side stick value for this instance.
+    // @param   controlId
+    //          Id in the range of zero (0) to numMotorVals - 1. It is recommended to
+    //          create an external enum to map these values, but that is not a
+    //          requirement of the system.
     //
-    // @ret     Side to side stick value in the range of 0-512.
+    // @ret     Stick value for the specified controlId in the range of 0-512.
     ///////////////////////////////////////////////////////////////////////////////////
-    int GetSideToSide() const;
-
-    ///////////////////////////////////////////////////////////////////////////////////
-    // @summary Gets the forward/reverse dome stick value for this instance.
-    //
-    // @ret     Forward/reverse dome tilt stick value in the range of 0-512.
-    ///////////////////////////////////////////////////////////////////////////////////
-    int GetDomeTiltFB() const;
-
-    ///////////////////////////////////////////////////////////////////////////////////
-    // @summary Gets the left/right dome tilt stick value for this instance.
-    //
-    // @ret     Left/right dome tilt stick value in the range of 0-512.
-    ///////////////////////////////////////////////////////////////////////////////////
-    int GetDomeTiltLR() const;
-
-    ///////////////////////////////////////////////////////////////////////////////////
-    // @summary Gets the dome spin stick value for this instance.
-    //
-    // @ret     Dome spin stick value in the range of 0-512.
-    ///////////////////////////////////////////////////////////////////////////////////
-    int GetDomeSpin() const;
-
-    ///////////////////////////////////////////////////////////////////////////////////
-    // @summary Gets the flywheel stick value for this instance.
-    //
-    // @ret     Flywheel stick value in the range of 0-512.
-    ///////////////////////////////////////////////////////////////////////////////////
-    int GetFlywheel() const;
+    int GetMotorControlValue(uint8_t controlId) const;
 
     ///////////////////////////////////////////////////////////////////////////////////
     // @summary Gets the current sound to play.
     //
-    // @ret     SoundTypes value for which sound to play.
+    // @ret     SoundId value for which sound to play. Zero is reserved for the
+    //          special meaning "Not Playing".
     ///////////////////////////////////////////////////////////////////////////////////
-    SoundTypes GetSoundType() const;
+    SoundId GetSoundId() const;
 
     ///////////////////////////////////////////////////////////////////////////////////
     // @summary Gets the specified dome mode for the current animation step.
@@ -144,17 +130,13 @@ private:
     // Motor motions. These act as virtual stick controllers, as if the drive itself
     // has another remote operator.
     //
-    int _drive;
-    int _sideToSide;
-    int _domeTiltFB;
-    int _domeTiltLR;
-    int _domeSpin;
-    int _flywheel;
+    int *_motorControlActions;
+    uint8_t _motorControlActionsSize;
 
     //
     // Sound selection
     //
-    SoundTypes _soundType;
+    SoundId _soundType;
 
     //
     // Which dome mode this animation
@@ -251,13 +233,17 @@ public:
     //          This is the size of the animationSteps array, which is how many
     //          steps the script will run.
     //
+    // @param   defaultResult
+    //          Animation step that will be returned if not running.
+    //
     // @param   animationSteps
     //          Array of all the steps that will be executed for this script.
     ///////////////////////////////////////////////////////////////////////////////////
     ScriptedAnimation(
         AnimationTarget aTarget,
         int numOfSteps,
-        const AnimationStep* animationSteps);
+        const AnimationStep *defaultResult,
+        const AnimationStep *animationSteps);
 
     //
     // IAnimation interface implementation
@@ -273,24 +259,9 @@ private:
     int _currentAnimationIndex;
     unsigned long _currentMillis;
     int _numberOfAnimationSteps;
-    const AnimationStep* _animationSteps;
+    const AnimationStep *_animationSteps;
+    const AnimationStep *_defaultResult;
     AnimationTarget _animationTarget;
-};
-
-
-///////////////////////////////////////////////////////////////////////////////////////
-// @summary Valid actions that could be generated by GeneratedAnimation.
-///////////////////////////////////////////////////////////////////////////////////////
-enum AnimationAction : uint8_t
-{
-    EndAnimation = 0,
-    SpinDome,
-    TiltDomeFB,
-    TiltDomeLR,
-    SideToSide,
-    Flywheel,
-    PlaySound,
-    ENDAnimationAction,
 };
 
 class GeneratedAnimationPercents
@@ -301,7 +272,8 @@ public:
     //
     // @param   actionArray
     //          Array of actions that will be supported by the animation. The size of
-    //          this array must be actionSize.
+    //          this array must be actionSize. Note that MotorControl is broken down
+    //          further by motorControlArray below.
     //
     // @param   actionPercents
     //          Percent that the corresponding action from actionArray will be executed.
@@ -309,6 +281,18 @@ public:
     //
     // @param   actionSize
     //          Size of the actionArray and actionPercents arrays.
+    //
+    // @param   motorControlArray
+    //          Array of all the different types of motor control stick values this
+    //          animation supports.
+    //
+    // @param   motorControlPercents
+    //          Percent that an individual motor control will be selected for this step.
+    //          Note that these will add to 100%, but that's 100% AFTER MotroControl was
+    //          selected for the action of the current step.
+    //
+    // @param   motorControlSize
+    //          Size of the motorControlArray and motroControlPercents arrays.
     //
     // @param   msArray
     //          Supported milliseconds that a randomly selected animation step can run.
@@ -343,6 +327,12 @@ public:
     // @param   lrStickSize
     //          The size of lrStickArray and lrStickPercents arrays.
     //
+    // @param   motorIdsUsingFR
+    //          Array of all the motor control ids that use the FR stick.
+    //
+    // @param   motorIdsUsingFRSize
+    //          Size of the motorIdsUsingFR array.
+    //
     // @param   pausePercent
     //          Percent chance that the current randomly generated action will be a
     //          puase. Set to zero (0) to only generate non-pause actions; One hundred
@@ -352,6 +342,9 @@ public:
         const AnimationAction *actionArray,
         const uint16_t *actionPercents,
         uint8_t actionSize,
+        const uint8_t *motorControlArray,
+        const uint16_t *motorControlPercents,
+        uint8_t motorControlSize,
         const uint16_t *msArray,
         const uint16_t *msPercents,
         uint8_t msSize,
@@ -361,20 +354,25 @@ public:
         const uint16_t *lrStickArray,
         const uint16_t *lrStickPercents,
         uint8_t lrStickSize,
+        const uint8_t *motorIdsUsingFR,
+        uint8_t motorIdsUsingFRSize,
         uint8_t pausePercent);
 
 private:
     const AnimationAction *_actionArray;
     const uint16_t *_actionPercents;
+    const uint8_t *_controlArray;
+    const uint16_t *_controlPercents;
     const uint16_t *_msArray;
     const uint16_t *_msPercents;
     const uint16_t *_frStickArray;
     const uint16_t *_frStickPercents;
     const uint16_t *_lrStickArray;
     const uint16_t *_lrStickPercents;
-    uint8_t _actionSize, _msSize, _frStickSize, _lrStickSize;
+    const uint8_t *_motorIdsUsingFR;
+    uint8_t _actionSize, _controlSize, _msSize, _frStickSize, _lrStickSize, _mFrSize;
     uint8_t _pausePercent;
-    uint16_t _actionTot, _msTot, _frStickTot, _lrStickTot;
+    uint16_t _actionTot, _controlTot, _msTot, _frStickTot, _lrStickTot;
 
     friend class GeneratedAnimation;
 };
@@ -421,11 +419,20 @@ public:
     //          values mean it is more likely for multiple actions to occur at the
     //          same time.
     //
+    // @param   numSounds
+    //          Number of unique sounds your drive supports. Note that a special
+    //          "Not Playing" sounds needs to be accounted for; that is, if the
+    //          drive supports "short" and "long" sounds, this value should be three
+    //          (3) to include a "Not Playing" sound.
+    //
     // @param   soundTimeout
     //          Length in milliseconds before another sound can be generated. Higher
     //          values prevent spamming the system with talking, but less overall
     //          sounds will be generated.
     //
+    // @param   initialStep
+    //          Memory address for the initial step. Note that this value will be
+    //          modified, so do not use the same one for any scripted animations.
     ///////////////////////////////////////////////////////////////////////////////////
     GeneratedAnimation(
         AnimationTarget aTarget,
@@ -433,7 +440,9 @@ public:
         AnimationDomeMode domeMode,
         uint8_t minNumAnimationSteps,
         uint8_t maxConcurentActions,
-        uint16_t soundTimeout);
+        uint8_t numSounds,
+        uint16_t soundTimeout,
+        AnimationStep *initialStep);
 
     //
     // IAnimation interface implementation
@@ -447,14 +456,15 @@ public:
 private:
     void AutoGenerateNextState();
     uint8_t AutoGenerateAction();
-    int AutoGenerateStickAmount(uint8_t action);
+    uint8_t AutoGenerateMotorControlId();
+    int AutoGenerateStickAmount(uint8_t motroControlId);
     void Clear();
 
     AnimationTarget _animationTarget;
     unsigned long _currentMillis, _soundTimeout, _lastSoundMillis;
-    uint8_t _minNumAnimationSteps, _animationStepCount, _maxConcurentActions;
+    uint8_t _minNumAnimationSteps, _animationStepCount, _maxConcurentActions, _numSounds;
     bool _isRunning;
-    AnimationStep _currentResult;
+    AnimationStep *_currentResult;
     GeneratedAnimationPercents *_percents;
 };
 

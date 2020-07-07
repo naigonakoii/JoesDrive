@@ -31,6 +31,8 @@ enum SoundTypes : int8_t
     StopTrack = 7,
     COUNT = 8,
 };
+const uint8_t SoundTypesNumTalking = 6;
+const uint8_t SoundTypesNumMusic = 2;
 
 class SoundMapper
 {

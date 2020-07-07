@@ -72,59 +72,6 @@ using NaigonBB8::SoundTypes::NotPlaying;
 using NaigonBB8::SoundTypes::Sad;
 using NaigonBB8::SoundTypes::Scared;
 
-//using NaigonBB8::animationDefinitions;
-
-EasyTransfer RecRemote;
-EasyTransfer SendRemote;
-EasyTransfer RecIMU;
-
-struct RECEIVE_DATA_STRUCTURE_REMOTE
-{
-    int ch1; //right joystick up/down
-    int ch2; //right joystick left/right
-    int ch3; //left joystick up/down
-    int ch4; //left joystick left/right
-    int ch5; //back stick left/right
-    // but1 (stick 1) from Joe is selecting between dome servo and dome spin
-    // Naigon - this now cycles through the combined drive mode and dome mode.
-    int but1 = 1; //left select
-    // but2 from Joe is audio
-    // Naigon - button 2 press plays a happy/neutral sound. Holding plays a longer/sader sound
-    int but2 = 1; //left button 1
-    // but3 from Joe is audio
-    // Naigon - button 3 press starts music, and cycles tracks. Holding stops music.
-    int but3 = 1; //left button 2
-    // but4 from Joe is to trigger Body/dome lighting changes
-    // Naigon - Button 4 TBD
-    int but4 = 1; //left button 3
-    // but5 (stick 2) toggles fwd/rev
-    int but5 = 0; //right select (fwd/rev)
-    // but6 from Joe is for switching between drive speeds
-    // Naigon - Button 6 is now TBD.
-    int but6 = 1; //right button 1
-    // but7 from Joe is for body calibration only currently when holding
-    int but7 = 1; //right button 2
-    // but8 is for select only
-    int but8 = 1; //right button 3 (right select)
-    int motorEnable = 1;
-};
-
-struct SEND_DATA_STRUCTURE_REMOTE
-{
-    double bodyBatt = 0.0;
-    double domeBattSend;
-    uint8_t bodyStatus = 0;
-    uint8_t bodyMode = 0;
-    uint8_t bodyDirection = 0;
-};
-
-struct RECEIVE_DATA_STRUCTURE_IMU
-{
-    float IMUloop;
-    float pitch;
-    float roll;
-};
-
 enum BodyMode : uint8_t
 {
     UnknownSpeed = 0,
@@ -176,8 +123,73 @@ enum BodyStatus : uint8_t
     DomeCalibration = 2,
 };
 
+//
+// Naigon - Animations
+// Enum that defines the motor control specific to Joe's Drive.
+// Drive | Side | DomeTFB | DomeTLR | DomeSpin | Flywhl
+enum MotorControlId : uint8_t
+{
+    idDrive = 0,
+    idSideToSide = 1,
+    idDomeTiltFR = 2,
+    idDomeTiltLR = 3,
+    idDomeSpin = 4,
+    idFlywheel = 5,
+};
+
+
+EasyTransfer RecRemote;
+EasyTransfer SendRemote;
+EasyTransfer RecIMU;
+
+struct RECEIVE_DATA_STRUCTURE_REMOTE
+{
+    int ch1; //right joystick up/down
+    int ch2; //right joystick left/right
+    int ch3; //left joystick up/down
+    int ch4; //left joystick left/right
+    int ch5; //back stick left/right
+    // but1 (stick 1) from Joe is selecting between dome servo and dome spin
+    // Naigon - this now cycles through the combined drive mode and dome mode.
+    int but1 = 1; //left select
+    // but2 from Joe is audio
+    // Naigon - button 2 press plays a happy/neutral sound. Holding plays a longer/sader sound
+    int but2 = 1; //left button 1
+    // but3 from Joe is audio
+    // Naigon - button 3 press starts music, and cycles tracks. Holding stops music.
+    int but3 = 1; //left button 2
+    // but4 from Joe is to trigger Body/dome lighting changes
+    // Naigon - Button 4 TBD
+    int but4 = 1; //left button 3
+    // but5 (stick 2) toggles fwd/rev
+    int but5 = 0; //right select (fwd/rev)
+    // but6 from Joe is for switching between drive speeds
+    // Naigon - Button 6 is now TBD.
+    int but6 = 1; //right button 1
+    // but7 from Joe is for body calibration only currently when holding
+    int but7 = 1; //right button 2
+    // but8 is for select only
+    int but8 = 1; //right button 3 (right select)
+    int motorEnable = 1;
+};
 RECEIVE_DATA_STRUCTURE_REMOTE recFromRemote;
+
+struct SEND_DATA_STRUCTURE_REMOTE
+{
+    double bodyBatt = 0.0;
+    double domeBattSend;
+    uint8_t bodyStatus = 0;
+    uint8_t bodyMode = 0;
+    uint8_t bodyDirection = 0;
+};
 SEND_DATA_STRUCTURE_REMOTE sendToRemote;
+
+struct RECEIVE_DATA_STRUCTURE_IMU
+{
+    float IMUloop;
+    float pitch;
+    float roll;
+};
 RECEIVE_DATA_STRUCTURE_IMU recIMUData;
 
 //
@@ -317,6 +329,20 @@ const uint16_t stickLRVals[] =
     RightThreeFourths,
     RightFull,
 };
+
+// Default result that should be passed into all ScriptedAnimation instances.
+// -------------------   | Drive   | S2S     | TiltFB  | TiltLR  | Spin    | Flywheel
+int defaultStickVals[] = { Centered, Centered, Centered, Centered, Centered, Centered, };
+AnimationStep defaultResult(defaultStickVals, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adEither, 0);
+
+// Memory space that should be passed into all generated animations
+// -------------------   | Drive   | S2S     | TiltFB  | TiltLR  | Spin    | Flywheel
+int initialStickVals[] = { Centered, Centered, Centered, Centered, Centered, Centered, };
+AnimationStep currentResult(initialStickVals, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adEither, 0);
+
+// Array of all motor control Ids that use front/reverse stick.
+const uint8_t frStickMotorControlIds[] = { MotorControlId::idDomeTiltFR, };
+const uint8_t frStickMotorControlIdsSize = 1;
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -324,15 +350,17 @@ const uint16_t stickLRVals[] =
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 const AnimationAction domeActions[] = {
     AnimationAction::PlaySound,
-    AnimationAction::SpinDome,
-    AnimationAction::TiltDomeFB, };
+    AnimationAction::MotorControl,
+};
 
 const uint16_t domeActPer[] =
 {
     55, // Play Sound
-    25, // Spin Dome
-    20, // Tilt Dome
+    45, // Remaining MotorControl
 };
+
+const uint8_t domeMotorControls[] = { MotorControlId::idDomeSpin, MotorControlId::idDomeTiltFR, };
+const uint16_t domeMotorControlPer[] = {                      60,                           40, };
 
 const uint16_t millisVals[] = { 100, 250, 350, 500, 750, 1000, };
 const uint16_t millisPer[]  = {  10,  20,  20,  25,  15,   10, };
@@ -344,7 +372,10 @@ const uint16_t percentDomeStickFR[] { 35, 25, 15, 5, 5, 5, 5, 5, };
 GeneratedAnimationPercents domeAnimationPercents(
     domeActions,
     domeActPer,
-    3 /* actionSize */,
+    2 /* actionSize */,
+    domeMotorControls,
+    domeMotorControlPer,
+    2,
     millisVals,
     millisPer,
     6 /* msSize */,
@@ -354,6 +385,8 @@ GeneratedAnimationPercents domeAnimationPercents(
     stickLRVals,
     percentDomeStickLR,
     8 /* lrStickSize */,
+    frStickMotorControlIds,
+    frStickMotorControlIdsSize,
     65 /* pausePercent */);
 
 // Since moving just the head is pretty basic, going with full generation here to save variable space.
@@ -363,46 +396,68 @@ GeneratedAnimation headMovement(
     AnimationDomeMode::adEither,
     3 /* minNumAnimationSteps */,
     2 /* maxConcurentActions */,
-    8000 /* soundTimeout */);
+    NaigonBB8::SoundTypesNumTalking,
+    8000 /* soundTimeout */,
+    &currentResult);
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Scripted Animations for Button 4 Press - Bank2.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// -------------------  Drive   | Side    | DomeTFB    | DomeTLR | DomeSpin | Flywhl  --------------------------------- 
+int bank2A1Step01[6] = { Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, };
+int bank2A1Step02[6] = { Centered, Centered, ForwardFull, Centered, Centered,  Centered, };
+int bank2A1Step03[6] = { Centered, Centered, ForwardFull, Centered, Centered,  Centered, };
+int bank2A1Step04[6] = { Centered, Centered, ForwardFull, Centered, RightHalf, Centered, };
+int bank2A1Step05[6] = { Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, };
+int bank2A1Step06[6] = { Centered, Centered, ForwardHalf, Centered, Centered,  Centered, };
 AnimationStep tiltHeadAndLookBothWays1State[] = {
-    // ----------- Drive   | Side    | DomeTFB    | DomeTLR | DomeSpin | Flywhl | Sound     | Dome  |  MS
-    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, NotPlaying, adSpin, 250),
-    AnimationStep(Centered, Centered, ForwardFull, Centered, Centered,  Centered, Excited,    adSpin,   0),
-    AnimationStep(Centered, Centered, ForwardFull, Centered, Centered,  Centered, NotPlaying, adSpin, 200),
-    AnimationStep(Centered, Centered, ForwardFull, Centered, RightHalf, Centered, NotPlaying, adSpin, 500),
-    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, NotPlaying, adSpin, 500),
-    AnimationStep(Centered, Centered, ForwardHalf, Centered, Centered,  Centered, NotPlaying, adSpin, 100),
+    // --------- MotorVals | nVal | SoundId     | Dome  |   MS
+    AnimationStep(bank2A1Step01, 6, NotPlaying + 1, adSpin, 250),
+    AnimationStep(bank2A1Step02, 6, Excited + 1,    adSpin,   0),
+    AnimationStep(bank2A1Step03, 6, NotPlaying + 1, adSpin, 200),
+    AnimationStep(bank2A1Step04, 6, NotPlaying + 1, adSpin, 500),
+    AnimationStep(bank2A1Step05, 6, NotPlaying + 1, adSpin, 500),
+    AnimationStep(bank2A1Step06, 6, NotPlaying + 1, adSpin, 100),
 };
-ScriptedAnimation tiltHeadAndLookBothWays1(AnimationTarget::Bank2, 6, tiltHeadAndLookBothWays1State);
+ScriptedAnimation tiltHeadAndLookBothWays1(AnimationTarget::Bank2, 6, &defaultResult, tiltHeadAndLookBothWays1State);
 
+// ----------------     Drive   | Side    | DomeTFB    | DomeTLR | DomeSpin    | Flywhl   -----------------------------
+int bank2A2Step01[6] = { Centered, Centered, Centered,    Centered, LeftTwoThirds, Centered, };
+int bank2A2Step02[6] = { Centered, Centered, ForwardFull, Centered, LeftTwoThirds, Centered, };
+int bank2A2Step03[6] = { Centered, Centered, ReverseFull, Centered, LeftTwoThirds, Centered, };
+int bank2A2Step04[6] = { Centered, Centered, ForwardFull, Centered, LeftTwoThirds, Centered, };
+int bank2A2Step05[6] = { Centered, Centered, ReverseFull, Centered, LeftTwoThirds, Centered, };
+int bank2A2Step06[6] = { Centered, Centered, ForwardFull, Centered, LeftTwoThirds, Centered, };
+int bank2A2Step07[6] = { Centered, Centered, ReverseFull, Centered, LeftTwoThirds, Centered, };
+int bank2A2Step08[6] = { Centered, Centered, ForwardFull, Centered, LeftTwoThirds, Centered, };
+int bank2A2Step09[6] = { Centered, Centered, ReverseFull, Centered, LeftTwoThirds, Centered, };
 AnimationStep tiltHeadOppositeWays1State[] = {
-    // ----------- Drive   | Side    | DomeTFB    | DomeTLR | DomeSpin    | Flywhl  | Sound     | Dome   |  MS
-    AnimationStep(Centered, Centered, Centered,    Centered, LeftTwoThirds, Centered, Chatty,     adServo,   0),
-    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftTwoThirds, Centered, NotPlaying, adServo, 500),
-    AnimationStep(Centered, Centered, ReverseFull, Centered, LeftTwoThirds, Centered, NotPlaying, adServo, 500),
-    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftTwoThirds, Centered, NotPlaying, adServo, 500),
-    AnimationStep(Centered, Centered, ReverseFull, Centered, LeftTwoThirds, Centered, NotPlaying, adServo, 500),
-    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftTwoThirds, Centered, NotPlaying, adServo, 500),
-    AnimationStep(Centered, Centered, ReverseFull, Centered, LeftTwoThirds, Centered, NotPlaying, adServo, 500),
-    AnimationStep(Centered, Centered, ForwardFull, Centered, LeftTwoThirds, Centered, NotPlaying, adServo, 500),
-    AnimationStep(Centered, Centered, ReverseFull, Centered, LeftTwoThirds, Centered, NotPlaying, adServo, 500),
+    // --------- MotorVals | nVal | SoundId       | Dome  |   MS
+    AnimationStep(bank2A2Step01, 6, Chatty + 1,     adServo,   0),
+    AnimationStep(bank2A2Step02, 6, NotPlaying + 1, adServo, 500),
+    AnimationStep(bank2A2Step03, 6, NotPlaying + 1, adServo, 500),
+    AnimationStep(bank2A2Step04, 6, NotPlaying + 1, adServo, 500),
+    AnimationStep(bank2A2Step05, 6, NotPlaying + 1, adServo, 500),
+    AnimationStep(bank2A2Step06, 6, NotPlaying + 1, adServo, 500),
+    AnimationStep(bank2A2Step07, 6, NotPlaying + 1, adServo, 500),
+    AnimationStep(bank2A2Step08, 6, NotPlaying + 1, adServo, 500),
+    AnimationStep(bank2A2Step09, 6, NotPlaying + 1, adServo, 500),
 };
-ScriptedAnimation tiltHeadOppositeWays1(AnimationTarget::Bank2, 9, tiltHeadOppositeWays1State);
+ScriptedAnimation tiltHeadOppositeWays1(AnimationTarget::Bank2, 9, &defaultResult, tiltHeadOppositeWays1State);
 
 // NOTE: The flywheel is somewhat backwards because it is upsidedown on the remote. so even though dome and flywheel
 // are the same direction in code, they will spin in opposite directions, which is intended for this animation.
+// ----------------     Drive   | Side    | DomeTFB | DomeTLR | DomeSpin | Flywhl  ------------------------------------
+int bank2A3Step01[6] = { Centered, Centered, Centered, Centered, LeftHalf,  LeftFull, };
+int bank2A3Step02[6] = { Centered, Centered, Centered, Centered, RightFull, RightFull, };
 AnimationStep flywheelSpin1State[] = {
-    // ----------- Drive   | Side    | DomeTFB | DomeTLR | DomeSpin | Flywhl  | Sound     | Dome  |   MS
-    AnimationStep(Centered, Centered, Centered, Centered, LeftHalf,  LeftFull,  NotPlaying, adSpin,  500),
-    AnimationStep(Centered, Centered, Centered, Centered, RightFull, RightFull, NotPlaying, adSpin, 3000),
+    // --------- MotorVals | nVal | SoundId       | Dome  |   MS
+    AnimationStep(bank2A3Step01, 6, NotPlaying + 1, adSpin,  500),
+    AnimationStep(bank2A3Step02, 6, NotPlaying + 1, adSpin, 3000),
 };
-ScriptedAnimation flywheelSpin1(AnimationTarget::Bank2, 2, flywheelSpin1State);
+ScriptedAnimation flywheelSpin1(AnimationTarget::Bank2, 2, &defaultResult, flywheelSpin1State);
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -412,18 +467,28 @@ ScriptedAnimation flywheelSpin1(AnimationTarget::Bank2, 2, flywheelSpin1State);
 const AnimationAction bank3DomeActions[] = {
     AnimationAction::EndAnimation,
     AnimationAction::PlaySound,
-    AnimationAction::SpinDome,
-    AnimationAction::TiltDomeFB,
-    AnimationAction::Flywheel,
+    AnimationAction::MotorControl,
 };
 
 const uint16_t bank3DomeActPer[] =
 {
     20, // End animation
     40, // Play Sound
-    15, // Spin Dome
-    15, // Tilt Dome
-    10, // Flywheel
+    40, // Motor Control
+};
+
+const uint8_t bank3MotorControlIds[] =
+{
+    MotorControlId::idDomeSpin,
+    MotorControlId::idDomeTiltFR,
+    MotorControlId::idFlywheel,
+};
+
+const uint16_t bank3MotorControlPer[] =
+{
+    38, // Dome Spin
+    37, // Tilt Dome
+    25, // Flywheel
 };
 
 const uint16_t bank3MillisVals[] = { 100, 250, 350, 500, 750, 1000, 1500, };
@@ -436,7 +501,10 @@ const uint16_t bank3PercentDomeStickFR[] { 35, 25, 15, 5, 5, 5, 5, 5, };
 GeneratedAnimationPercents bank3Percents(
     bank3DomeActions,
     bank3DomeActPer,
-    5 /* actionSize */,
+    3 /* actionSize */,
+    bank3MotorControlIds,
+    bank3MotorControlPer,
+    3 /* motorControlSize */,
     bank3MillisVals,
     bank3MillisPer,
     7 /* msSize */,
@@ -446,6 +514,8 @@ GeneratedAnimationPercents bank3Percents(
     stickLRVals,
     bank3PercentDomeStickLR,
     8 /* lrStickSize */,
+    frStickMotorControlIds,
+    frStickMotorControlIdsSize,
     15 /* pausePercent */);
 
 // Since moving just the head is pretty basic, going with full generation here to save variable space.
@@ -455,7 +525,9 @@ GeneratedAnimation bank3Servo(
     AnimationDomeMode::adServo,
     4 /* minNumAnimationSteps */,
     4 /* maxConcurentActions */,
-    8000 /* soundTimeout */);
+    NaigonBB8::SoundTypesNumTalking,
+    8000 /* soundTimeout */,
+    &currentResult);
 
 GeneratedAnimation bank3Spin(
     AnimationTarget::Bank3,
@@ -463,7 +535,9 @@ GeneratedAnimation bank3Spin(
     AnimationDomeMode::adSpin,
     4 /* minNumAnimationSteps */,
     4 /* maxConcurentActions */,
-    8000 /* soundTimeout */);
+    NaigonBB8::SoundTypesNumTalking,
+    8000 /* soundTimeout */,
+    &currentResult);
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -1117,25 +1191,25 @@ void updateAnimations()
         if (!domeSpinStickPtr->HasMovement())
         {
             // Dome spin is allowed when driving as it is pretty safe.
-            domeSpinStickPtr->UpdateState(aStep->GetDomeSpin());
+            domeSpinStickPtr->UpdateState(aStep->GetMotorControlValue(MotorControlId::idDomeSpin));
         }
         if (!domeTiltStickPtr->HasMovement()
             && !driveStickPtr->HasMovement())
         {
-            domeTiltStickPtr->UpdateState(aStep->GetDomeTiltFB());
-        }
-        if (!flywheelStickPtr->HasMovement()
-            && !driveStickPtr->HasMovement())
-        {
-            flywheelStickPtr->UpdateState(aStep->GetFlywheel());
+            domeTiltStickPtr->UpdateState(aStep->GetMotorControlValue(MotorControlId::idDomeTiltFR));
         }
         if (!sideToSideStickPtr->HasMovement()
             && !driveStickPtr->HasMovement())
         {
-            sideToSideStickPtr->UpdateState(aStep->GetSideToSide());
+            sideToSideStickPtr->UpdateState(aStep->GetMotorControlValue(MotorControlId::idSideToSide));
         }
-
-        forcedSoundType = aStep->GetSoundType();
+        if (!flywheelStickPtr->HasMovement()
+            && !driveStickPtr->HasMovement())
+        {
+            // TODO - Consider sliding the scale if flywheel values are too low.
+            flywheelStickPtr->UpdateState(aStep->GetMotorControlValue(MotorControlId::idFlywheel));
+        }
+        forcedSoundType = (SoundTypes)(((int8_t)aStep->GetSoundId()) - 1);
 
         // Set the dome mode this animation requires.
         animation.AnimatedDomeMode = aStep->GetDomeMode();
