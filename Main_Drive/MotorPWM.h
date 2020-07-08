@@ -17,7 +17,7 @@
 
 #include "Arduino.h"
 
-namespace NaigonBB8
+namespace Naigon::BB_8
 {
 
 class MotorPWM
@@ -33,5 +33,5 @@ private:
   int _maxInput, _minOutput;
 };
 
-} // namespace NaigonBB8
-#endif //__Naigon_MotorPWM_
+} // namespace Naigon::BB_8
+#endif // __Naigon_MotorPWM_

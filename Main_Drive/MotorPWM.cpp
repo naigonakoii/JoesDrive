@@ -14,7 +14,7 @@
 
 #include "MotorPWM.h"
 
-namespace NaigonBB8
+namespace Naigon::BB_8
 {
 
 MotorPWM::MotorPWM(int pwmPin1, int pwmPin2, int maxInput, int minOutput)
@@ -51,4 +51,4 @@ void MotorPWM::WriteZeros()
   analogWrite(_pwmPin2, 0);
 }
 
-} // namespace NaigonBB8
+} // namespace Naigon::BB_8

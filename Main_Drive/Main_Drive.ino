@@ -54,9 +54,12 @@
 #include "src/Libraries/NaigonUtil/src/EaseApplicator.h"
 #include "src/Libraries/NaigonSound/src/SoundPlayer.h"
 
+//
+// These includes are pretty specific to not only BB-8 but Joe's Drive, and as such are just files alongside the
+// project.
 #include "ImuProMini.h"
-
 #include "MotorPWM.h"
+#include "Offsets.h"
 
 //
 // Animations Usings
@@ -73,13 +76,13 @@ using Naigon::Animations::IAnimation;
 using Naigon::Animations::ScriptedAnimation;
 
 using Naigon::BB_8::ImuProMini;
+using Naigon::BB_8::MotorPWM;
+using Naigon::BB_8::Offsets;
 
 using Naigon::NECAudio::ISoundPlayer;
 using Naigon::NECAudio::SoundTypes;
 using Naigon::NECAudio::SoundMapper;
 using Naigon::NECAudio::WiredSoundPlayer;
-
-using NaigonBB8::MotorPWM;
 
 using Naigon::IO::AnalogInHandler;
 using Naigon::IO::ButtonHandler;
@@ -262,21 +265,6 @@ struct AutoDisableState
     bool isAutoDisabled = true;
 };
 AutoDisableState autoDisable;
-
-//
-// Pot and gyro offsets that are used by the movement() methods. These values are also stored into the EEPROM to
-// persist even after the drive is shut down.
-//
-struct MotionOffsets
-{
-    // Joe's EEPROM vars
-    float Pitch;
-    float Roll;
-    int S2SPot;
-    int DomeTiltPot;
-    int DomeSpin;
-};
-MotionOffsets offsets;
 
 //
 // Joe's Audio Player
@@ -615,6 +603,7 @@ LinearEaseApplicator domeSpinEaseApplicator(0.0, easeDome);
 LinearEaseApplicator flywheelEaseApplicator(0.0, flywheelEase);
 
 ImuProMini imu;
+Offsets offsets;
 
 #ifdef WirelessSound
 // In the future if an XBee is hooked to the Arduino Mega the hard-wired pins will not be needed.
@@ -636,8 +625,7 @@ ISoundPlayer *soundPlayer;
 
 SoundTypes forcedSoundType = SoundTypes::NotPlaying;
 
-// Save
-int SaveToEEPROM;
+// For the voltage divider.
 float R1 = resistor1;
 float R2 = resistor2;
 
@@ -779,17 +767,8 @@ void setup()
     PID5.SetOutputLimits(-255, 255); // PID Setup - dome spin 'servo'
     PID5.SetSampleTime(15);
 
-    // *********  Read offsets from EEPROM  **********
-    offsets.Pitch = EEPROM.readFloat(0);
-    offsets.Roll = EEPROM.readFloat(4);
-    offsets.S2SPot = EEPROM.readInt(8);
-    offsets.DomeTiltPot = EEPROM.readInt(12);
-    offsets.DomeSpin = EEPROM.readInt(16);
-
-    if (abs(offsets.Roll) + abs(offsets.Pitch) + abs(offsets.S2SPot) + abs(offsets.DomeTiltPot) == 0)
-    {
-        setOffsetsONLY();
-    }
+    // Load the values stored from the EEPROM.
+    offsets.LoadOffsetsFromMemory();
 
     // Always startup on slow speed.
     sendToRemote.bodyMode = BodyMode::Slow;
@@ -813,6 +792,7 @@ void loop()
         BTenable();
 
         updateInputHandlers();
+        setOffsetsAndSaveToEEPROM();
         updateBodyMode();
         reverseDirection();
 
@@ -825,7 +805,6 @@ void loop()
         domeCalib();
         //debugRoutines();
 
-        setOffsetsAndSaveToEEPROM();
         movement();
         lastLoopMillis = millis();
     }
@@ -1232,7 +1211,11 @@ void bodyCalib()
     else if (sendToRemote.bodyStatus == BodyStatus::BodyCalibration
         && button8Handler.GetState() == ButtonState::Pressed)
     {
-        SaveToEEPROM = 1;
+        offsets.UpdateOffsets(
+            imu.Pitch(),
+            imu.Roll(),
+            (int)sideToSidePotHandler.GetMappedValue(),
+            (int)domeTiltPotHandler.GetMappedValue());
     }
     else if (sendToRemote.bodyStatus == BodyStatus::BodyCalibration
         && button7Handler.GetState() == ButtonState::Pressed)
@@ -1254,7 +1237,9 @@ void domeCalib()
     else if (sendToRemote.bodyStatus == BodyStatus::DomeCalibration
         && button8Handler.GetState() == ButtonState::Pressed)
     {
-        setDomeSpinOffset();
+        offsets.UpdateDomeOffset(
+            (int)domeSpinPotHandler.GetMappedValue(),
+            sendToRemote.bodyDirection == Direction::Reverse);
         sendToRemote.bodyStatus = BodyStatus::NormalOperation;
     }
     else if (sendToRemote.bodyStatus == BodyStatus::DomeCalibration
@@ -1342,7 +1327,7 @@ void mainDrive()
         -MaxDrive,
         MaxDrive);
 
-    Input3 = (imu.Pitch() + offsets.Pitch); // - domeOffset;
+    Input3 = (imu.Pitch() + offsets.PitchOffset()); // - domeOffset;
     // domeTiltOffset used to keep the ball from rolling when dome is tilted front/back
 
     PID3.Compute();
@@ -1369,11 +1354,11 @@ void sideTilt()
         MaxSideToSide);
 
     int S2Spot = (int)sideToSidePotHandler.GetMappedValue();
-    Input2 = imu.Roll() + offsets.Roll;
+    Input2 = imu.Roll() + offsets.RollOffset();
     
     PID2.Compute(); //PID2 is used to control the 'servo' control of the side to side movement.
 
-    Input1 = S2Spot + offsets.S2SPot;
+    Input1 = S2Spot + offsets.SideToSidePotOffset();
     Setpoint1 = map(
         constrain(Output2, -MaxSideToSide, MaxSideToSide),
         -MaxSideToSide,
@@ -1408,13 +1393,13 @@ void domeTilt()
     // Calculate the pitch to input into the head tilt input in order to keep it level.
     // Naigon - TODO: once the ease applicator is created, use it here to increment to pitch adjust.
     int pitchAdjust = sendToRemote.bodyMode != BodyMode::PushToRoll
-        ? (imu.Pitch() + offsets.Pitch) * HeadTiltPitchAndRollProportion
+        ? (imu.Pitch() + offsets.PitchOffset()) * HeadTiltPitchAndRollProportion
         : 0;
 #else
     int pitchAdjust = 0;
 #endif
 
-    int domeTiltPot = (int)domeTiltPotHandler.GetMappedValue() + offsets.DomeTiltPot;
+    int domeTiltPot = (int)domeTiltPotHandler.GetMappedValue() + offsets.DomeTiltPotOffset();
 
     // Naigon - Dome Automation
     // Dome tilt is completely controlled by automation.
@@ -1428,7 +1413,7 @@ void domeTilt()
         -MaxDomeTiltAngle,
         MaxDomeTiltAngle); // Reading the stick for angle -40 to 40
 
-    Input4 = domeTiltPot + (imu.Pitch() + offsets.Pitch);
+    Input4 = domeTiltPot + (imu.Pitch() + offsets.PitchOffset());
     Setpoint4 = domeTiltEaseApplicator.ComputeValueForCurrentIteration(joystickDome);
     Setpoint4 = constrain(Setpoint4, -MaxDomeTiltAngle, MaxDomeTiltAngle);
     PID4.Compute();
@@ -1460,8 +1445,8 @@ void domeSpinServo()
     int ch4Servo = (int)domeSpinStickPtr->GetMappedValue();
 
     Input5 = sendToRemote.bodyDirection == Direction::Forward
-        ? (int)domeSpinPotHandler.GetMappedValue() + offsets.DomeSpin - 180
-        : (int)domeSpinPotHandler.GetMappedValue() + offsets.DomeSpin;
+        ? (int)domeSpinPotHandler.GetMappedValue() + offsets.DomeSpinPotOffset() - 180
+        : (int)domeSpinPotHandler.GetMappedValue() + offsets.DomeSpinPotOffset();
 
     if (Input5 < -180)
     {
@@ -1513,6 +1498,36 @@ void writeMotorPwm(MotorPWM &motorPwm, int output, int input, bool requireBT, bo
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Write to EEPROM
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void setOffsetsAndSaveToEEPROM()
+{
+    if (!offsets.AreValuesLoaded())
+    {
+        offsets.UpdateOffsets(
+            imu.Pitch(),
+            imu.Roll(),
+            (int)sideToSidePotHandler.GetMappedValue(),
+            (int)domeTiltPotHandler.GetMappedValue());
+
+        offsets.UpdateDomeOffset(
+            (int)domeSpinPotHandler.GetMappedValue(),
+            sendToRemote.bodyDirection == Direction::Reverse);
+    }
+
+    offsets.WriteOffsets();
+
+    if (!offsets.NeedsWrite())
+    {
+        // Update the body status back to normal once all is saved.
+        sendToRemote.bodyStatus = BodyStatus::NormalOperation;
+    }
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Disable droid
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1535,75 +1550,6 @@ void turnOffAllTheThings(bool includingDrive)
         Setpoint3 = 0;
         Output3 = 0;
     }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Set offsets and save to EEPROM
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void setOffsetsAndSaveToEEPROM()
-{
-    // Naigon - TODOD
-    // Joe has this only save one thing per iteration. I'm not sure if that is due to needing to keep getting update
-    // remote values, but it would be a lot better to just save everything in one go.
-    //
-
-    if (SaveToEEPROM == 0)
-    {
-        return;
-    }
-
-    if (SaveToEEPROM == 1)
-    {
-        offsets.Pitch = imu.Pitch() * -1;
-        EEPROM.writeFloat(0, offsets.Pitch);
-        SaveToEEPROM = 2;
-    }
-    else if (SaveToEEPROM == 2)
-    {
-        offsets.Roll = imu.Roll() * -1;
-        EEPROM.writeFloat(4, offsets.Roll);
-        SaveToEEPROM = 3;
-    }
-    else if (SaveToEEPROM == 3)
-    {
-        offsets.S2SPot = 0 - (int)sideToSidePotHandler.GetMappedValue();
-        EEPROM.writeInt(8, offsets.S2SPot);
-        SaveToEEPROM = 4;
-    }
-    else if (SaveToEEPROM == 4)
-    {
-        offsets.DomeTiltPot = 0 - (int)domeTiltPotHandler.GetMappedValue();
-        EEPROM.writeInt(12, offsets.DomeTiltPot);
-        SaveToEEPROM = 0;
-        sendToRemote.bodyStatus = BodyStatus::NormalOperation;
-        //playSound = 1;
-    }
-}
-
-void setDomeSpinOffset()
-{
-    // Naigon - TODO: Figure out why it is mapped from 180, -180 as opposed to -180, 180, and change it so that this
-    // can be moved to using GetMappedForwardValue.
-    offsets.DomeSpin = sendToRemote.bodyDirection == Direction::Reverse
-        ? 180 - (int)domeSpinPotHandler.GetMappedValue()
-        : 0 - (int)domeSpinPotHandler.GetMappedValue();
-
-    EEPROM.writeInt(16, offsets.DomeSpin);
-    // delay(200);
-    sendToRemote.bodyStatus = BodyStatus::NormalOperation;
-    //playSound = 1;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Set offsets ONLY; this is used if nothing is stored in EEPROM
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void setOffsetsONLY()
-{
-    offsets.Pitch = 0 - imu.Pitch();
-    offsets.Roll = 0 - imu.Roll();
-    offsets.S2SPot = 0 - (map(analogRead(S2SpotPin), 0, 1024, -135, 135));
-    offsets.DomeTiltPot = 0 - (map(analogRead(domeTiltPotPin), 0, 1024, -MaxHeadTiltPot, MaxHeadTiltPot));
-    //delay(200);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
