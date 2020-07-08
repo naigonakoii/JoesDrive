@@ -6,13 +6,17 @@
 
 // ====================================================================================================================
 //             ButtonHandler
-//             Library for wrapping Arduino digital inputs into buttons that have pres and held states.
+//             Library for wrapping Arduino digital inputs into buttons that have pres and held states. Part of the
+//             NaigonIO library.
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //             Scott DeBoer
 //             28 June 2020
 // ====================================================================================================================
 
 #include "ButtonHandler.h"
+
+namespace Naigon::IO
+{
 
 ButtonHandler::ButtonHandler(int onVal, unsigned long heldDuration)
     : onValue(onVal)
@@ -56,3 +60,4 @@ void ButtonHandler::UpdateState(int value)
     }
 }
 
+}   // namespace Naigon::IO

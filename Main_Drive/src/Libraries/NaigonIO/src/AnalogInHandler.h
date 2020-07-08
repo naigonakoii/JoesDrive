@@ -6,7 +6,7 @@
 
 // ====================================================================================================================
 //             AnalogInHandler
-//             Library for wrapping Arduino analog ins to a reduced output range.
+//             Library for wrapping Arduino analog ins to a reduced output range. Part of the NaigonIO library.
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //             Scott DeBoer
 //             28 June 2020
@@ -17,6 +17,9 @@
 #define __AnalogInHandler_h_
 
 #include "Arduino.h"
+
+namespace Naigon::IO
+{
 
 class AnalogInHandler
 {
@@ -91,5 +94,7 @@ private:
     int _minInput, _maxInput;
     bool _isInputReversed;
 };
+
+}   //namespace Naigon::IO
 
 #endif //__AnalogInHandler_h_

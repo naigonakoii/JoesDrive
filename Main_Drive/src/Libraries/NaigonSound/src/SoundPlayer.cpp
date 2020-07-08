@@ -5,16 +5,17 @@
 // ====================================================================================================================
 
 // ====================================================================================================================
-//                         Joe's Drive Powered by Naigon
-//                         19 June 2020
-//                         Scott DeBoer
+//             SoundPlayer
+//             Library for running an external NEC Audio device, which is an Igniter 3 board with the custom firmware
+//             by Naigon.
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-// This is part of the add-on library for Joe's Drive created by Naigon.
+//             Scott DeBoer
+//             19 June 2020
 // ====================================================================================================================
 
 #include "SoundPlayer.h"
 
-namespace NaigonBB8
+namespace Naigon::NECAudio
 {
 
 // =====================================================================================================================================================================================================
@@ -110,4 +111,4 @@ SoundTypes WiredSoundPlayer::TrackTypeCurrentlyPlaying() const
     return (SoundTypes)trackIndex;
 }
 
-} // namespace NaigonBB8
+} // namespace Naigon::NECAudio

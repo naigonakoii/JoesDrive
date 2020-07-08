@@ -26,51 +26,59 @@
 
 #include "Arduino.h"
 
+//
+// External library includes. These are included in the /ext folder, but you'll need to install them into the Arduino
+// Library folder (Documents/Arduino/Libraries in Windows).
+//
 #include <EEPROMex.h> // https://github.com/thijse/Arduino-EEPROMEx
 #include <EasyTransfer.h>
 #include <PID_v1.h> //PID loop from http://playground.arduino.cc/Code/PIDLibrary
 
-#include "AnalogInHandler.h"
-#include "Animation.h"
-//#include "AnimationDefinitions.h"
-#include "AnimationRunner.h"
-#include "ButtonHandler.h"
+//
+// These are my libraries. Currently I have them living in this project, but the correct way would also be to install
+// these into the Arduino libraries folder, and then update these references with angle bracket notation and just the
+// file name. Example:
+//
+//    "src/Libraries/NaigonIO/src/AnalogInHandler.h"
+//
+// would become
+//
+//    <AnalogInHandler.h>
+//
+#include "src/Libraries/NaitonAnimations/src/Animation.h"
+#include "src/Libraries/NaitonAnimations/src/AnimationRunner.h"
+#include "src/Libraries/NaigonIO/src/AnalogInHandler.h"
+#include "src/Libraries/NaigonIO/src/ButtonHandler.h"
+#include "src/Libraries/NaigonUtil/src/EaseApplicator.h"
+#include "src/Libraries/NaigonSound/src/SoundPlayer.h"
+
 #include "Constants.h"
-#include "EaseApplicator.h"
 #include "MotorPWM.h"
-#include "SoundPlayer.h"
 
-using namespace NaigonBB8::AnimationConstants;
+//
+// Animations Usings
+//
+using namespace NaigonBB8::Animations::AnimationConstants;
+using NaigonBB8::Animations::AnimationAction;
+using NaigonBB8::Animations::AnimationDomeMode;
+using NaigonBB8::Animations::AnimationRunner;
+using NaigonBB8::Animations::AnimationStep;
+using NaigonBB8::Animations::AnimationTarget;
+using NaigonBB8::Animations::GeneratedAnimation;
+using NaigonBB8::Animations::GeneratedAnimationPercents;
+using NaigonBB8::Animations::IAnimation;
+using NaigonBB8::Animations::ScriptedAnimation;
 
-using NaigonBB8::AnimationAction;
-using NaigonBB8::AnimationDomeMode;
-
-// Include each entry to allow short-hand in animation definitions.
-using NaigonBB8::AnimationDomeMode::adEither;
-using NaigonBB8::AnimationDomeMode::adServo;
-using NaigonBB8::AnimationDomeMode::adSpin;
-
-using NaigonBB8::AnimationRunner;
-using NaigonBB8::AnimationStep;
-using NaigonBB8::AnimationTarget;
-using NaigonBB8::FunctionEaseApplicator;
-using NaigonBB8::FunctionEaseApplicatorType;
-using NaigonBB8::GeneratedAnimation;
-using NaigonBB8::GeneratedAnimationPercents;
-using NaigonBB8::IAnimation;
-using NaigonBB8::LinearEaseApplicator;
 using NaigonBB8::MotorPWM;
-using NaigonBB8::ScriptedAnimation;
 using NaigonBB8::SoundTypes;
 
-// Include each entry to allow short-hand in animation definitions.
-using NaigonBB8::SoundTypes::Agitated;
-using NaigonBB8::SoundTypes::Chatty;
-using NaigonBB8::SoundTypes::Excited;
-using NaigonBB8::SoundTypes::Happy;
-using NaigonBB8::SoundTypes::NotPlaying;
-using NaigonBB8::SoundTypes::Sad;
-using NaigonBB8::SoundTypes::Scared;
+using Naigon::IO::AnalogInHandler;
+using Naigon::IO::ButtonHandler;
+using Naigon::IO::ButtonState;
+
+using Naigon::Util::FunctionEaseApplicator;
+using Naigon::Util::FunctionEaseApplicatorType;
+using Naigon::Util::LinearEaseApplicator;
 
 enum BodyMode : uint8_t
 {
@@ -413,13 +421,13 @@ int bank2A1Step04[6] = { Centered, Centered, ForwardFull, Centered, RightHalf, C
 int bank2A1Step05[6] = { Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, };
 int bank2A1Step06[6] = { Centered, Centered, ForwardHalf, Centered, Centered,  Centered, };
 AnimationStep tiltHeadAndLookBothWays1State[] = {
-    // --------- MotorVals | nVal | SoundId     | Dome  |   MS
-    AnimationStep(bank2A1Step01, 6, NotPlaying + 1, adSpin, 250),
-    AnimationStep(bank2A1Step02, 6, Excited + 1,    adSpin,   0),
-    AnimationStep(bank2A1Step03, 6, NotPlaying + 1, adSpin, 200),
-    AnimationStep(bank2A1Step04, 6, NotPlaying + 1, adSpin, 500),
-    AnimationStep(bank2A1Step05, 6, NotPlaying + 1, adSpin, 500),
-    AnimationStep(bank2A1Step06, 6, NotPlaying + 1, adSpin, 100),
+    // --------- MotorVals | nVal | SoundId                   | AnimationDomeMode        |   MS
+    AnimationStep(bank2A1Step01, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adSpin, 250),
+    AnimationStep(bank2A1Step02, 6, SoundTypes::Excited + 1,    AnimationDomeMode::adSpin,   0),
+    AnimationStep(bank2A1Step03, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adSpin, 200),
+    AnimationStep(bank2A1Step04, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adSpin, 500),
+    AnimationStep(bank2A1Step05, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adSpin, 500),
+    AnimationStep(bank2A1Step06, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adSpin, 100),
 };
 ScriptedAnimation tiltHeadAndLookBothWays1(AnimationTarget::Bank2, 6, &defaultResult, tiltHeadAndLookBothWays1State);
 
@@ -434,16 +442,16 @@ int bank2A2Step07[6] = { Centered, Centered, ReverseFull, Centered, LeftTwoThird
 int bank2A2Step08[6] = { Centered, Centered, ForwardFull, Centered, LeftTwoThirds, Centered, };
 int bank2A2Step09[6] = { Centered, Centered, ReverseFull, Centered, LeftTwoThirds, Centered, };
 AnimationStep tiltHeadOppositeWays1State[] = {
-    // --------- MotorVals | nVal | SoundId       | Dome  |   MS
-    AnimationStep(bank2A2Step01, 6, Chatty + 1,     adServo,   0),
-    AnimationStep(bank2A2Step02, 6, NotPlaying + 1, adServo, 500),
-    AnimationStep(bank2A2Step03, 6, NotPlaying + 1, adServo, 500),
-    AnimationStep(bank2A2Step04, 6, NotPlaying + 1, adServo, 500),
-    AnimationStep(bank2A2Step05, 6, NotPlaying + 1, adServo, 500),
-    AnimationStep(bank2A2Step06, 6, NotPlaying + 1, adServo, 500),
-    AnimationStep(bank2A2Step07, 6, NotPlaying + 1, adServo, 500),
-    AnimationStep(bank2A2Step08, 6, NotPlaying + 1, adServo, 500),
-    AnimationStep(bank2A2Step09, 6, NotPlaying + 1, adServo, 500),
+    // --------- MotorVals | nVal | SoundId                   | AnimationDomeMode         |   MS
+    AnimationStep(bank2A2Step01, 6, SoundTypes::Chatty + 1,     AnimationDomeMode::adServo,   0),
+    AnimationStep(bank2A2Step02, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adServo, 500),
+    AnimationStep(bank2A2Step03, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adServo, 500),
+    AnimationStep(bank2A2Step04, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adServo, 500),
+    AnimationStep(bank2A2Step05, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adServo, 500),
+    AnimationStep(bank2A2Step06, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adServo, 500),
+    AnimationStep(bank2A2Step07, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adServo, 500),
+    AnimationStep(bank2A2Step08, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adServo, 500),
+    AnimationStep(bank2A2Step09, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adServo, 500),
 };
 ScriptedAnimation tiltHeadOppositeWays1(AnimationTarget::Bank2, 9, &defaultResult, tiltHeadOppositeWays1State);
 
@@ -453,9 +461,9 @@ ScriptedAnimation tiltHeadOppositeWays1(AnimationTarget::Bank2, 9, &defaultResul
 int bank2A3Step01[6] = { Centered, Centered, Centered, Centered, LeftHalf,  LeftFull, };
 int bank2A3Step02[6] = { Centered, Centered, Centered, Centered, RightFull, RightFull, };
 AnimationStep flywheelSpin1State[] = {
-    // --------- MotorVals | nVal | SoundId       | Dome  |   MS
-    AnimationStep(bank2A3Step01, 6, NotPlaying + 1, adSpin,  500),
-    AnimationStep(bank2A3Step02, 6, NotPlaying + 1, adSpin, 3000),
+    // --------- MotorVals | nVal | SoundId                   | AnimationDomeMode        |   MS
+    AnimationStep(bank2A3Step01, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adSpin,  500),
+    AnimationStep(bank2A3Step02, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adSpin, 3000),
 };
 ScriptedAnimation flywheelSpin1(AnimationTarget::Bank2, 2, &defaultResult, flywheelSpin1State);
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -831,7 +839,7 @@ void loop()
 
         bodyCalib();
         domeCalib();
-        debugRoutines();
+        //debugRoutines();
 
         setOffsetsAndSaveToEEPROM();
         movement();
@@ -940,12 +948,6 @@ void psiVal()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void readVin()
 {
-    // Naigon
-    // I've been having issues where this reads a constant value of 12.86 regardless of my battery. So I'm going to
-    // watch it for a while and try to deduce what is wrong.
-    //
-    // DO NOT TAKE THIS CHANGE
-    //
     sendToRemote.bodyBatt = ((analogRead(battMonitor) * outputVoltage) / 1024.0) / (R2 / (R1 + R2));
 }
 

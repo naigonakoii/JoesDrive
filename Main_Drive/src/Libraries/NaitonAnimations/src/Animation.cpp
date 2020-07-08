@@ -5,16 +5,17 @@
 // ====================================================================================================================
 
 // ====================================================================================================================
-//                         Joe's Drive Powered by Naigon
+//                         Droids Powered by Naigon
 //                         19 June 2020
 //                         Scott DeBoer
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-// This is part of the add-on library for Joe's Drive created by Naigon.
+// This is part of the add-on library for droids and robotics. I created it for Joe's Drive but it can be adapted to
+// and motor-controled robotic application.
 // ====================================================================================================================
 
 #include "Animation.h"
 
-namespace NaigonBB8
+namespace NaigonBB8::Animations
 {
 
 using namespace AnimationConstants;

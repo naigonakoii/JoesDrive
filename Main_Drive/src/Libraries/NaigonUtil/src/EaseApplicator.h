@@ -5,19 +5,20 @@
 // ====================================================================================================================
 
 // ====================================================================================================================
-//                         Joe's Drive Powered by Naigon
-//                         19 June 2020
-//                         Scott DeBoer
+//             AnalogInHandler
+//             Library for wrapping Arduino analog ins to a reduced output range. Part of the NaigonIO library.
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-// This is part of the add-on library for Joe's Drive created by Naigon.
+//             Scott DeBoer
+//             19 June 2020
 // ====================================================================================================================
+
 
 #ifndef __NAIGON_Ease_Applicator_h_
 #define __NAIGON_Ease_Applicator_h_
 
 #include "Arduino.h"
 
-namespace NaigonBB8
+namespace Naigon::Util
 {
 
 struct IEaseApplicator
@@ -139,6 +140,6 @@ private:
     FunctionEaseApplicatorType _fType;
 };
 
-}   // namespace NaigonBB8
+}   // namespace Naigon::Util
 
 #endif  // #define __NAIGON_Ease_Applicator_h_
