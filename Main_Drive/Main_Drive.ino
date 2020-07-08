@@ -1269,7 +1269,7 @@ void domeCalib()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void movement()
 {
-    if (recFromRemote.motorEnable == 0 && BTstate == 1 && imu.ProMiniStatus() != 0)
+    if (recFromRemote.motorEnable == 0 && BTstate == 1 && imu.ProMiniConnected())
     {
         unsigned long currentMillis = millis();
 
