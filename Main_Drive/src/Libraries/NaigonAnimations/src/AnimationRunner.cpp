@@ -16,7 +16,7 @@
 #include "AnimationRunner.h"
 #include "Animation.h"
 
-namespace NaigonBB8::Animations
+namespace Naigon::Animations
 {
 
 AnimationRunner::AnimationRunner(int numAnimations, IAnimation *animations[])
@@ -171,4 +171,4 @@ const AnimationStep* AnimationRunner::RunIteration()
     }
 }
 
-}   //namespace NaigonBB8
+}   //namespace Naigon::Animations

@@ -34,6 +34,8 @@
 #include <EasyTransfer.h>
 #include <PID_v1.h> //PID loop from http://playground.arduino.cc/Code/PIDLibrary
 
+#include "Constants.h"
+
 //
 // These are my libraries. Currently I have them living in this project, but the correct way would also be to install
 // these into the Arduino libraries folder, and then update these references with angle bracket notation and just the
@@ -45,29 +47,32 @@
 //
 //    <AnalogInHandler.h>
 //
-#include "src/Libraries/NaitonAnimations/src/Animation.h"
-#include "src/Libraries/NaitonAnimations/src/AnimationRunner.h"
+#include "src/Libraries/NaigonAnimations/src/Animation.h"
+#include "src/Libraries/NaigonAnimations/src/AnimationRunner.h"
 #include "src/Libraries/NaigonIO/src/AnalogInHandler.h"
 #include "src/Libraries/NaigonIO/src/ButtonHandler.h"
 #include "src/Libraries/NaigonUtil/src/EaseApplicator.h"
 #include "src/Libraries/NaigonSound/src/SoundPlayer.h"
 
-#include "Constants.h"
+#include "ImuProMini.h"
+
 #include "MotorPWM.h"
 
 //
 // Animations Usings
 //
-using namespace NaigonBB8::Animations::AnimationConstants;
-using NaigonBB8::Animations::AnimationAction;
-using NaigonBB8::Animations::AnimationDomeMode;
-using NaigonBB8::Animations::AnimationRunner;
-using NaigonBB8::Animations::AnimationStep;
-using NaigonBB8::Animations::AnimationTarget;
-using NaigonBB8::Animations::GeneratedAnimation;
-using NaigonBB8::Animations::GeneratedAnimationPercents;
-using NaigonBB8::Animations::IAnimation;
-using NaigonBB8::Animations::ScriptedAnimation;
+using namespace Naigon::Animations::AnimationConstants;
+using Naigon::Animations::AnimationAction;
+using Naigon::Animations::AnimationDomeMode;
+using Naigon::Animations::AnimationRunner;
+using Naigon::Animations::AnimationStep;
+using Naigon::Animations::AnimationTarget;
+using Naigon::Animations::GeneratedAnimation;
+using Naigon::Animations::GeneratedAnimationPercents;
+using Naigon::Animations::IAnimation;
+using Naigon::Animations::ScriptedAnimation;
+
+using Naigon::BB_8::ImuProMini;
 
 using Naigon::NECAudio::ISoundPlayer;
 using Naigon::NECAudio::SoundTypes;
@@ -203,32 +208,6 @@ struct RECEIVE_DATA_STRUCTURE_IMU
     float roll;
 };
 RECEIVE_DATA_STRUCTURE_IMU recIMUData;
-
-//
-// Naigon - Head Tilt Stabilization
-// State for the IMU data. sendAndReceive() is responsible for fetching these.
-// To keep the head tilt from being jerky, do some filtering on the pitch and roll over time.
-// TODO - Probably should put the filtering on the Arduino Pro Mini that is attached to the IMU.
-//
-struct IMUData
-{
-    float Pitch;
-    float PitchPrev[PitchAndRollFilterCount];
-    float Roll;
-    float RollPrev[PitchAndRollFilterCount];
-    bool IsFirstPitchAndRoll = true;
-};
-IMUData imu;
-
-//
-// State that persists over multiple Arduino loop() calls for the checkMiniTime method.
-//
-struct IMUState
-{
-    float LastLoopMillis;
-    int MiniStatus;
-};
-IMUState imuState;
 
 //
 // Dirve state
@@ -635,6 +614,8 @@ FunctionEaseApplicator domeServoEaseApplicator(0.0, MaxDomeSpinServo, 5, Functio
 LinearEaseApplicator domeSpinEaseApplicator(0.0, easeDome);
 LinearEaseApplicator flywheelEaseApplicator(0.0, flywheelEase);
 
+ImuProMini imu;
+
 #ifdef WirelessSound
 // In the future if an XBee is hooked to the Arduino Mega the hard-wired pins will not be needed.
 #else
@@ -829,7 +810,6 @@ void loop()
     if (millis() - lastLoopMillis >= 20)
     {
         sendAndReceive();
-        checkMiniTime();
         BTenable();
 
         updateInputHandlers();
@@ -862,81 +842,7 @@ void sendAndReceive()
 {
     RecRemote.receiveData();
     SendRemote.sendData();
-
-    if (recIMUData.IMUloop == 0)
-    {
-        return;
-    }
-
-    imu.Pitch = reversePitch ? recIMUData.pitch * -1 : recIMUData.pitch;
-    imu.Roll = reverseRoll ? recIMUData.roll * -1 : recIMUData.roll;
-
-    if (imu.IsFirstPitchAndRoll)
-    {
-        // Naigon - Head Tilt Stabilization
-        // Initialize the first time to the current value to prevent anomilies at startup.
-        for (int i = 0; i < 4; i++)
-        {
-            imu.PitchPrev[i] = imu.Pitch;
-            imu.RollPrev[i] = imu.Roll;
-        }
-        imu.IsFirstPitchAndRoll = false;
-    }
-
-    //
-    // Naigon - Head Tilt Stablilization
-    // The pitch and roll are now computed as a rolling average to filter noise. This prevents jerkyness in any movements
-    // based on these values.
-    imu.Pitch = updatePrevValsAndComputeAvg(imu.PitchPrev, imu.Pitch);
-    imu.Roll = updatePrevValsAndComputeAvg(imu.RollPrev, imu.Roll);
-}
-
-/* static */
-float updatePrevValsAndComputeAvg(float *nums, float currentVal)
-{
-    float sum = 0;
-    nums[0] = currentVal;
-    for (int i = PitchAndRollFilterCount - 1; i >= 1; i -= 1)
-    {
-        nums[i] = nums[i - 1];
-        sum += nums[i];
-    }
-
-    return (sum + nums[0]) / (float)PitchAndRollFilterCount;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// MPU6050 stuff
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void checkMiniTime()
-{
-    if ((recIMUData.IMUloop == 1 && imuState.LastLoopMillis >= 980)
-        || (recIMUData.IMUloop < 1 && imuState.LastLoopMillis > 3))
-    {
-        imuState.LastLoopMillis = 0;
-    }
-
-    if (recIMUData.IMUloop > imuState.LastLoopMillis)
-    {
-        imuState.LastLoopMillis = recIMUData.IMUloop;
-        imuState.MiniStatus = 1;
-    }
-    else if (recIMUData.IMUloop <= imuState.LastLoopMillis && imuState.MiniStatus != 0)
-    {
-        imuState.LastLoopMillis++;
-    }
-
-    if (recIMUData.IMUloop - imuState.LastLoopMillis < -20 && recIMUData.IMUloop - imuState.LastLoopMillis > -800)
-    {
-        imuState.MiniStatus = 0;
-        imuState.LastLoopMillis = 0;
-        recIMUData.IMUloop = 0;
-    }
-
-    if (imuState.LastLoopMillis >= 999)
-    {
-        imuState.LastLoopMillis = 0;
-    }
+    imu.UpdateIteration(recIMUData.pitch, recIMUData.roll, recIMUData.IMUloop);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1363,7 +1269,7 @@ void domeCalib()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void movement()
 {
-    if (recFromRemote.motorEnable == 0 && BTstate == 1 && imuState.MiniStatus != 0)
+    if (recFromRemote.motorEnable == 0 && BTstate == 1 && imu.ProMiniStatus() != 0)
     {
         unsigned long currentMillis = millis();
 
@@ -1436,7 +1342,7 @@ void mainDrive()
         -MaxDrive,
         MaxDrive);
 
-    Input3 = (imu.Pitch + offsets.Pitch); // - domeOffset;
+    Input3 = (imu.Pitch() + offsets.Pitch); // - domeOffset;
     // domeTiltOffset used to keep the ball from rolling when dome is tilted front/back
 
     PID3.Compute();
@@ -1463,7 +1369,7 @@ void sideTilt()
         MaxSideToSide);
 
     int S2Spot = (int)sideToSidePotHandler.GetMappedValue();
-    Input2 = imu.Roll + offsets.Roll;
+    Input2 = imu.Roll() + offsets.Roll;
     
     PID2.Compute(); //PID2 is used to control the 'servo' control of the side to side movement.
 
@@ -1502,7 +1408,7 @@ void domeTilt()
     // Calculate the pitch to input into the head tilt input in order to keep it level.
     // Naigon - TODO: once the ease applicator is created, use it here to increment to pitch adjust.
     int pitchAdjust = sendToRemote.bodyMode != BodyMode::PushToRoll
-        ? (imu.Pitch + offsets.Pitch) * HeadTiltPitchAndRollProportion
+        ? (imu.Pitch() + offsets.Pitch) * HeadTiltPitchAndRollProportion
         : 0;
 #else
     int pitchAdjust = 0;
@@ -1522,7 +1428,7 @@ void domeTilt()
         -MaxDomeTiltAngle,
         MaxDomeTiltAngle); // Reading the stick for angle -40 to 40
 
-    Input4 = domeTiltPot + (imu.Pitch + offsets.Pitch);
+    Input4 = domeTiltPot + (imu.Pitch() + offsets.Pitch);
     Setpoint4 = domeTiltEaseApplicator.ComputeValueForCurrentIteration(joystickDome);
     Setpoint4 = constrain(Setpoint4, -MaxDomeTiltAngle, MaxDomeTiltAngle);
     PID4.Compute();
@@ -1648,13 +1554,13 @@ void setOffsetsAndSaveToEEPROM()
 
     if (SaveToEEPROM == 1)
     {
-        offsets.Pitch = imu.Pitch * -1;
+        offsets.Pitch = imu.Pitch() * -1;
         EEPROM.writeFloat(0, offsets.Pitch);
         SaveToEEPROM = 2;
     }
     else if (SaveToEEPROM == 2)
     {
-        offsets.Roll = imu.Roll * -1;
+        offsets.Roll = imu.Roll() * -1;
         EEPROM.writeFloat(4, offsets.Roll);
         SaveToEEPROM = 3;
     }
@@ -1693,8 +1599,8 @@ void setDomeSpinOffset()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void setOffsetsONLY()
 {
-    offsets.Pitch = 0 - imu.Pitch;
-    offsets.Roll = 0 - imu.Roll;
+    offsets.Pitch = 0 - imu.Pitch();
+    offsets.Roll = 0 - imu.Roll();
     offsets.S2SPot = 0 - (map(analogRead(S2SpotPin), 0, 1024, -135, 135));
     offsets.DomeTiltPot = 0 - (map(analogRead(domeTiltPotPin), 0, 1024, -MaxHeadTiltPot, MaxHeadTiltPot));
     //delay(200);

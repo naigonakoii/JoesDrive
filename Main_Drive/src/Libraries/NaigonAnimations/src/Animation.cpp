@@ -15,7 +15,7 @@
 
 #include "Animation.h"
 
-namespace NaigonBB8::Animations
+namespace Naigon::Animations
 {
 
 using namespace AnimationConstants;
@@ -381,4 +381,4 @@ uint8_t weightedPercentBasedSelection(const uint16_t percents[], uint16_t size, 
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-}   // namespace NaigonBB8
+}   // namespace Naigon::Animations

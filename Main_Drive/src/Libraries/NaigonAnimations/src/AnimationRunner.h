@@ -18,7 +18,7 @@
 
 #include "Arduino.h"
 
-namespace NaigonBB8::Animations
+namespace Naigon::Animations
 {
 
 // Forward declarations for Animation classes.
@@ -101,6 +101,6 @@ private:
     IAnimation **_animations;
 };
 
-}   //namespace NaigonBB8
+}   //namespace Naigon::Animations
 
 #endif  //__NaigonBB8_AnimationRunner_h_

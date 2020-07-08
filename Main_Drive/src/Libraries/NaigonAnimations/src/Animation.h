@@ -18,7 +18,7 @@
 
 #include "Arduino.h"
 
-namespace NaigonBB8::Animations
+namespace Naigon::Animations
 {
 
 namespace AnimationConstants
@@ -469,6 +469,6 @@ private:
     GeneratedAnimationPercents *_percents;
 };
 
-}   //namepsace NaigonBB8
+}   //namepsace Naigon::Animagions
 
 #endif //__NaigonBB8_Animations_h__
