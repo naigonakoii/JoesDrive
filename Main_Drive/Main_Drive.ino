@@ -35,7 +35,7 @@
 #include <PID_v1.h> //PID loop from http://playground.arduino.cc/Code/PIDLibrary
 
 #include "Constants.h"
-
+#include "Enums.h"
 //
 // These are my libraries. Currently I have them living in this project, but the correct way would also be to install
 // these into the Arduino libraries folder, and then update these references with angle bracket notation and just the
@@ -91,72 +91,6 @@ using Naigon::IO::ButtonState;
 using Naigon::Util::FunctionEaseApplicator;
 using Naigon::Util::FunctionEaseApplicatorType;
 using Naigon::Util::LinearEaseApplicator;
-
-enum BodyMode : uint8_t
-{
-    UnknownSpeed = 0,
-    Slow = 1,
-    SlowWithTilt = 2,
-    Servo = 3,
-    ServoWithTilt = 4,
-    Stationary = 5,
-    Medium = 6,
-    Fast = 7,
-    PushToRoll = 8,
-    Automated = 20,
-    AutomatedServo = 21,
-    AutomatedTilt = 22,
-};
-const BodyMode FirstSpeedEntry = BodyMode::Slow;
-const BodyMode LastSpeedEntry = BodyMode::PushToRoll;
-const BodyMode FirstAutomatedEntry = BodyMode::Automated;
-const BodyMode LastAutomatedEntry = BodyMode::AutomatedTilt;
-
-enum Direction : uint8_t
-{
-    UnknownDirection = 0,
-    Forward = 1,
-    Reverse = 2,
-};
-
-// Naigon - Dome Modes
-// The following dome modes are inferred from the BodyMode.
-enum DomeMode : uint8_t
-{
-    FullSpinMode = 0,
-    ServoMode = 1,
-};
-
-//
-// Naigon - Drive-side (Server-side) Refactor
-// Body status is used as an enum to send to the remote. It is the same variable that Joe was sending; this enum just
-// quantifies the values, changes the representation (ie 1 used to be body calibration), and adds the Servo value so
-// the remote knows to display servo in the corner.
-//
-// Naigon - Dome Modes
-// Through continued refactoring, BodyStatus now only represents the calibration modes. Dome is combined with the drive
-// speed which is now renamed as driveMode.
-enum BodyStatus : uint8_t
-{
-    NormalOperation = 0,
-    BodyCalibration = 1,
-    DomeCalibration = 2,
-};
-
-//
-// Naigon - Animations
-// Enum that defines the motor control specific to Joe's Drive.
-// Drive | Side | DomeTFB | DomeTLR | DomeSpin | Flywhl
-enum MotorControlId : uint8_t
-{
-    idDrive = 0,
-    idSideToSide = 1,
-    idDomeTiltFR = 2,
-    idDomeTiltLR = 3,
-    idDomeSpin = 4,
-    idFlywheel = 5,
-};
-
 
 EasyTransfer RecRemote;
 EasyTransfer SendRemote;
