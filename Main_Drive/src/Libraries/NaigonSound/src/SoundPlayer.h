@@ -13,6 +13,9 @@
 //             19 June 2020
 // ====================================================================================================================
 
+#ifndef __Naigon_SoundPlayer_h
+#define __Naigon_SoundPlayer_h
+
 namespace Naigon::NECAudio
 {
 
@@ -87,3 +90,5 @@ private:
 };
 
 } // namespace Naigon::NECAudio
+
+#endif // __Naigon_SoundPlayer_h
