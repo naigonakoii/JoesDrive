@@ -2,15 +2,27 @@
     "configurations": [
         {
             "name": "Win32",
+            "defines": [
+                "ARDUINO=100",
+                "UBRRH",
+                "UBRR1H",
+                "UBRR2H",
+                "UBRR3H",
+                "UBRR4H",
+                "UBRR5H",
+                "UBRR6H"
+            ],
             "includePath": [
-                "D:\\Program Files (x86)\\Arduino\\tools\\**",
-                "D:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\**",
-                "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\**",
-                "C:\\Program Files (x86)\\Arduino\\tools\\**",
-                "${workspaceRoot}"
+                "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\cores\\arduino",
+                "C:\\Program Files (x86)\\Arduino\\hardware\\tools\\avr\\avr\\include",
+                "C:\\Program Files (x86)\\Arduino\\hardware\\tools\\avr\\lib\\gcc\\avr\\7.3.0\\include",
+                "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\variants\\mega",
+                "D:/My Documents/Arduino/libraries/Arduino-EEPROMEx-master",
+                "D:/My Documents/Arduino/libraries/Arduino-PID-Library-master",
+                "D:/My Documents/Arduino/libraries/EZTransfer",
+                "${workspaceFolder}"
             ],
             "forcedInclude": [
-                "D:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\cores\\arduino\\Arduino.h",
                 "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\cores\\arduino\\Arduino.h"
             ],
             "intelliSenseMode": "msvc-x64",
@@ -19,11 +31,11 @@
             "cppStandard": "c++17",
             "browse": {
                 "path": [
-                    "${workspaceRoot}",
-                    "D:\\Program Files (x86)\\Arduino\\tools\\**",
-                    "D:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\**",
-                    "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\**",
-                    "C:\\Program Files (x86)\\Arduino\\tools\\**"
+                    "${workspaceFolder}",
+                    "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\cores\\arduino",
+                    "C:\\Program Files (x86)\\Arduino\\hardware\\tools\\avr\\avr\\include",
+                    "C:\\Program Files (x86)\\Arduino\\hardware\\tools\\avr\\lib\\gcc\\avr\\7.3.0\\include",
+                    "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\variants\\mega"
                 ],
                 "limitSymbolsToIncludedHeaders": true
             }
