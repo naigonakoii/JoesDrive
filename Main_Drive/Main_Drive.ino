@@ -69,8 +69,12 @@ using NaigonBB8::Animations::GeneratedAnimationPercents;
 using NaigonBB8::Animations::IAnimation;
 using NaigonBB8::Animations::ScriptedAnimation;
 
+using Naigon::NECAudio::ISoundPlayer;
+using Naigon::NECAudio::SoundTypes;
+using Naigon::NECAudio::SoundMapper;
+using Naigon::NECAudio::WiredSoundPlayer;
+
 using NaigonBB8::MotorPWM;
-using NaigonBB8::SoundTypes;
 
 using Naigon::IO::AnalogInHandler;
 using Naigon::IO::ButtonHandler;
@@ -404,7 +408,7 @@ GeneratedAnimation headMovement(
     AnimationDomeMode::adEither,
     3 /* minNumAnimationSteps */,
     2 /* maxConcurentActions */,
-    NaigonBB8::SoundTypesNumTalking,
+    Naigon::NECAudio::SoundTypesNumTalking,
     8000 /* soundTimeout */,
     &currentResult);
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -533,7 +537,7 @@ GeneratedAnimation bank3Servo(
     AnimationDomeMode::adServo,
     4 /* minNumAnimationSteps */,
     4 /* maxConcurentActions */,
-    NaigonBB8::SoundTypesNumTalking,
+    Naigon::NECAudio::SoundTypesNumTalking,
     8000 /* soundTimeout */,
     &currentResult);
 
@@ -543,7 +547,7 @@ GeneratedAnimation bank3Spin(
     AnimationDomeMode::adSpin,
     4 /* minNumAnimationSteps */,
     4 /* maxConcurentActions */,
-    NaigonBB8::SoundTypesNumTalking,
+    Naigon::NECAudio::SoundTypesNumTalking,
     8000 /* soundTimeout */,
     &currentResult);
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -637,7 +641,7 @@ LinearEaseApplicator flywheelEaseApplicator(0.0, flywheelEase);
 //
 // Naigon - NEC Audio.
 //
-NaigonBB8::SoundMapper mapper(
+SoundMapper mapper(
     HappySoundPin,
     SadSoundPin,
     ExcitedSoundPin,
@@ -646,7 +650,7 @@ NaigonBB8::SoundMapper mapper(
     AgitatedSoundPin,
     PlayTrackPin,
     StopTrackPin);
-NaigonBB8::ISoundPlayer *soundPlayer;
+ISoundPlayer *soundPlayer;
 #endif
 
 SoundTypes forcedSoundType = SoundTypes::NotPlaying;
@@ -767,7 +771,7 @@ void setup()
     pinMode(StopTrackPin, OUTPUT);
 
     // Setup the soundPlayer as the one with a wired interface.
-    soundPlayer = new NaigonBB8::WiredSoundPlayer(mapper, 200);
+    soundPlayer = new WiredSoundPlayer(mapper, 200);
 #endif
 
     soundPlayer->ClearSounds();
