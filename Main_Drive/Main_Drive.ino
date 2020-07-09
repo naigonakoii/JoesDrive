@@ -217,6 +217,13 @@ struct AudioParams
 };
 AudioParams audio;
 
+struct PIDVals
+{
+    double input;
+    double setpoint;
+    double output;
+};
+
 // Define the AnimationRunner instance as external, as it will be actually instanciated in the Animations.ino file.
 extern AnimationRunner animationRunner;
 
@@ -226,10 +233,10 @@ ButtonHandler button1Handler(0 /* onVal */, 1000 /* heldDuration */);
 ButtonHandler button2Handler(0 /* onVal */, 1000 /* heldDuration */);
 ButtonHandler button3Handler(0 /* onVal */, 1000 /* heldDuration */);
 ButtonHandler button4Handler(0 /* onVal */, 1000 /* heldDuration */);
-ButtonHandler button5Handler(0 /* onVal */, 2000 /* heldDuration */);
-ButtonHandler button6Handler(0 /* onVal */, 2000 /* heldDuration */);
-ButtonHandler button7Handler(0 /* onVal */, 2000 /* heldDuration */);
-ButtonHandler button8Handler(0 /* onVal */, 2000 /* heldDuration */);
+ButtonHandler button5Handler(0 /* onVal */, 1000 /* heldDuration */);
+ButtonHandler button6Handler(0 /* onVal */, 1000 /* heldDuration */);
+ButtonHandler button7Handler(0 /* onVal */, 1000 /* heldDuration */);
+ButtonHandler button8Handler(0 /* onVal */, 1000 /* heldDuration */);
 
 // Naigon - Analog Input Refactor
 // Refactor code similar to ButtonHandler to have analog input handlers for joystick axis and pots.
@@ -314,62 +321,20 @@ unsigned long lastLoopMillis;
 
 int BTstate = 0;
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// PID1 is for side to side tilt
-// Naigon - MK3 Flywheel
-//
-// The following values need tuning if moving to the MK3 flywheel.
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-double Pk1 = 32.0; // Joe's 13
-double Ik1 = 0.0;
-// Naigon - Change this value from .3 to .1 or 0 to remove shakey side to side
-double Dk1 = 0.0;
-double Setpoint1, Input1, Output1;
+PIDVals s2sTiltVals;
+PID PID1(&s2sTiltVals.input, &s2sTiltVals.output, &s2sTiltVals.setpoint, Pk1, Ik1, Dk1, DIRECT);
 
-PID PID1(&Input1, &Output1, &Setpoint1, Pk1, Ik1, Dk1, DIRECT);
+PIDVals s2sServoVals;
+PID PID2(&s2sServoVals.input, &s2sServoVals.output, &s2sServoVals.setpoint, Pk2, Ik2, Dk2, DIRECT); // PID Setup - S2S stability
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// PID2 is for side to side servo
-// Naigon - MK3 Flywheel
-//
-// The following values need tuning if moving to the MK3 flywheel.
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-double Pk2 = 1.00; // Joe 0.5; M2 Flywheel .4
-double Ik2 = 0.00; // was .00
-double Dk2 = 0.01; // was .01
-double Setpoint2, Input2, Output2;
+PIDVals driveVals;
+PID PID3(&driveVals.input, &driveVals.output, &driveVals.setpoint, Pk3, Ik3, Dk3, DIRECT); // Main drive motor
 
-PID PID2(&Input2, &Output2, &Setpoint2, Pk2, Ik2, Dk2, DIRECT); // PID Setup - S2S stability
+PIDVals domeTiltVals;
+PID PID4(&domeTiltVals.input, &domeTiltVals.output, &domeTiltVals.setpoint, Pk4, Ik4, Dk4, DIRECT);
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//PID3 is for the main drive
-// Naigon - MK3 Flywheel
-//
-// The following values will need to be updated if doing the MK3 flywheel and adding the balancing weights.
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-double Pk3 = 5.0; // Joe 5.0;
-double Ik3 = 0;
-double Dk3 = 0;
-double Setpoint3, Input3, Output3;
-
-PID PID3(&Input3, &Output3, &Setpoint3, Pk3, Ik3, Dk3, DIRECT); // Main drive motor
-
-//PID4 is for dome tilt fwd/back
-// Naigon - adjust for pid dome tilt control
-double Pk4 = 6; // default is 6
-double Ik4 = 0;
-double Dk4 = 0.05;
-double Setpoint4, Input4, Output4;
-
-PID PID4(&Input4, &Output4, &Setpoint4, Pk4, Ik4, Dk4, DIRECT);
-
-double Setpoint5a;
-
-//PID5 is for the dome spin servo
-double Kp5 = 4, Ki5 = 0, Kd5 = 0;
-double Setpoint5, Input5, Output5;
-
-PID PID5(&Input5, &Output5, &Setpoint5, Kp5, Ki5, Kd5, DIRECT);
+PIDVals domeServoVals;
+PID PID5(&domeServoVals.input, &domeServoVals.output, &domeServoVals.setpoint, Pk5, Ik5, Dk5, DIRECT);
 
 // ================================================================
 // ===                      INITIAL SETUP                       ===
@@ -987,7 +952,7 @@ void movement()
 
     // Naigon - Animations
     // Stop forcing the head servo mode now that it is back into position.
-    if (drive.IsDomeCentering && abs(Output5) < 15) { drive.IsDomeCentering = false; }
+    if (drive.IsDomeCentering && abs(domeServoVals.output) < 15) { drive.IsDomeCentering = false; }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1005,16 +970,16 @@ void mainDrive(IEaseApplicator *easeApplicatorPtr)
     // When in wiggle/stationary mode, don't use the joystick to move at all.
     int joystickDrive = (int)driveStickPtr->GetMappedValue();
 
-    Setpoint3 = constrain(
+    driveVals.setpoint = constrain(
         easeApplicatorPtr->ComputeValueForCurrentIteration(joystickDrive),
         -MaxDrive,
         MaxDrive);
 
-    Input3 = (imu.Pitch() + offsets.PitchOffset()); // - domeOffset;
+    driveVals.input = (imu.Pitch() + offsets.PitchOffset()); // - domeOffset;
     // domeTiltOffset used to keep the ball from rolling when dome is tilted front/back
 
     PID3.Compute();
-    writeMotorPwm(drivePwm, Output3, 0 /*input*/, false /*requireBT*/, false /*requireMotorEnable*/);
+    writeMotorPwm(drivePwm, driveVals.output, 0 /*input*/, false /*requireBT*/, false /*requireMotorEnable*/);
 }
 
 // ------------------------------------------------------------------------------------
@@ -1031,25 +996,25 @@ void sideTilt(IEaseApplicator *easeApplicatorPtr)
     int joystickS2S = (int)sideToSideStickPtr->GetMappedValue();
 
     // Setpoint will increase/decrease by S2SEase each time the code runs until it matches the joystick. This slows the side to side movement.
-    Setpoint2 = constrain(
+    s2sServoVals.setpoint = constrain(
         easeApplicatorPtr->ComputeValueForCurrentIteration(joystickS2S),
         -MaxSideToSide,
         MaxSideToSide);
 
     int S2Spot = (int)sideToSidePotHandler.GetMappedValue();
-    Input2 = imu.Roll() + offsets.RollOffset();
+    s2sServoVals.input = imu.Roll() + offsets.RollOffset();
     
     PID2.Compute(); //PID2 is used to control the 'servo' control of the side to side movement.
 
-    Input1 = S2Spot + offsets.SideToSidePotOffset();
-    Setpoint1 = map(
-        constrain(Output2, -MaxSideToSide, MaxSideToSide),
+    s2sTiltVals.input = S2Spot + offsets.SideToSidePotOffset();
+    s2sTiltVals.setpoint = map(
+        constrain(s2sServoVals.output, -MaxSideToSide, MaxSideToSide),
         -MaxSideToSide,
         MaxSideToSide,
         MaxSideToSide,
         -MaxSideToSide);
     PID1.Compute(); //PID1 is for side to side stabilization
-    writeMotorPwm(sideToSidePWM, Output1, Input1, false /*requireBT*/, false /*requireMotorEnable*/);
+    writeMotorPwm(sideToSidePWM, s2sTiltVals.output, s2sTiltVals.input, false /*requireBT*/, false /*requireMotorEnable*/);
 }
 
 // ------------------------------------------------------------------------------------
@@ -1066,7 +1031,7 @@ void domeTilt(IEaseApplicator *easeApplicatorPtr)
     // speedDomeTilt offsets the dome based on the main drive to tilt it in the direction of movement.
     // Naigon - Dome Modes: Add the tilt based on the main stick if the mode uses tilt.
     double speedDomeTilt =
-        (Setpoint3 >= 3 || Setpoint3 <= -3)
+        (driveVals.setpoint >= 3 || driveVals.setpoint <= -3)
         && (bodyM == BodyMode::SlowWithTilt || bodyM == BodyMode::ServoWithTilt)
             ? (double)driveStickPtr->GetMappedValue() * (double)DomeTiltAmount / (double)driveSpeed
             : 0.0;
@@ -1096,12 +1061,12 @@ void domeTilt(IEaseApplicator *easeApplicatorPtr)
         -MaxDomeTiltAngle,
         MaxDomeTiltAngle); // Reading the stick for angle -40 to 40
 
-    Input4 = domeTiltPot + (imu.Pitch() + offsets.PitchOffset());
-    Setpoint4 = easeApplicatorPtr->ComputeValueForCurrentIteration(joystickDome);
-    Setpoint4 = constrain(Setpoint4, -MaxDomeTiltAngle, MaxDomeTiltAngle);
+    domeTiltVals.input = domeTiltPot + (imu.Pitch() + offsets.PitchOffset());
+    domeTiltVals.setpoint = easeApplicatorPtr->ComputeValueForCurrentIteration(joystickDome);
+    domeTiltVals.setpoint = constrain(domeTiltVals.setpoint, -MaxDomeTiltAngle, MaxDomeTiltAngle);
     PID4.Compute();
 
-    writeMotorPwm(headTiltPWM, Output4, domeTiltPot, false /*requireBT*/, false /*requireMotorEnable*/);
+    writeMotorPwm(headTiltPWM, domeTiltVals.output, domeTiltPot, false /*requireBT*/, false /*requireMotorEnable*/);
 }
 
 // ------------------------------------------------------------------------------------
@@ -1127,26 +1092,26 @@ void domeSpinServo(IEaseApplicator *easeApplicatorPtr)
 {
     int ch4Servo = (int)domeSpinStickPtr->GetMappedValue();
 
-    Input5 = sendToRemote.bodyDirection == Direction::Forward
+    domeServoVals.input = sendToRemote.bodyDirection == Direction::Forward
         ? (int)domeSpinPotHandler.GetMappedValue() + offsets.DomeSpinPotOffset() - 180
         : (int)domeSpinPotHandler.GetMappedValue() + offsets.DomeSpinPotOffset();
 
-    if (Input5 < -180)
+    if (domeServoVals.input < -180)
     {
-        Input5 += 360;
+        domeServoVals.input += 360;
     }
-    else if (Input5 > 180)
+    else if (domeServoVals.input > 180)
     {
-        Input5 -= 360;
+        domeServoVals.input -= 360;
     }
 
-    Setpoint5 = constrain(
+    domeServoVals.setpoint = constrain(
         easeApplicatorPtr->ComputeValueForCurrentIteration(ch4Servo),
         -MaxDomeSpinServo,
         MaxDomeSpinServo);
     PID5.Compute();
 
-    writeMotorPwm(domeServoPWM, Output5, 0, false /*requireBT*/, false /*requireMotorEnable*/);
+    writeMotorPwm(domeServoPWM, domeServoVals.output, 0, false /*requireBT*/, false /*requireMotorEnable*/);
 }
 
 // ------------------------------------------------------------------------------------
@@ -1217,21 +1182,21 @@ void setOffsetsAndSaveToEEPROM()
 void turnOffAllTheThings(bool includingDrive)
 {
     //disables all PIDS and movement. This is to avoid any sudden jerks when re-enabling motors.
-    Input2 = 0;
-    Setpoint2 = 0;
-    Output2 = 0;
-    Input1 = 0;
-    Setpoint1 = 0;
-    Output1 = 0;
-    Input4 = 0;
-    Setpoint4 = 0;
-    Output4 = 0;
+    s2sServoVals.input = 0;
+    s2sServoVals.setpoint = 0;
+    s2sServoVals.output = 0;
+    s2sTiltVals.input = 0;
+    s2sTiltVals.setpoint = 0;
+    s2sTiltVals.output = 0;
+    domeTiltVals.input = 0;
+    domeTiltVals.setpoint = 0;
+    domeTiltVals.output = 0;
 
     if (includingDrive)
     {
-        Input3 = 0;
-        Setpoint3 = 0;
-        Output3 = 0;
+        driveVals.input = 0;
+        driveVals.setpoint = 0;
+        driveVals.output = 0;
     }
 }
 
@@ -1240,8 +1205,8 @@ void turnOffAllTheThings(bool includingDrive)
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void autoDisableMotors()
 {
-    double output1A = abs(Output1);
-    double output3A = abs(Output3);
+    double output1A = abs(s2sTiltVals.output);
+    double output3A = abs(driveVals.output);
 
     if (
         !driveStickPtr->HasMovement()

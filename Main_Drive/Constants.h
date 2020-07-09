@@ -146,11 +146,13 @@
 
 // Naigon - Head Tilt Stabilization
 // Defines the number of points for the pitch and roll smoothing filter.
-// Higher values make movements much smoother, at the expense of a longer delay before the drive catches up to the actual value.
+// Higher values make movements much smoother, at the expense of a longer delay before the drive catches up to the
+// actual value.
 #define PitchAndRollFilterCount 4
 
 // Naigon - Head Tilt Stabilization
-// Proportional amount of the stabilization to apply to the head tilt. Higher value means it will respond quicker at the expense of more jerk.
+// Proportional amount of the stabilization to apply to the head tilt. Higher value means it will respond quicker at
+// the expense of more jerk.
 // Value should be between 0.0 and 1.0 inclusively.
 #define HeadTiltPitchAndRollProportion 0.8
 
@@ -208,8 +210,56 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-// =====================================================================================================================================================================================================
-// =====================================================================================================================================================================================================
+// ====================================================================================================================
+// PID constants
+// ====================================================================================================================
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// PID1 is for side to side tilt
+// Naigon - MK3 Flywheel
 //
+// The following values need tuning if moving to the MK3 flywheel.
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+const double Pk1 = 32.0; // Joe's 13
+const double Ik1 = 0.0;
+// Naigon - Change this value from .3 to .1 or 0 to remove shakey side to side
+const double Dk1 = 0.0;
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// PID2 is for side to side servo
+// Naigon - MK3 Flywheel
+//
+// The following values need tuning if moving to the MK3 flywheel.
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+const double Pk2 = 1.00; // Joe 0.5; M2 Flywheel .4
+const double Ik2 = 0.00; // was .00
+const double Dk2 = 0.01; // was .01
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// PID3 is for the main drive
+// Naigon - MK3 Flywheel
+//
+// The following values will need to be updated if doing the MK3 flywheel and adding the balancing weights.
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+const double Pk3 = 5.0; // Joe 5.0;
+const double Ik3 = 0;
+const double Dk3 = 0;
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// PID4 is for dome tilt fwd/back
+// Naigon - adjust for pid dome tilt control
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+const double Pk4 = 6; // default is 6
+const double Ik4 = 0;
+const double Dk4 = 0.05;
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// PID5 is for the dome spin servo
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+const double Pk5 = 4;
+const double Ik5 = 0;
+const double Dk5 = 0;
 
 #endif // __Constants_h_
