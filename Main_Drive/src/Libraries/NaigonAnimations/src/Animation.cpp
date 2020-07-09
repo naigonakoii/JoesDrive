@@ -28,16 +28,16 @@ AnimationStep::AnimationStep(
     int motorVals[],
     uint8_t numMotorVals,
     SoundId soundType,
-    AnimationDomeMode domeMode,
-    int millisOnState)
+    int millisOnState,
+    void *metadata)
     : _motorControlActions(motorVals)
     , _motorControlActionsSize(numMotorVals)
     , _soundType(soundType)
-    , _domeMode(domeMode)
     , _millisOnState(millisOnState)
+    , _metadata(metadata)
 { }
 
-AnimationDomeMode AnimationStep::GetDomeMode() const { return _domeMode; }
+void* AnimationStep::GetMetadata() const { return _metadata; }
 SoundId AnimationStep::GetSoundId() const { return _soundType; }
 int AnimationStep::GetMotorControlValue(uint8_t controlId) const { return _motorControlActions[controlId]; }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -195,7 +195,7 @@ GeneratedAnimationPercents::GeneratedAnimationPercents(
 GeneratedAnimation::GeneratedAnimation(
     AnimationTarget aTarget,
     GeneratedAnimationPercents *percents,
-    AnimationDomeMode domeMode,
+    void *metadata,
     uint8_t minNumAnimationSteps,
     uint8_t maxConcurentActions,
     uint8_t numSounds,
@@ -203,7 +203,7 @@ GeneratedAnimation::GeneratedAnimation(
     AnimationStep *initialStep)
     : _animationTarget(aTarget)
     , _percents(percents)
-    , _domeMode(domeMode)
+    , _metadata(metadata)
     , _minNumAnimationSteps(minNumAnimationSteps)
     , _maxConcurentActions(maxConcurentActions)
     , _numSounds(numSounds)
@@ -256,7 +256,7 @@ void GeneratedAnimation::AutoGenerateNextState()
     Clear();
 
     // Set to the dome mode of this class.
-    _currentResult->_domeMode = _domeMode;
+    _currentResult->_metadata = _metadata;
 
     uint8_t millisBucketIndex = weightedPercentBasedSelection(
         _percents->_msPercents,

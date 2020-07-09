@@ -63,13 +63,6 @@ class GeneratedAnimation;
 ///////////////////////////////////////////////////////////////////////////////////////
 typedef uint8_t SoundId;
 
-enum AnimationDomeMode
-{
-    adEither = 0,
-    adSpin = 1,
-    adServo = 2,
-};
-
 ///////////////////////////////////////////////////////////////////////////////////////
 // @summary Valid actions that the system can take. MotorControl is a special one;
 //          the end user should define a separate enum that further breaks down the
@@ -91,13 +84,42 @@ class AnimationStep
 public:
     ///////////////////////////////////////////////////////////////////////////////////
     // @summary Instantiate a new instance of the AnimationStep class.
+    //
+    // @param   motorVals
+    //          Array storage for the motor values. This array should be of size
+    //          numMotorVals. The index to semantic motor mapping is an external
+    //          responsibility of the caller.
+    //
+    //          For example, if the drive has a forward stick, turning stick, and head
+    //          spin, an array like the following would be passed in:
+    //
+    //              { 0, 0, 0, }
+    //
+    //          And externally an enum like the following could be constructed:
+    //
+    //              enum Mapping : uint8_t { Forward = 0, Turning, DomeSpin, }
+    //
+    // @param   numMotorVals
+    //          Number of motor values passed into this constructor.
+    //
+    // @param   soundType
+    //          Current sound id associated with this animation step.
+    //
+    // @param   millisOnState
+    //          Length of time in milliseconds in which this animation should be
+    //          applied.
+    //
+    // @param   metadata
+    //          Pointer to any external metadata related to this state. It is up to the
+    //          caller to recast back into the appropriate type. It is recommended to
+    //          use the same type for the entire program.
     ///////////////////////////////////////////////////////////////////////////////////
     AnimationStep(
         int motorVals[],
         uint8_t numMotorVals,
         SoundId soundType,
-        AnimationDomeMode domeMode,
-        int millisOnState);
+        int millisOnState,
+        void *metadata);
 
     ///////////////////////////////////////////////////////////////////////////////////
     // @summary Gets the current stick value for the specified motorId.
@@ -120,11 +142,11 @@ public:
     SoundId GetSoundId() const;
 
     ///////////////////////////////////////////////////////////////////////////////////
-    // @summary Gets the specified dome mode for the current animation step.
+    // @summary Gets the specified metadata for this step.
     //
-    // @ret     DomeMode requested for the current animation.
+    // @ret     Pointer to the metadata for this step.
     ///////////////////////////////////////////////////////////////////////////////////
-    AnimationDomeMode GetDomeMode() const;
+    void* GetMetadata() const;
 
 private:
     //
@@ -140,9 +162,9 @@ private:
     SoundId _soundType;
 
     //
-    // Which dome mode this animation
+    // Metadata pointer
     //
-    AnimationDomeMode _domeMode;
+    void *_metadata;
 
     // Milliseconds that this state is run for. After the time elapses, the next state
     // starts.
@@ -411,6 +433,11 @@ public:
     //          and the lengths for each animation, allowing non-uniform random
     //          distributions to define the generation.
     //
+    // @param   metadata
+    //          Metadata that will be associated with this animation. It is up to the
+    //          caller to sort out recasting back into the appropriate datatype. It is
+    //          recommended to use the same type for the entire program.
+    //
     // @param   minNumAnimationSteps
     //          Defines the minimum number of steps the animation should run before it
     //          can stop. Ignored if allowAutoStop is set to false.
@@ -438,7 +465,7 @@ public:
     GeneratedAnimation(
         AnimationTarget aTarget,
         GeneratedAnimationPercents *percents,
-        AnimationDomeMode domeMode,
+        void *metadata,
         uint8_t minNumAnimationSteps,
         uint8_t maxConcurentActions,
         uint8_t numSounds,
@@ -466,7 +493,7 @@ private:
     uint8_t _minNumAnimationSteps, _animationStepCount, _maxConcurentActions, _numSounds;
     bool _isRunning;
     AnimationStep *_currentResult;
-    AnimationDomeMode _domeMode;
+    void *_metadata;
     GeneratedAnimationPercents *_percents;
 };
 

@@ -36,6 +36,7 @@
 
 #include "Constants.h"
 #include "Enums.h"
+#include "Structs.h"
 
 //
 // These are my libraries. Currently I have them living in this project, but the correct way would also be to install
@@ -67,7 +68,6 @@
 //
 using namespace Naigon::Animations::AnimationConstants;
 using Naigon::Animations::AnimationAction;
-using Naigon::Animations::AnimationDomeMode;
 using Naigon::Animations::AnimationRunner;
 using Naigon::Animations::AnimationStep;
 using Naigon::Animations::AnimationTarget;
@@ -98,131 +98,15 @@ EasyTransfer RecRemote;
 EasyTransfer SendRemote;
 EasyTransfer RecIMU;
 
-struct RECEIVE_DATA_STRUCTURE_REMOTE
-{
-    int Joy1Y; //right joystick up/down
-    int Joy1X; //right joystick left/right
-    int Joy2Y; //left joystick up/down
-    int Joy2X; //left joystick left/right
-    int Joy3X; //back stick left/right
-    int Joy4X;
-    // but1 (stick 1) from Joe is selecting between dome servo and dome spin
-    // Naigon - this now cycles through the combined drive mode and dome mode.
-    uint8_t but1 = 1; //left select
-    // but2 from Joe is audio
-    // Naigon - button 2 press plays a happy/neutral sound. Holding plays a longer/sader sound
-    uint8_t but2 = 1; //left button 1
-    // but3 from Joe is audio
-    // Naigon - button 3 press starts music, and cycles tracks. Holding stops music.
-    uint8_t but3 = 1; //left button 2
-    // but4 from Joe is to trigger Body/dome lighting changes
-    // Naigon - Button 4 TBD
-    uint8_t but4 = 1; //left button 3
-    // but5 (stick 2) toggles fwd/rev
-    uint8_t but5 = 0; //right select (fwd/rev)
-    // but6 from Joe is for switching between drive speeds
-    // Naigon - Button 6 is now TBD.
-    uint8_t but6 = 1; //right button 1
-    // but7 from Joe is for body calibration only currently when holding
-    uint8_t but7 = 1; //right button 2
-    // but8 is for select only
-    uint8_t but8 = 1; //right button 3 (right select)
-    uint8_t motorEnable = 1;
-};
 RECEIVE_DATA_STRUCTURE_REMOTE recFromRemote;
-
-struct SEND_DATA_STRUCTURE_REMOTE
-{
-    double bodyBatt = 0.0;
-    double domeBattSend;
-    uint8_t bodyStatus = 0;
-    uint8_t bodyMode = 0;
-    uint8_t bodyDirection = 0;
-};
 SEND_DATA_STRUCTURE_REMOTE sendToRemote;
-
-struct RECEIVE_DATA_STRUCTURE_IMU
-{
-    float IMUloop;
-    float pitch;
-    float roll;
-};
 RECEIVE_DATA_STRUCTURE_IMU recIMUData;
 
-//
-// Dirve state
-// State consumed by the movement() method and each motor submethod
-//
-struct DriveState
-{
-    // Naigon - Stationary/Wiggle Mode
-    // Setting this to true will put the drive in wiggle mode.
-    bool IsStationary = false;
-
-    // Setting this will force the dome into servo mode just until the head is centered. This resets animations.
-    bool IsDomeCentering = false;
-
-    // Joe - Dome servo or normal mode (was int servoMode in Joe's code)
-    DomeMode CurrentDomeMode = DomeMode::FullSpinMode;
-
-    // Joe - Allow motors to power down if droid is sitting still.
-    bool AutoDisable;
-};
 DriveState drive;
-
-//
-// Naigon - Animations
-// State consumed by the runAnimations() method.
-//
-struct AnimationStateVars
-{
-    // Indicates if the drive is in an automated mode; all modes can run automation via a button press, but in an
-    // automated mode the animation is run continuously while driving around.
-    bool IsAutomation = false;
-
-    // Indicates if any animation is running. This is needed to know when to force the drive into Servo mode when the
-    // animationRunner indicates an animation has stopped.
-    bool IsAnimationRunning = false;
-
-    // Animations can specify if they are specific for dome spin, dome servo, or if it does not matter. Mark it here
-    // so that the mode selection logic can choose the appropriate value.
-    AnimationDomeMode AnimatedDomeMode;
-};
 AnimationStateVars animation;
-
-//
-// State that is used by the auto disable method that needs to persist over multiple loop() calls.
-//
-struct AutoDisableState
-{
-    unsigned long autoDisableMotorsMillis = 0;
-    int autoDisableDoubleCheck;
-    unsigned long autoDisableDoubleCheckMillis = 0;
-    bool forcedMotorEnable = false;
-    bool isAutoDisabled = true;
-};
 AutoDisableState autoDisable;
-
-//
-// Joe's Audio Player
-//
-struct AudioParams
-{
-    int readPinState = 1;
-    int randSoundPin;
-    int soundState;
-    int musicState;
-    unsigned long musicStateMillis = 0;
-    int soundPins[4] = { soundpin1, soundpin2, soundpin3, soundpin4 };
-};
 AudioParams audio;
 
-struct PIDVals
-{
-    double input;
-    double setpoint;
-    double output;
-};
 
 // Define the AnimationRunner instance as external, as it will be actually instanciated in the Animations.ino file.
 extern AnimationRunner animationRunner;
@@ -745,7 +629,8 @@ void updateAnimations()
         forcedSoundType = (SoundTypes)(((int8_t)aStep->GetSoundId()) - 1);
 
         // Set the dome mode this animation requires.
-        animation.AnimatedDomeMode = aStep->GetDomeMode();
+        // TODO - Refactor animations to not have DomeMode, but a pointer to state.
+        animation.AnimatedDomeMode = *static_cast<DomeMode*>(aStep->GetMetadata());
     }
     else if (animation.IsAnimationRunning)
     {
@@ -925,13 +810,9 @@ void movement()
     // Naigon - Animation
     // Animation can override the dome spin mode.
     //
-    DomeMode currentDomeMode = drive.CurrentDomeMode;
-    if (animationRunner.IsRunning() && animation.AnimatedDomeMode != AnimationDomeMode::adEither)
-    {
-        currentDomeMode = animation.AnimatedDomeMode == AnimationDomeMode::adServo
-            ? DomeMode::ServoMode
-            : DomeMode::FullSpinMode;
-    }
+    DomeMode currentDomeMode = animationRunner.IsRunning() && animation.AnimatedDomeMode != DomeMode::UnspecifiedDomeSpin
+        ? animation.AnimatedDomeMode
+        : drive.CurrentDomeMode;
 
     if ((currentDomeMode == DomeMode::ServoMode || drive.IsDomeCentering)
         && !drive.AutoDisable

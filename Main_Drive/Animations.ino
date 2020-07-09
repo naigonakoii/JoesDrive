@@ -43,7 +43,6 @@
 //
 using namespace Naigon::Animations::AnimationConstants;
 using Naigon::Animations::AnimationAction;
-using Naigon::Animations::AnimationDomeMode;
 using Naigon::Animations::AnimationRunner;
 using Naigon::Animations::AnimationStep;
 using Naigon::Animations::AnimationTarget;
@@ -84,15 +83,21 @@ const uint16_t stickLRVals[] =
     RightFull,
 };
 
+DomeMode eitherDome = DomeMode::UnspecifiedDomeSpin;
+DomeMode fullSpinDome = DomeMode::FullSpinMode;
+DomeMode servoDome = DomeMode::ServoMode;
+
 // Default result that should be passed into all ScriptedAnimation instances.
 // -------------------   | Drive   | S2S     | TiltFB  | TiltLR  | Spin    | Flywheel
 int defaultStickVals[] = { Centered, Centered, Centered, Centered, Centered, Centered, };
-AnimationStep defaultResult(defaultStickVals, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adEither, 0);
+DomeMode defaultDomeMode = DomeMode::UnspecifiedDomeSpin;
+AnimationStep defaultResult(defaultStickVals, 6, SoundTypes::NotPlaying + 1, 0, &defaultDomeMode);
 
 // Memory space that should be passed into all generated animations
 // -------------------   | Drive   | S2S     | TiltFB  | TiltLR  | Spin    | Flywheel
 int initialStickVals[] = { Centered, Centered, Centered, Centered, Centered, Centered, };
-AnimationStep currentResult(initialStickVals, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adEither, 0);
+DomeMode currentDomeMode = DomeMode::UnspecifiedDomeSpin;
+AnimationStep currentResult(initialStickVals, 6, SoundTypes::NotPlaying + 1, 0, &currentDomeMode);
 
 // Array of all motor control Ids that use front/reverse stick.
 const uint8_t frStickMotorControlIds[] = { MotorControlId::idDomeTiltFR, };
@@ -147,7 +152,7 @@ GeneratedAnimationPercents domeAnimationPercents(
 GeneratedAnimation headMovement(
     AnimationTarget::Bank1,
     &domeAnimationPercents,
-    AnimationDomeMode::adEither,
+    &eitherDome,
     3 /* minNumAnimationSteps */,
     2 /* maxConcurentActions */,
     Naigon::NECAudio::SoundTypesNumTalking,
@@ -167,13 +172,13 @@ int bank2A1Step04[6] = { Centered, Centered, ForwardFull, Centered, RightHalf, C
 int bank2A1Step05[6] = { Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, };
 int bank2A1Step06[6] = { Centered, Centered, ForwardHalf, Centered, Centered,  Centered, };
 AnimationStep tiltHeadAndLookBothWays1State[] = {
-    // --------- MotorVals | nVal | SoundId                   | AnimationDomeMode        |   MS
-    AnimationStep(bank2A1Step01, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adSpin, 250),
-    AnimationStep(bank2A1Step02, 6, SoundTypes::Excited + 1,    AnimationDomeMode::adSpin,   0),
-    AnimationStep(bank2A1Step03, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adSpin, 200),
-    AnimationStep(bank2A1Step04, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adSpin, 500),
-    AnimationStep(bank2A1Step05, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adSpin, 500),
-    AnimationStep(bank2A1Step06, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adSpin, 100),
+    // --------- MotorVals | nVal | SoundId                   | MS | Metadata
+    AnimationStep(bank2A1Step01, 6, SoundTypes::NotPlaying + 1, 250, &servoDome),
+    AnimationStep(bank2A1Step02, 6, SoundTypes::Excited + 1,      0, &servoDome),
+    AnimationStep(bank2A1Step03, 6, SoundTypes::NotPlaying + 1, 200, &servoDome),
+    AnimationStep(bank2A1Step04, 6, SoundTypes::NotPlaying + 1, 500, &servoDome),
+    AnimationStep(bank2A1Step05, 6, SoundTypes::NotPlaying + 1, 500, &servoDome),
+    AnimationStep(bank2A1Step06, 6, SoundTypes::NotPlaying + 1, 100, &servoDome),
 };
 ScriptedAnimation tiltHeadAndLookBothWays1(AnimationTarget::Bank2, 6, &defaultResult, tiltHeadAndLookBothWays1State);
 
@@ -188,16 +193,16 @@ int bank2A2Step07[6] = { Centered, Centered, ReverseFull, Centered, LeftTwoThird
 int bank2A2Step08[6] = { Centered, Centered, ForwardFull, Centered, LeftTwoThirds, Centered, };
 int bank2A2Step09[6] = { Centered, Centered, ReverseFull, Centered, LeftTwoThirds, Centered, };
 AnimationStep tiltHeadOppositeWays1State[] = {
-    // --------- MotorVals | nVal | SoundId                   | AnimationDomeMode         |   MS
-    AnimationStep(bank2A2Step01, 6, SoundTypes::Chatty + 1,     AnimationDomeMode::adServo,   0),
-    AnimationStep(bank2A2Step02, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adServo, 500),
-    AnimationStep(bank2A2Step03, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adServo, 500),
-    AnimationStep(bank2A2Step04, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adServo, 500),
-    AnimationStep(bank2A2Step05, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adServo, 500),
-    AnimationStep(bank2A2Step06, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adServo, 500),
-    AnimationStep(bank2A2Step07, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adServo, 500),
-    AnimationStep(bank2A2Step08, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adServo, 500),
-    AnimationStep(bank2A2Step09, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adServo, 500),
+    // --------- MotorVals | nVal | SoundId                   | MS | Metadata
+    AnimationStep(bank2A2Step01, 6, SoundTypes::Chatty + 1,       0, &servoDome),
+    AnimationStep(bank2A2Step02, 6, SoundTypes::NotPlaying + 1, 500, &servoDome),
+    AnimationStep(bank2A2Step03, 6, SoundTypes::NotPlaying + 1, 500, &servoDome),
+    AnimationStep(bank2A2Step04, 6, SoundTypes::NotPlaying + 1, 500, &servoDome),
+    AnimationStep(bank2A2Step05, 6, SoundTypes::NotPlaying + 1, 500, &servoDome),
+    AnimationStep(bank2A2Step06, 6, SoundTypes::NotPlaying + 1, 500, &servoDome),
+    AnimationStep(bank2A2Step07, 6, SoundTypes::NotPlaying + 1, 500, &servoDome),
+    AnimationStep(bank2A2Step08, 6, SoundTypes::NotPlaying + 1, 500, &servoDome),
+    AnimationStep(bank2A2Step09, 6, SoundTypes::NotPlaying + 1, 500, &servoDome),
 };
 ScriptedAnimation tiltHeadOppositeWays1(AnimationTarget::Bank2, 9, &defaultResult, tiltHeadOppositeWays1State);
 
@@ -207,9 +212,9 @@ ScriptedAnimation tiltHeadOppositeWays1(AnimationTarget::Bank2, 9, &defaultResul
 int bank2A3Step01[6] = { Centered, Centered, Centered, Centered, LeftHalf,  LeftFull, };
 int bank2A3Step02[6] = { Centered, Centered, Centered, Centered, RightFull, RightFull, };
 AnimationStep flywheelSpin1State[] = {
-    // --------- MotorVals | nVal | SoundId                   | AnimationDomeMode        |   MS
-    AnimationStep(bank2A3Step01, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adSpin,  500),
-    AnimationStep(bank2A3Step02, 6, SoundTypes::NotPlaying + 1, AnimationDomeMode::adSpin, 3000),
+    // --------- MotorVals | nVal | SoundId                   | MS  | Metadata
+    AnimationStep(bank2A3Step01, 6, SoundTypes::NotPlaying + 1,  500, &fullSpinDome),
+    AnimationStep(bank2A3Step02, 6, SoundTypes::NotPlaying + 1, 3000, &fullSpinDome),
 };
 ScriptedAnimation flywheelSpin1(AnimationTarget::Bank2, 2, &defaultResult, flywheelSpin1State);
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -297,7 +302,7 @@ GeneratedAnimationPercents bank3ServoPercents(
 GeneratedAnimation bank3Servo(
     AnimationTarget::Bank3,
     &bank3ServoPercents,
-    AnimationDomeMode::adServo,
+    &servoDome,
     4 /* minNumAnimationSteps */,
     4 /* maxConcurentActions */,
     Naigon::NECAudio::SoundTypesNumTalking,
@@ -307,7 +312,7 @@ GeneratedAnimation bank3Servo(
 GeneratedAnimation bank3Spin(
     AnimationTarget::Bank3,
     &bank3Percents,
-    AnimationDomeMode::adSpin,
+    &fullSpinDome,
     4 /* minNumAnimationSteps */,
     2 /* maxConcurentActions */,
     Naigon::NECAudio::SoundTypesNumTalking,
@@ -379,7 +384,7 @@ GeneratedAnimationPercents bank4Percents(
 GeneratedAnimation bank4Servo(
     AnimationTarget::Bank4,
     &bank4Percents,
-    AnimationDomeMode::adServo,
+    &servoDome,
     4 /* minNumAnimationSteps */,
     4 /* maxConcurentActions */,
     Naigon::NECAudio::SoundTypesNumTalking,
@@ -389,7 +394,7 @@ GeneratedAnimation bank4Servo(
 GeneratedAnimation bank4Spin(
     AnimationTarget::Bank4,
     &bank4Percents,
-    AnimationDomeMode::adSpin,
+    &fullSpinDome,
     4 /* minNumAnimationSteps */,
     3 /* maxConcurentActions */,
     Naigon::NECAudio::SoundTypesNumTalking,

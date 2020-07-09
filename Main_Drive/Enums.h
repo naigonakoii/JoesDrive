@@ -57,8 +57,9 @@ enum Direction : uint8_t
 // The following dome modes are inferred from the BodyMode.
 enum DomeMode : uint8_t
 {
-    FullSpinMode = 0,
-    ServoMode = 1,
+    UnspecifiedDomeSpin = 0,
+    FullSpinMode = 1,
+    ServoMode = 2,
 };
 
 //
