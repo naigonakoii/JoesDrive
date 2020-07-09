@@ -99,33 +99,34 @@ EasyTransfer RecIMU;
 
 struct RECEIVE_DATA_STRUCTURE_REMOTE
 {
-    int ch1; //right joystick up/down
-    int ch2; //right joystick left/right
-    int ch3; //left joystick up/down
-    int ch4; //left joystick left/right
-    int ch5; //back stick left/right
+    int Joy1Y; //right joystick up/down
+    int Joy1X; //right joystick left/right
+    int Joy2Y; //left joystick up/down
+    int Joy2X; //left joystick left/right
+    int Joy3X; //back stick left/right
+    int Joy4X;
     // but1 (stick 1) from Joe is selecting between dome servo and dome spin
     // Naigon - this now cycles through the combined drive mode and dome mode.
-    int but1 = 1; //left select
+    uint8_t but1 = 1; //left select
     // but2 from Joe is audio
     // Naigon - button 2 press plays a happy/neutral sound. Holding plays a longer/sader sound
-    int but2 = 1; //left button 1
+    uint8_t but2 = 1; //left button 1
     // but3 from Joe is audio
     // Naigon - button 3 press starts music, and cycles tracks. Holding stops music.
-    int but3 = 1; //left button 2
+    uint8_t but3 = 1; //left button 2
     // but4 from Joe is to trigger Body/dome lighting changes
     // Naigon - Button 4 TBD
-    int but4 = 1; //left button 3
+    uint8_t but4 = 1; //left button 3
     // but5 (stick 2) toggles fwd/rev
-    int but5 = 0; //right select (fwd/rev)
+    uint8_t but5 = 0; //right select (fwd/rev)
     // but6 from Joe is for switching between drive speeds
     // Naigon - Button 6 is now TBD.
-    int but6 = 1; //right button 1
+    uint8_t but6 = 1; //right button 1
     // but7 from Joe is for body calibration only currently when holding
-    int but7 = 1; //right button 2
+    uint8_t but7 = 1; //right button 2
     // but8 is for select only
-    int but8 = 1; //right button 3 (right select)
-    int motorEnable = 1;
+    uint8_t but8 = 1; //right button 3 (right select)
+    uint8_t motorEnable = 1;
 };
 RECEIVE_DATA_STRUCTURE_REMOTE recFromRemote;
 
@@ -215,7 +216,7 @@ struct AudioParams
 };
 AudioParams audio;
 
-
+// Define the AnimationRunner instance as external, as it will be actually instanciated in the Animations.ino file.
 extern AnimationRunner animationRunner;
 
 // Naigon - Button Handling
@@ -301,6 +302,7 @@ SoundTypes forcedSoundType = SoundTypes::NotPlaying;
 // For the voltage divider.
 float R1 = resistor1;
 float R2 = resistor2;
+unsigned long lastBatteryUpdate;
 
 // Drive motor
 int driveSpeed;
@@ -471,7 +473,6 @@ void loop()
 
         updateAnimations();
         handleSounds();
-        psiVal();
         readVin();
 
         bodyCalib();
@@ -498,19 +499,14 @@ void sendAndReceive()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// PSI Value
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void psiVal()
-{
-    // Naigon - Method not needed since dome communicates via XBee to audio sub-board currently.
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Read voltage in
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void readVin()
 {
-    sendToRemote.bodyBatt = ((analogRead(battMonitor) * outputVoltage) / 1024.0) / (R2 / (R1 + R2));
+    if(millis() - lastBatteryUpdate >= 15000){
+      lastBatteryUpdate = millis();
+      sendToRemote.bodyBatt = ((analogRead(battMonitor) * outputVoltage) / 1024.0) / (R2 / (R1 + R2));
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -566,11 +562,11 @@ void updateInputHandlers()
     }
     else
     {
-        dr = drive.IsStationary ? 255 : recFromRemote.ch1;
-        s = animation.IsAutomation ? recFromRemote.ch4 : recFromRemote.ch2;
-        dt = animation.IsAutomation ? 255 : recFromRemote.ch3;
-        ds = animation.IsAutomation ? 255 : recFromRemote.ch4;
-        fl = drive.IsStationary ? recFromRemote.ch1 : recFromRemote.ch5;
+        dr = drive.IsStationary ? 255 : recFromRemote.Joy1Y;
+        s = animation.IsAutomation ? recFromRemote.Joy2X : recFromRemote.Joy1X;
+        dt = animation.IsAutomation ? 255 : recFromRemote.Joy2Y;
+        ds = animation.IsAutomation ? 255 : recFromRemote.Joy2X;
+        fl = drive.IsStationary ? recFromRemote.Joy1X : recFromRemote.Joy3X;
     }
 
     // Joysticks

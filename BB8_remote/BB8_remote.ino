@@ -82,20 +82,21 @@ enum Direction : uint8_t
 
 struct SEND_DATA_STRUCTURE
 {
-    int ch1;         // main drive
-    int ch2;         // tilt / steer
-    int ch3;         // head tilt
-    int ch4;         // head spin
-    int ch5;         // spin Flywheel
-    int but1;        // Select on left joystick
-    int but2;        // left 1
-    int but3;        // left 2
-    int but4;        // left3
-    int but5;        // Select on right joystick
-    int but6;        // right 1
-    int but7;        // right 2
-    int but8;        // right 3
-    int motorEnable; //toggle on top
+    int Joy1Y;       // main drive
+    int Joy1X;       // tilt / steer
+    int Joy2Y;       // head tilt
+    int Joy2X;       // head spin
+    int Joy3X;       // spin Flywheel
+    int Joy4X;       // unused for single remote
+    uint8_t but1;        // Select on left joystick
+    uint8_t but2;        // left 1
+    uint8_t but3;        // left 2
+    uint8_t but4;        // left3
+    uint8_t but5;        // Select on right joystick
+    uint8_t but6;        // right 1
+    uint8_t but7;        // right 2
+    uint8_t but8;        // right 3
+    uint8_t motorEnable; //toggle on top
 };
 
 struct RECEIVE_DATA_STRUCTURE
@@ -549,41 +550,41 @@ void readInputs()
 
     if (recFromBody.bodyDirection == Direction::Reverse)
     {
-        sendToBody.ch1 = map(ch1b, 0, 512, 512, 0);
-        sendToBody.ch2 = map(ch2b, 0, 512, 512, 0);
-        sendToBody.ch3 = map(ch3b, 0, 512, 512, 0);
+        sendToBody.Joy1Y = map(ch1b, 0, 512, 512, 0);
+        sendToBody.Joy1X = map(ch2b, 0, 512, 512, 0);
+        sendToBody.Joy2Y = map(ch3b, 0, 512, 512, 0);
     }
     else
     {
-        sendToBody.ch1 = ch1b;
-        sendToBody.ch2 = ch2b;
-        sendToBody.ch3 = ch3b;
+        sendToBody.Joy1Y = ch1b;
+        sendToBody.Joy1X = ch2b;
+        sendToBody.Joy2Y = ch3b;
     }
 
     if (ch4a == ch4Center)
     {
-        sendToBody.ch4 = 256;
+        sendToBody.Joy2X = 256;
     }
     else if (ch4a > ch4Center)
     {
-        sendToBody.ch4 = map(ch4a, ch4Center, 1023, 255, 0);
+        sendToBody.Joy2X = map(ch4a, ch4Center, 1023, 255, 0);
     }
     else if (ch4a < ch4Center)
     {
-        sendToBody.ch4 = map(ch4a, 0, ch4Center, 512, 257);
+        sendToBody.Joy2X = map(ch4a, 0, ch4Center, 512, 257);
     }
 
     if (ch5a == ch5Center)
     {
-        sendToBody.ch5 = 256;
+        sendToBody.Joy3X = 256;
     }
     else if (ch5a > ch5Center)
     {
-        sendToBody.ch5 = constrain(map(ch5a, ch5Center, 780, 255, 0), 0, 512);
+        sendToBody.Joy3X = constrain(map(ch5a, ch5Center, 780, 255, 0), 0, 512);
     }
     else if (ch5a < ch5Center)
     {
-        sendToBody.ch5 = constrain(map(ch5a, 140, ch5Center, 512, 257), 0, 512);
+        sendToBody.Joy3X = constrain(map(ch5a, 140, ch5Center, 512, 257), 0, 512);
     }
 
     if (sendToBody.but8 == 0 && sendToBody.but7 == 0)
