@@ -83,11 +83,14 @@
 // Ease values from Joe. Modify these to increase/decrease the quickness of motor movements.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define flywheelEase 6 // Speed in which flywheel will increase/decrease during gradual movements
+#define flywheelEase 6         // Speed in which flywheel will increase/decrease during gradual movements
 // S2SEase from Joe: 1.5
-#define S2SEase 0.5         // Speed in which side to side moves. Higher number equates to faster movement
-#define easeDome 20        // Lower number means more easing when spinning
-#define easeDomeTilt 3.2   // Lower number means more easing when moving forward and back a.k.a. slower
+#define S2SEase 0.5            // Speed in which side to side moves. Higher number equates to faster movement
+#define easeDome  8.0          // Lower number means more easing when spinning
+#define easeDomeAuto 6.0       // Less agressive ease for automations which are faster than physical sticks.
+#define easeDomeServo 4.0      // Speed for dome spin in servo mode
+#define easeDomeServoAuto 1.5  // Less agressive ease for automations which are faster than physical sticks.
+#define easeDomeTilt 3.2       // Lower number means more easing when moving forward and back a.k.a. slower
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 

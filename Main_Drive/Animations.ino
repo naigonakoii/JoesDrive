@@ -109,19 +109,19 @@ const AnimationAction domeActions[] = {
 
 const uint16_t domeActPer[] =
 {
-    55, // Play Sound
-    45, // Remaining MotorControl
+    67, // Play Sound
+    33, // Remaining MotorControl
 };
 
 const uint8_t domeMotorControls[] = { MotorControlId::idDomeSpin, MotorControlId::idDomeTiltFR, };
 const uint16_t domeMotorControlPer[] = {                      60,                           40, };
 
-const uint16_t millisVals[] = { 100, 250, 350, 500, 750, 1000, };
-const uint16_t millisPer[]  = {  10,  20,  20,  25,  15,   10, };
+const uint16_t millisVals[] = { 250, 350, 500, 750, 1000, 1250 };
+const uint16_t millisPer[]  = {  10,  10,  30,  20,   20,   10};
 
-const uint16_t percentDomeStickLR[] { 8, 12,  15, 15, 15, 15, 12, 8, };
+const uint16_t percentDomeStickLR[] { 3, 12, 25, 10, 10, 25, 12, 3, };
 
-const uint16_t percentDomeStickFR[] { 35, 25, 15, 5, 5, 5, 5, 5, };
+const uint16_t percentDomeStickFR[] { 15, 35, 25, 5, 5, 5, 5, 5, };
 
 GeneratedAnimationPercents domeAnimationPercents(
     domeActions,
@@ -242,15 +242,16 @@ const uint16_t bank3MotorControlPer[] =
 {
     38, // Dome Spin
     37, // Tilt Dome
-    25, // Flywheel
+    15, // Flywheel
 };
 
-const uint16_t bank3MillisVals[] = { 100, 250, 350, 500, 750, 1000, 1500, };
-const uint16_t bank3MillisPer[]  = {  7,   18,  20,  25,  15,   10,    5, };
+const uint16_t bank3MillisVals[] = { 250, 350, 500, 750, 1000, 1250, 1500, };
+const uint16_t bank3MillisPer[]  = {   4,  12,  24,  24,   18,   12,    5, };
 
 const uint16_t bank3PercentDomeStickLR[] { 0, 12,  18, 20, 20, 18, 12, 0, };
+const uint16_t bank3PercentDomeServoLR[] { 12, 12, 16, 10, 10, 16, 12, 12, };
 
-const uint16_t bank3PercentDomeStickFR[] { 35, 25, 15, 5, 5, 5, 5, 5, };
+const uint16_t bank3PercentDomeStickFR[] { 10, 40, 25, 5, 5, 5, 5, 5, };
 
 GeneratedAnimationPercents bank3Percents(
     bank3DomeActions,
@@ -272,10 +273,30 @@ GeneratedAnimationPercents bank3Percents(
     frStickMotorControlIdsSize,
     15 /* pausePercent */);
 
+GeneratedAnimationPercents bank3ServoPercents(
+    bank3DomeActions,
+    bank3DomeActPer,
+    3 /* actionSize */,
+    bank3MotorControlIds,
+    bank3MotorControlPer,
+    3 /* motorControlSize */,
+    bank3MillisVals,
+    bank3MillisPer,
+    7 /* msSize */,
+    stickFRVals,
+    bank3PercentDomeStickFR,
+    8 /* frStickSize */,
+    stickLRVals,
+    bank3PercentDomeServoLR,
+    8 /* lrStickSize */,
+    frStickMotorControlIds,
+    frStickMotorControlIdsSize,
+    15 /* pausePercent */);
+
 // Since moving just the head is pretty basic, going with full generation here to save variable space.
 GeneratedAnimation bank3Servo(
     AnimationTarget::Bank3,
-    &bank3Percents,
+    &bank3ServoPercents,
     AnimationDomeMode::adServo,
     4 /* minNumAnimationSteps */,
     4 /* maxConcurentActions */,
@@ -288,7 +309,7 @@ GeneratedAnimation bank3Spin(
     &bank3Percents,
     AnimationDomeMode::adSpin,
     4 /* minNumAnimationSteps */,
-    4 /* maxConcurentActions */,
+    2 /* maxConcurentActions */,
     Naigon::NECAudio::SoundTypesNumTalking,
     8000 /* soundTimeout */,
     &currentResult);
@@ -307,8 +328,8 @@ const AnimationAction bank4DomeActions[] = {
 const uint16_t bank4DomeActPer[] =
 {
     20, // End animation
-    40, // Play Sound
-    40, // Motor Control
+    47, // Play Sound
+    33, // Motor Control
 };
 
 const uint8_t bank4MotorControlIds[] =
@@ -327,8 +348,8 @@ const uint16_t bank4MotorControlPer[] =
     20, // Side to Side
 };
 
-const uint16_t bank4MillisVals[] = { 100, 250, 350, 500, 750, 1000, 1500, };
-const uint16_t bank4MillisPer[]  = {  7,   18,  20,  25,  15,   10,    5, };
+const uint16_t bank4MillisVals[] = { 250, 350, 500, 750, 1000, 1200, 1500, };
+const uint16_t bank4MillisPer[]  = {   5,  15,  25,  25,   15,   10,    5, };
 
 const uint16_t bank4PercentDomeStickLR[] { 4, 14,  16, 16, 16, 16, 14, 4, };
 
@@ -370,7 +391,7 @@ GeneratedAnimation bank4Spin(
     &bank4Percents,
     AnimationDomeMode::adSpin,
     4 /* minNumAnimationSteps */,
-    4 /* maxConcurentActions */,
+    3 /* maxConcurentActions */,
     Naigon::NECAudio::SoundTypesNumTalking,
     8000 /* soundTimeout */,
     &currentResult);

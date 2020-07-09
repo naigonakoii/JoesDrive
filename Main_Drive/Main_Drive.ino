@@ -91,6 +91,7 @@ using Naigon::IO::ButtonState;
 
 using Naigon::Util::FunctionEaseApplicator;
 using Naigon::Util::FunctionEaseApplicatorType;
+using Naigon::Util::IEaseApplicator;
 using Naigon::Util::LinearEaseApplicator;
 
 EasyTransfer RecRemote;
@@ -271,10 +272,12 @@ FunctionEaseApplicator driveApplicatorWiggle(0.0, 5.0, 0.1, FunctionEaseApplicat
 FunctionEaseApplicator *driveApplicatorPtr = &driveApplicatorSlow;
 FunctionEaseApplicator sideToSideEaseApplicator(0.0, MaxSideToSide, S2SEase, FunctionEaseApplicatorType::SCurve);
 FunctionEaseApplicator domeTiltEaseApplicator(0.0, MaxDomeTiltAngle, easeDomeTilt, FunctionEaseApplicatorType::SCurve);
-FunctionEaseApplicator domeServoEaseApplicator(0.0, MaxDomeSpinServo, 5, FunctionEaseApplicatorType::SCurve);
-// Naigon - Ease Applicator: motors/modes where it free spins use the normal linear applicator.
-LinearEaseApplicator domeSpinEaseApplicator(0.0, easeDome);
+FunctionEaseApplicator domeServoEaseApplicator(0.0, MaxDomeSpinServo, easeDomeServo, FunctionEaseApplicatorType::SCurve);
+FunctionEaseApplicator domeSpinEaseApplicator(0.0, 255, easeDome, FunctionEaseApplicatorType::SCurve);
 LinearEaseApplicator flywheelEaseApplicator(0.0, flywheelEase);
+// Use different dome spin ease under automation to prevent it from being to jerky which can cause the head to pop loose.
+FunctionEaseApplicator automatedDomeSpinEaseApplicator(0.0, 255, easeDomeAuto, FunctionEaseApplicatorType::Quadratic);
+FunctionEaseApplicator automatedDomeServoEaseApplicator(0.0, MaxDomeSpinServo, easeDomeServoAuto, FunctionEaseApplicatorType::Quadratic);
 
 ImuProMini imu;
 Offsets offsets;
@@ -937,16 +940,16 @@ void movement()
             // Naigon - Safe Mode
             // Only move the main drive as s2s and dome could be compromised (flywheel unneeded).
             // The active stabilization will allow pushing the ball to the desired orientation for access.
-            mainDrive();
+            mainDrive(driveApplicatorPtr);
             turnOffAllTheThings(false /*disableDrive*/);
         }
         else
         {
             // Normal modes do all the things.
-            sideTilt();
-            mainDrive();
-            domeTilt();
-            flywheelSpin();
+            sideTilt(&sideToSideEaseApplicator);
+            mainDrive(driveApplicatorPtr);
+            domeTilt(&domeTiltEaseApplicator);
+            flywheelSpin(&flywheelEaseApplicator);
         }
     }
     else
@@ -969,11 +972,17 @@ void movement()
         && !drive.AutoDisable
         && recFromRemote.motorEnable == 0)
     {
-        domeSpinServo();
+        IEaseApplicator *domeEaseApplicatorPtr = animationRunner.IsRunning() || drive.IsDomeCentering
+            ? &automatedDomeServoEaseApplicator
+            : &domeServoEaseApplicator;
+        domeSpinServo(domeEaseApplicatorPtr);
     }
     else if (currentDomeMode == DomeMode::FullSpinMode || drive.AutoDisable || recFromRemote.motorEnable == 1)
     {
-        domeSpin();
+        IEaseApplicator *domeEaseApplicatorPtr = animationRunner.IsRunning() && recFromRemote.motorEnable == 0
+            ? &automatedDomeSpinEaseApplicator
+            : &domeSpinEaseApplicator;
+        domeSpin(domeEaseApplicatorPtr);
     }
 
     // Naigon - Animations
@@ -990,14 +999,14 @@ void movement()
 // ------------------------------------------------------------------------------------
 // Main drive
 // ------------------------------------------------------------------------------------
-void mainDrive()
+void mainDrive(IEaseApplicator *easeApplicatorPtr)
 {
     // Naigon - Stationary/Wiggle Mode
     // When in wiggle/stationary mode, don't use the joystick to move at all.
     int joystickDrive = (int)driveStickPtr->GetMappedValue();
 
     Setpoint3 = constrain(
-        driveApplicatorPtr->ComputeValueForCurrentIteration(joystickDrive),
+        easeApplicatorPtr->ComputeValueForCurrentIteration(joystickDrive),
         -MaxDrive,
         MaxDrive);
 
@@ -1017,13 +1026,13 @@ void mainDrive()
 //The IMU roll should go DOWN as it tilts to the right, and UP as it tilts to the left
 //The side to side pot should go UP as the ball tilts left, and LOW as it tilts right
 //
-void sideTilt()
+void sideTilt(IEaseApplicator *easeApplicatorPtr)
 {
     int joystickS2S = (int)sideToSideStickPtr->GetMappedValue();
 
     // Setpoint will increase/decrease by S2SEase each time the code runs until it matches the joystick. This slows the side to side movement.
     Setpoint2 = constrain(
-        sideToSideEaseApplicator.ComputeValueForCurrentIteration(joystickS2S),
+        easeApplicatorPtr->ComputeValueForCurrentIteration(joystickS2S),
         -MaxSideToSide,
         MaxSideToSide);
 
@@ -1046,7 +1055,7 @@ void sideTilt()
 // ------------------------------------------------------------------------------------
 // Dome tilt
 // ------------------------------------------------------------------------------------
-void domeTilt()
+void domeTilt(IEaseApplicator *easeApplicatorPtr)
 {
     //
     //The joystick will go from 0(Forward) to 512(Back).
@@ -1088,7 +1097,7 @@ void domeTilt()
         MaxDomeTiltAngle); // Reading the stick for angle -40 to 40
 
     Input4 = domeTiltPot + (imu.Pitch() + offsets.PitchOffset());
-    Setpoint4 = domeTiltEaseApplicator.ComputeValueForCurrentIteration(joystickDome);
+    Setpoint4 = easeApplicatorPtr->ComputeValueForCurrentIteration(joystickDome);
     Setpoint4 = constrain(Setpoint4, -MaxDomeTiltAngle, MaxDomeTiltAngle);
     PID4.Compute();
 
@@ -1098,12 +1107,12 @@ void domeTilt()
 // ------------------------------------------------------------------------------------
 // Dome spin - Manual
 // ------------------------------------------------------------------------------------
-void domeSpin()
+void domeSpin(IEaseApplicator *easeApplicatorPtr)
 {
     int domeRotation = (int)domeSpinStickPtr->GetMappedValue();
 
     int currentDomeSpeed = constrain(
-        domeSpinEaseApplicator.ComputeValueForCurrentIteration(domeRotation),
+        easeApplicatorPtr->ComputeValueForCurrentIteration(domeRotation),
         -255,
         255);
 
@@ -1114,7 +1123,7 @@ void domeSpin()
 // ------------------------------------------------------------------------------------
 // Dome spin - Servo
 // ------------------------------------------------------------------------------------
-void domeSpinServo()
+void domeSpinServo(IEaseApplicator *easeApplicatorPtr)
 {
     int ch4Servo = (int)domeSpinStickPtr->GetMappedValue();
 
@@ -1132,7 +1141,7 @@ void domeSpinServo()
     }
 
     Setpoint5 = constrain(
-        domeServoEaseApplicator.ComputeValueForCurrentIteration(ch4Servo),
+        easeApplicatorPtr->ComputeValueForCurrentIteration(ch4Servo),
         -MaxDomeSpinServo,
         MaxDomeSpinServo);
     PID5.Compute();
@@ -1143,14 +1152,14 @@ void domeSpinServo()
 // ------------------------------------------------------------------------------------
 // Flywheel spin
 // ------------------------------------------------------------------------------------
-void flywheelSpin()
+void flywheelSpin(IEaseApplicator *easeApplicatorPtr)
 {
     // Naigon - Stationary/Wiggle Mode
     // When in stationary mode, use the drive stick as the flywheel, as the drive is disabled.
     int ch5PWM = (int)flywheelStickPtr->GetMappedValue();
 
     int flywheelRotation = constrain(
-        flywheelEaseApplicator.ComputeValueForCurrentIteration(ch5PWM),
+        easeApplicatorPtr->ComputeValueForCurrentIteration(ch5PWM),
         -255,
         255);
 
