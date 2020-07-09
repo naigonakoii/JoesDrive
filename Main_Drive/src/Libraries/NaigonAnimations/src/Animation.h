@@ -466,6 +466,7 @@ private:
     uint8_t _minNumAnimationSteps, _animationStepCount, _maxConcurentActions, _numSounds;
     bool _isRunning;
     AnimationStep *_currentResult;
+    AnimationDomeMode _domeMode;
     GeneratedAnimationPercents *_percents;
 };
 

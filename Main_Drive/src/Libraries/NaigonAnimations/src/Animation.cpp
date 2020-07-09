@@ -203,6 +203,7 @@ GeneratedAnimation::GeneratedAnimation(
     AnimationStep *initialStep)
     : _animationTarget(aTarget)
     , _percents(percents)
+    , _domeMode(domeMode)
     , _minNumAnimationSteps(minNumAnimationSteps)
     , _maxConcurentActions(maxConcurentActions)
     , _numSounds(numSounds)
@@ -229,6 +230,7 @@ void GeneratedAnimation::Start()
     Clear();
     _isRunning = true;
     _animationStepCount = 0;
+    _lastSoundMillis = millis() - _soundTimeout - 1;
 }
 
 void GeneratedAnimation::Stop()
@@ -252,6 +254,9 @@ const AnimationStep* GeneratedAnimation::RunIteration()
 void GeneratedAnimation::AutoGenerateNextState()
 {
     Clear();
+
+    // Set to the dome mode of this class.
+    _currentResult->_domeMode = _domeMode;
 
     uint8_t millisBucketIndex = weightedPercentBasedSelection(
         _percents->_msPercents,
@@ -281,13 +286,13 @@ void GeneratedAnimation::AutoGenerateNextState()
         else if (action == AnimationAction::PlaySound && (millis() - _lastSoundMillis) > _soundTimeout)
         {
             // Assumed that end user included the special "Not Playing" sound, so no need to add one (1).
-            SoundId sound = (SoundId)random(0, _numSounds);
+            _currentResult->_soundType = (SoundId)random(_numSounds);
 
             // IMPORTANT - Must set this to zero as otherwise the drive could think to play a ton of sounds in a row.
             _currentResult->_millisOnState = 0;
             _lastSoundMillis = millis();
         }
-        else
+        else if (action == AnimationAction::MotorControl)
         {
             // Select the motor control from the passed in percents.
             uint8_t motorControlId = AutoGenerateMotorControlId();
