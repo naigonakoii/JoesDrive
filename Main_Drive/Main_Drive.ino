@@ -726,6 +726,11 @@ void updateAnimations()
         animationRunner.StartNextAutomation(AnimationTarget::Bank2);
         animation.IsAnimationRunning = true;
     }
+    else if (button4Handler.GetState() == ButtonState::Held)
+    {
+        animationRunner.SelectAndStartAnimation(AnimationTarget::Bank4);
+        animation.IsAnimationRunning = true;
+    }
     else if (button6Handler.GetState() == ButtonState::Pressed)
     {
         animationRunner.SelectAndStartAnimation(AnimationTarget::Bank3);

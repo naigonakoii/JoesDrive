@@ -216,7 +216,7 @@ ScriptedAnimation flywheelSpin1(AnimationTarget::Bank2, 2, &defaultResult, flywh
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Generated and scripted animations for Button 6 press - Bank3
+// Generated and scripted animations for Button 6 press: Flywheel, no S2S - Bank3
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 const AnimationAction bank3DomeActions[] = {
     AnimationAction::EndAnimation,
@@ -248,7 +248,7 @@ const uint16_t bank3MotorControlPer[] =
 const uint16_t bank3MillisVals[] = { 100, 250, 350, 500, 750, 1000, 1500, };
 const uint16_t bank3MillisPer[]  = {  7,   18,  20,  25,  15,   10,    5, };
 
-const uint16_t bank3PercentDomeStickLR[] { 8, 12,  15, 15, 15, 15, 12, 8, };
+const uint16_t bank3PercentDomeStickLR[] { 0, 12,  18, 20, 20, 18, 12, 0, };
 
 const uint16_t bank3PercentDomeStickFR[] { 35, 25, 15, 5, 5, 5, 5, 5, };
 
@@ -296,11 +296,93 @@ GeneratedAnimation bank3Spin(
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Generated animations for Button 6 hold: Flywheel and S2S - Bank3
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+const AnimationAction bank4DomeActions[] = {
+    AnimationAction::EndAnimation,
+    AnimationAction::PlaySound,
+    AnimationAction::MotorControl,
+};
+
+const uint16_t bank4DomeActPer[] =
+{
+    20, // End animation
+    40, // Play Sound
+    40, // Motor Control
+};
+
+const uint8_t bank4MotorControlIds[] =
+{
+    MotorControlId::idDomeSpin,
+    MotorControlId::idDomeTiltFR,
+    MotorControlId::idFlywheel,
+    MotorControlId::idSideToSide,
+};
+
+const uint16_t bank4MotorControlPer[] =
+{
+    30, // Dome Spin
+    30, // Tilt Dome
+    20, // Flywheel
+    20, // Side to Side
+};
+
+const uint16_t bank4MillisVals[] = { 100, 250, 350, 500, 750, 1000, 1500, };
+const uint16_t bank4MillisPer[]  = {  7,   18,  20,  25,  15,   10,    5, };
+
+const uint16_t bank4PercentDomeStickLR[] { 4, 14,  16, 16, 16, 16, 14, 4, };
+
+const uint16_t bank4PercentDomeStickFR[] { 35, 25, 15, 5, 5, 5, 5, 5, };
+
+GeneratedAnimationPercents bank4Percents(
+    bank4DomeActions,
+    bank4DomeActPer,
+    3 /* actionSize */,
+    bank4MotorControlIds,
+    bank4MotorControlPer,
+    4 /* motorControlSize */,
+    bank4MillisVals,
+    bank4MillisPer,
+    7 /* msSize */,
+    stickFRVals,
+    bank4PercentDomeStickFR,
+    8 /* frStickSize */,
+    stickLRVals,
+    bank4PercentDomeStickLR,
+    8 /* lrStickSize */,
+    frStickMotorControlIds,
+    frStickMotorControlIdsSize,
+    15 /* pausePercent */);
+
+// Since moving just the head is pretty basic, going with full generation here to save variable space.
+GeneratedAnimation bank4Servo(
+    AnimationTarget::Bank4,
+    &bank4Percents,
+    AnimationDomeMode::adServo,
+    4 /* minNumAnimationSteps */,
+    4 /* maxConcurentActions */,
+    Naigon::NECAudio::SoundTypesNumTalking,
+    8000 /* soundTimeout */,
+    &currentResult);
+
+GeneratedAnimation bank4Spin(
+    AnimationTarget::Bank4,
+    &bank4Percents,
+    AnimationDomeMode::adSpin,
+    4 /* minNumAnimationSteps */,
+    4 /* maxConcurentActions */,
+    Naigon::NECAudio::SoundTypesNumTalking,
+    8000 /* soundTimeout */,
+    &currentResult);
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Animation Runner
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Array of entire animations that will be used to initialize the AnimationRunner in the main file.
-const int NumAnimations = 6;
+const int NumAnimations = 8;
 IAnimation *animations[] =
 {
     // Bank 1
@@ -314,6 +396,10 @@ IAnimation *animations[] =
     // Bank 3
     &bank3Servo,
     &bank3Spin,
+
+    // Bank 4
+    &bank4Servo,
+    &bank4Spin,
 };
 
 // Naigon - Animations
