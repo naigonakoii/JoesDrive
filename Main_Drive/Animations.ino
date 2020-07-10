@@ -165,15 +165,15 @@ GeneratedAnimation headMovement(
 // Scripted Animations for Button 4 Press - Bank2.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // -------------------  Drive   | Side    | DomeTFB    | DomeTLR | DomeSpin | Flywhl  --------------------------------- 
-int bank2A1Step01[6] = { Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, };
+int bank2A1Step01[6] = { Centered, Centered, ForwardFull, Centered, LeftThreeFourths,  Centered, };
 int bank2A1Step02[6] = { Centered, Centered, ForwardFull, Centered, Centered,  Centered, };
 int bank2A1Step03[6] = { Centered, Centered, ForwardFull, Centered, Centered,  Centered, };
-int bank2A1Step04[6] = { Centered, Centered, ForwardFull, Centered, RightHalf, Centered, };
-int bank2A1Step05[6] = { Centered, Centered, ForwardFull, Centered, LeftHalf,  Centered, };
+int bank2A1Step04[6] = { Centered, Centered, ForwardFull, Centered, RightThreeFourths, Centered, };
+int bank2A1Step05[6] = { Centered, Centered, ForwardFull, Centered, LeftThreeFourths,  Centered, };
 int bank2A1Step06[6] = { Centered, Centered, ForwardHalf, Centered, Centered,  Centered, };
 AnimationStep tiltHeadAndLookBothWays1State[] = {
     // --------- MotorVals | nVal | SoundId                   | MS | Metadata
-    AnimationStep(bank2A1Step01, 6, SoundTypes::NotPlaying + 1, 250, &servoDome),
+    AnimationStep(bank2A1Step01, 6, SoundTypes::NotPlaying + 1, 500, &servoDome),
     AnimationStep(bank2A1Step02, 6, SoundTypes::Excited + 1,      0, &servoDome),
     AnimationStep(bank2A1Step03, 6, SoundTypes::NotPlaying + 1, 200, &servoDome),
     AnimationStep(bank2A1Step04, 6, SoundTypes::NotPlaying + 1, 500, &servoDome),
