@@ -302,6 +302,9 @@ void setup()
     // Always startup on slow speed.
     sendToRemote.bodyMode = BodyMode::Slow;
 
+    drive.PreviousNormalMode = BodyMode::Slow;
+    drive.PrevousAnimationMode = BodyMode::AutomatedServo;
+
     // TODO - could make this based on when a button is pressed or a connection to make it more random.
     randomSeed(millis());
 }
@@ -572,9 +575,17 @@ void updateAnimations()
         // Button 6 toggles animations. Mark if leaving the mode as a stop of running animations is required there.
         stopAutomation = animation.IsAutomation;
         animation.IsAutomation = animation.IsAutomation ? false : true;
-        sendToRemote.bodyMode = animation.IsAutomation
-            ? FirstAutomatedEntry
-            : FirstSpeedEntry;
+
+        if (animation.IsAutomation)
+        {
+            drive.PreviousNormalMode = (BodyMode)sendToRemote.bodyMode;
+            sendToRemote.bodyMode = drive.PrevousAnimationMode;
+        }
+        else
+        {
+            drive.PrevousAnimationMode = (BodyMode)sendToRemote.bodyMode;
+            sendToRemote.bodyMode = drive.PreviousNormalMode;
+        }
     }
 
     //

@@ -94,6 +94,10 @@ struct DriveState
     // Joe - Dome servo or normal mode (was int servoMode in Joe's code)
     DomeMode CurrentDomeMode = DomeMode::FullSpinMode;
 
+    // Save the previous of each type to switch back to previous when toggling between dome modes.
+    BodyMode PrevousAnimationMode;
+    BodyMode PreviousNormalMode;
+
     // Joe - Allow motors to power down if droid is sitting still.
     bool AutoDisable;
 };
