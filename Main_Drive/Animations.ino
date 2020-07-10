@@ -124,9 +124,10 @@ const uint16_t domeMotorControlPer[] = {                      60,               
 const uint16_t millisVals[] = { 250, 350, 500, 750, 1000, 1250 };
 const uint16_t millisPer[]  = {  10,  10,  30,  20,   20,   10};
 
-const uint16_t percentDomeStickLR[] { 3, 12, 25, 10, 10, 25, 12, 3, };
+const uint16_t percentDomeStickLR[] = { 0, 4, 28, 18, 18, 28, 4, 0, };
+const uint16_t percentDomeServoLR[] = { 8, 12, 15, 15, 15, 15, 12, 8, };
 
-const uint16_t percentDomeStickFR[] { 15, 35, 25, 5, 5, 5, 5, 5, };
+const uint16_t percentDomeStickFR[] = { 15, 35, 25, 5, 5, 5, 5, 5, };
 
 GeneratedAnimationPercents domeAnimationPercents(
     domeActions,
@@ -148,16 +149,50 @@ GeneratedAnimationPercents domeAnimationPercents(
     frStickMotorControlIdsSize,
     65 /* pausePercent */);
 
+GeneratedAnimationPercents domeAnimationServoPercents(
+    domeActions,
+    domeActPer,
+    2 /* actionSize */,
+    domeMotorControls,
+    domeMotorControlPer,
+    2,
+    millisVals,
+    millisPer,
+    6 /* msSize */,
+    stickFRVals,
+    percentDomeStickFR,
+    8 /* frStickSize */,
+    stickLRVals,
+    percentDomeServoLR,
+    8 /* lrStickSize */,
+    frStickMotorControlIds,
+    frStickMotorControlIdsSize,
+    65 /* pausePercent */);
+
 // Since moving just the head is pretty basic, going with full generation here to save variable space.
-GeneratedAnimation headMovement(
+GeneratedAnimation headMovementSpin(
     AnimationTarget::Bank1,
     &domeAnimationPercents,
-    &eitherDome,
+    &fullSpinDome,
     3 /* minNumAnimationSteps */,
     2 /* maxConcurentActions */,
     Naigon::NECAudio::SoundTypesNumTalking,
     8000 /* soundTimeout */,
     &currentResult);
+
+GeneratedAnimation headMovementServo(
+    AnimationTarget::Bank1,
+    &domeAnimationPercents,
+    &servoDome,
+    3 /* minNumAnimationSteps */,
+    2 /* maxConcurentActions */,
+    Naigon::NECAudio::SoundTypesNumTalking,
+    8000 /* soundTimeout */,
+    &currentResult);
+
+// Implementations of extrn variables
+uint16_t AutomatedDomeSpinId = headMovementSpin.Id();
+uint16_t AutomatedDomeServoId = headMovementServo.Id();
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -408,11 +443,12 @@ GeneratedAnimation bank4Spin(
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Array of entire animations that will be used to initialize the AnimationRunner in the main file.
-const int NumAnimations = 8;
+const int NumAnimations = 9;
 IAnimation *animations[] =
 {
     // Bank 1
-    &headMovement,
+    &headMovementSpin,
+    &headMovementServo,
 
     // Bank 2
     &tiltHeadAndLookBothWays1,

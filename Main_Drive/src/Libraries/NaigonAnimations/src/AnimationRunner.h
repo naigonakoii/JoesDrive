@@ -92,6 +92,17 @@ public:
     ///////////////////////////////////////////////////////////////////////////////////
     void StartNextAutomation(AnimationTarget aTarget);
 
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Start the animation with the specified id.
+    //
+    // @param   animationId
+    //          Id of the animation to run. If the id does not exist nothing will run.
+    //
+    // @ret     true if the animation with specified id was found and run; otherwise,
+    //          false.
+    ///////////////////////////////////////////////////////////////////////////////////
+    bool StartAnimationWithId(uint16_t animationId);
+
 private:
     void FindNextAndStart(AnimationTarget aTarget, int &index);
 

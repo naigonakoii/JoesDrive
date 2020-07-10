@@ -162,6 +162,21 @@ void AnimationRunner::FindNextAndStart(AnimationTarget aTarget, int &index)
     _currentAnimation->Start();
 }
 
+bool AnimationRunner::StartAnimationWithId(uint16_t animationId)
+{
+    for (int i = 0; i < _numAnimations; i++)
+    {
+        if (_animations[i]->Id() == animationId)
+        {
+            _currentAnimation = _animations[i];
+            _currentAnimation->Start();
+            return true;
+        }
+    }
+
+    return false;
+}
+
 const AnimationStep* AnimationRunner::RunIteration()
 {
     if (_currentAnimation != nullptr && _currentAnimation->IsRunning())

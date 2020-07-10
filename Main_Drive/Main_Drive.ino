@@ -110,6 +110,8 @@ AudioParams audio;
 
 // Define the AnimationRunner instance as external, as it will be actually instanciated in the Animations.ino file.
 extern AnimationRunner animationRunner;
+extern uint16_t AutomatedDomeSpinId;
+extern uint16_t AutomatedDomeServoId;
 
 // Naigon - Button Handling
 // NOTE - should implement for all cases where using buttons in Joe's code.
@@ -478,11 +480,18 @@ void updateBodyMode()
 
     // Naigon - Dome Modes
     // The dome servo or normal state is now parsed from the bodyMode.
+    DomeMode lastMode = drive.CurrentDomeMode;
     drive.CurrentDomeMode = sendToRemote.bodyMode == BodyMode::Servo
         || sendToRemote.bodyMode == BodyMode::ServoWithTilt
         || sendToRemote.bodyMode == BodyMode::AutomatedServo
             ? DomeMode::ServoMode
             : DomeMode::FullSpinMode;
+
+    if (drive.CurrentDomeMode != lastMode && animation.IsAutomation)
+    {
+        // Switched automation modes, so stop the current animation to get the correct new one.
+        animationRunner.StopCurrentAnimation();
+    }
 
     // Naigon - Analog Input Refactor
     // Swap the rotation handler depending on if the drive is in servo mode or not.
@@ -525,7 +534,7 @@ void reverseDirection()
     // I've had some pretty catastropic issues where I accidently hit reverse when driving and didn't realize it. This
     // is because the reverse is pressing the drive stick.
     //
-    // To prevent that, I'm only going to accept the input when the ch1 and ch2 are below a threshold.
+    // To prevent that, I'm only going to accept the input when joysticks are below a threshold.
     if (button5Handler.GetState() == ButtonState::Pressed
         && !driveStickPtr->HasMovement()
         && !sideToSideStickPtr->HasMovement()
@@ -590,7 +599,10 @@ void updateAnimations()
     }
     else if (animation.IsAutomation && !animationRunner.IsRunning())
     {
-        animationRunner.SelectAndStartAnimation(AnimationTarget::Bank1);
+        uint16_t id = drive.CurrentDomeMode == DomeMode::ServoMode
+            ? AutomatedDomeServoId
+            : AutomatedDomeSpinId;
+        animationRunner.StartAnimationWithId(id);
         animation.IsAnimationRunning = true;
     }
     else if (stopAutomation && animationRunner.IsRunning())

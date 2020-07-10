@@ -212,6 +212,13 @@ struct IAnimation
     virtual AnimationTarget Target() const = 0;
 
     ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Gets the id associated with this instance.
+    //
+    // @ret     Id for this instance.
+    ///////////////////////////////////////////////////////////////////////////////////
+    virtual uint16_t Id() const = 0;
+
+    ///////////////////////////////////////////////////////////////////////////////////
     // @summary Starts the animation.
     ///////////////////////////////////////////////////////////////////////////////////
     virtual void Start() = 0;
@@ -273,15 +280,17 @@ public:
     //
     bool IsRunning() const;
     AnimationTarget Target() const;
+    uint16_t Id() const;
     void Start();
     void Stop();
     const AnimationStep* RunIteration();
 
 private:
     bool _isRunning;
-    int _currentAnimationIndex;
     unsigned long _currentMillis;
+    int _currentAnimationIndex;
     int _numberOfAnimationSteps;
+    uint16_t _id;
     const AnimationStep *_animationSteps;
     const AnimationStep *_defaultResult;
     AnimationTarget _animationTarget;
@@ -477,6 +486,7 @@ public:
     //
     bool IsRunning() const;
     AnimationTarget Target() const;
+    uint16_t Id() const;
     void Start();
     void Stop();
     const AnimationStep* RunIteration();
@@ -490,6 +500,7 @@ private:
 
     AnimationTarget _animationTarget;
     unsigned long _currentMillis, _soundTimeout, _lastSoundMillis;
+    uint16_t _id;
     uint8_t _minNumAnimationSteps, _animationStepCount, _maxConcurentActions, _numSounds;
     bool _isRunning;
     AnimationStep *_currentResult;

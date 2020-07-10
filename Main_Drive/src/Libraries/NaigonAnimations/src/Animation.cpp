@@ -20,6 +20,8 @@ namespace Naigon::Animations
 
 using namespace AnimationConstants;
 
+uint16_t GlobalId = 0;
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Animation State
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -35,7 +37,8 @@ AnimationStep::AnimationStep(
     , _soundType(soundType)
     , _millisOnState(millisOnState)
     , _metadata(metadata)
-{ }
+{
+}
 
 void* AnimationStep::GetMetadata() const { return _metadata; }
 SoundId AnimationStep::GetSoundId() const { return _soundType; }
@@ -59,6 +62,7 @@ ScriptedAnimation::ScriptedAnimation(
     , _isRunning(false)
     , _currentAnimationIndex(0)
     , _currentMillis(0)
+    , _id(GlobalId++)
 {
 }
 
@@ -70,6 +74,11 @@ bool ScriptedAnimation::IsRunning() const
 AnimationTarget ScriptedAnimation::Target() const
 {
     return _animationTarget;
+}
+
+uint16_t ScriptedAnimation::Id() const
+{
+    return _id;
 }
 
 void ScriptedAnimation::Start()
@@ -212,6 +221,7 @@ GeneratedAnimation::GeneratedAnimation(
     , _lastSoundMillis(0)
     , _isRunning(false)
     , _animationStepCount(0)
+    , _id(GlobalId++)
 {
 }
 
@@ -223,6 +233,11 @@ bool GeneratedAnimation::IsRunning() const
 AnimationTarget GeneratedAnimation::Target() const
 {
     return _animationTarget;
+}
+
+uint16_t GeneratedAnimation::Id() const
+{
+    return _id;
 }
 
 void GeneratedAnimation::Start()
