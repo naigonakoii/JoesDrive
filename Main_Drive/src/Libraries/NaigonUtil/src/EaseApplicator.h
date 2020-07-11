@@ -83,6 +83,7 @@ enum FunctionEaseApplicatorType : uint8_t
 {
     Quadratic = 0,
     SCurve = 1,
+    ReverseQuadratic = 2,
 };
 
 class FunctionEaseApplicator : public IEaseApplicator
@@ -96,12 +97,16 @@ public:
     //
     //          The S-Curve function is a piece-wise of two quadratic functions:
     //
-    //          f(x) = 2x^2,            if 0 <= x < .5
-    //          f(x) = -2(x-1)^2 + 1,   if .5 <= x <= 1
+    //              f(x) = 2x^2,            if 0 <= x < 0.5
+    //              f(x) = -2(x-1)^2 + 1,   if 0.5 <= x <= 1.0
     //
     //          The quadratic function is a simple quadratic
     //
-    //          f(x) = x^2
+    //              f(x) = x^2
+    //
+    //          Finally, there is a reverse quadratic, which is another simple equation
+    //
+    //              -x^2 + 1
     //
     //          x above is internally stored in a LinearEaseApplicator instance, Arduino
     //          that value is fed into the s-function.
@@ -132,12 +137,62 @@ public:
     double ComputeValueForCurrentIteration(double target);
 
 private:
-    double ComputeFunction(double unscaled) const;
+    double ComputeFunction(double unscaled, double target) const;
     double ComputeS(double x) const;
     double ComputeQ(double x) const;
+    double ComputeReverseQ(double x) const;
     double _maxValue;
     LinearEaseApplicator _linearApplicator;
     FunctionEaseApplicatorType _fType;
+};
+
+class ScalingEaseApplicator : public IEaseApplicator
+{
+public:
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Constructs a new instance of the ScalingEaseApplicator class.
+    //
+    //          This class applies scaling to the increment value over time to prevent
+    //          rough starts and stops of the motors.
+    //
+    // @param   initialValue
+    //          Initial internal value.
+    //
+    // @param   maxIncrement
+    //          This is increment value. Actual increment varies over time but will
+    //          always be less than or equal to this value.
+    //
+    // @param   accelerationMs
+    //          Length in milliseconds after movement started that the ramp up occurs.
+    //          Actual ramp up will be less if the total time to the target is less
+    //          than accelerationMs + decelationMs.
+    //
+    // @param   decelerationMs
+    //          Length in milliseconds that the deceleration will occur.
+    //
+    // @param   periodLength
+    //          Interval in milliseconds between calls to the method
+    //          ComputeValueForCurrentIteration.
+    ///////////////////////////////////////////////////////////////////////////////////
+    ScalingEaseApplicator(
+        double initialValue,
+        double maxIncrement,
+        double accelerationMs,
+        double decelationMs,
+        uint16_t periodLength);
+
+    //
+    // IEaseApplicator methods
+    //
+    double GetValue() const;
+    double GetIncrement() const;
+    double ComputeValueForCurrentIteration(double target);
+
+private:
+    double _value, _maxIncrement, _currentIncrement;
+    double _accelerationMs, _decelerationMs;
+    double _accelerationIncrement, _decelerationIncrement;
+    uint16_t _periodLength;
 };
 
 }   // namespace Naigon::Util

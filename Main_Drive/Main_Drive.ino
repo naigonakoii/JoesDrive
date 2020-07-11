@@ -64,7 +64,7 @@
 #include "Offsets.h"
 
 //
-// Animations Usings
+// Animations using statements
 //
 using namespace Naigon::Animations::AnimationConstants;
 using Naigon::Animations::AnimationAction;
@@ -93,6 +93,7 @@ using Naigon::Util::FunctionEaseApplicator;
 using Naigon::Util::FunctionEaseApplicatorType;
 using Naigon::Util::IEaseApplicator;
 using Naigon::Util::LinearEaseApplicator;
+using Naigon::Util::ScalingEaseApplicator;
 
 EasyTransfer RecRemote;
 EasyTransfer SendRemote;
@@ -148,6 +149,7 @@ AnalogInHandler *flywheelStickPtr = &flywheelStickHandler;
 
 // Naigon - Ease Applicator
 // Refactor code to use the new PWM driver.
+//
 MotorPWM drivePwm(drivePWM1, drivePWM2, 0, 2);
 MotorPWM sideToSidePWM(s2sPWM1, s2sPWM2, MaxSideToSide, 1);
 MotorPWM headTiltPWM(domeTiltPWM1, domeTiltPWM2, HeadTiltPotThresh, 0);
@@ -163,14 +165,11 @@ FunctionEaseApplicator driveApplicatorHigh(0.0, 38.0, 0.2, FunctionEaseApplicato
 FunctionEaseApplicator driveApplicatorWiggle(0.0, 5.0, 0.1, FunctionEaseApplicatorType::Quadratic);
 // Naigon - Ease Applicator: for the drive this pointer will always be the one in use.
 FunctionEaseApplicator *driveApplicatorPtr = &driveApplicatorSlow;
-FunctionEaseApplicator sideToSideEaseApplicator(0.0, MaxSideToSide, S2SEase, FunctionEaseApplicatorType::SCurve);
-FunctionEaseApplicator domeTiltEaseApplicator(0.0, MaxDomeTiltAngle, easeDomeTilt, FunctionEaseApplicatorType::SCurve);
-FunctionEaseApplicator domeServoEaseApplicator(0.0, MaxDomeSpinServo, easeDomeServo, FunctionEaseApplicatorType::SCurve);
-FunctionEaseApplicator domeSpinEaseApplicator(0.0, 255, easeDome, FunctionEaseApplicatorType::SCurve);
-LinearEaseApplicator flywheelEaseApplicator(0.0, flywheelEase);
-// Use different dome spin ease under automation to prevent it from being to jerky which can cause the head to pop loose.
-FunctionEaseApplicator automatedDomeSpinEaseApplicator(0.0, 255, easeDomeAuto, FunctionEaseApplicatorType::Quadratic);
-FunctionEaseApplicator automatedDomeServoEaseApplicator(0.0, MaxDomeSpinServo, easeDomeServoAuto, FunctionEaseApplicatorType::Quadratic);
+ScalingEaseApplicator sideToSideEase(0.0, easeS2S, easeMsS2SA, easeMsS2SD, 20);
+ScalingEaseApplicator domeTiltEase(0.0, easeDomeTilt, easeDomeTiltMsA, easeDomeTiltMsD, 20);
+ScalingEaseApplicator domeServoEase(0.0, easeDomeServo, easeDomeServoMsA, easeDomeServoMsD, 20);
+LinearEaseApplicator domeSpinEase(0.0, easeDome);
+LinearEaseApplicator flywheelEase(0.0, easeFlywheel);
 
 ImuProMini imu;
 Offsets offsets;
@@ -534,8 +533,8 @@ void reverseDirection()
 {
     // Naigon - Safe Joystick Button Toggle.
     //
-    // I've had some pretty catastropic issues where I accidently hit reverse when driving and didn't realize it. This
-    // is because the reverse is pressing the drive stick.
+    // I've had some pretty catastropic issues where I accidentally hit reverse when driving and didn't realize it.
+    // This is because the reverse is pressing the drive stick.
     //
     // To prevent that, I'm only going to accept the input when joysticks are below a threshold.
     if (button5Handler.GetState() == ButtonState::Pressed
@@ -819,10 +818,10 @@ void movement()
         else
         {
             // Normal modes do all the things.
-            sideTilt(&sideToSideEaseApplicator);
+            sideTilt(&sideToSideEase);
             mainDrive(driveApplicatorPtr);
-            domeTilt(&domeTiltEaseApplicator);
-            flywheelSpin(&flywheelEaseApplicator);
+            domeTilt(&domeTiltEase);
+            flywheelSpin(&flywheelEase);
         }
     }
     else
@@ -833,25 +832,20 @@ void movement()
     // Naigon - Animation
     // Animation can override the dome spin mode.
     //
-    DomeMode currentDomeMode = animationRunner.IsRunning() && animation.AnimatedDomeMode != DomeMode::UnspecifiedDomeSpin
-        ? animation.AnimatedDomeMode
-        : drive.CurrentDomeMode;
+    DomeMode currentDomeMode =
+        animationRunner.IsRunning() && animation.AnimatedDomeMode != DomeMode::UnspecifiedDomeSpin
+            ? animation.AnimatedDomeMode
+            : drive.CurrentDomeMode;
 
     if ((currentDomeMode == DomeMode::ServoMode || drive.IsDomeCentering)
         && !drive.AutoDisable
         && recFromRemote.motorEnable == 0)
     {
-        IEaseApplicator *domeEaseApplicatorPtr = animationRunner.IsRunning() || drive.IsDomeCentering
-            ? &automatedDomeServoEaseApplicator
-            : &domeServoEaseApplicator;
-        domeSpinServo(domeEaseApplicatorPtr);
+        domeSpinServo(&domeServoEase);
     }
     else if (currentDomeMode == DomeMode::FullSpinMode || drive.AutoDisable || recFromRemote.motorEnable == 1)
     {
-        IEaseApplicator *domeEaseApplicatorPtr = animationRunner.IsRunning() && recFromRemote.motorEnable == 0
-            ? &automatedDomeSpinEaseApplicator
-            : &domeSpinEaseApplicator;
-        domeSpin(domeEaseApplicatorPtr);
+        domeSpin(&domeSpinEase);
     }
 
     // Naigon - Animations
@@ -1011,8 +1005,8 @@ void domeSpinServo(IEaseApplicator *easeApplicatorPtr)
 
     domeServoVals.setpoint = constrain(
         easeApplicatorPtr->ComputeValueForCurrentIteration(ch4Servo),
-        -MaxDomeSpinServo,
-        MaxDomeSpinServo);
+        -90,
+        90);
     PID5.Compute();
 
     writeMotorPwm(domeServoPWM, domeServoVals.output, 0, false /*requireBT*/, false /*requireMotorEnable*/);

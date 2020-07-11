@@ -55,8 +55,8 @@
 #define domeSpinPWM2 10    // PWM Pin for movement, swap the pin numbers on this axis if axis is reversed
 #define flywheelSpinPWM1 7 // PWM Pin for movement, swap the pin numbers on this axis if axis is reversed
 #define flywheelSpinPWM2 8 // PWM Pin for movement, swap the pin numbers on this axis if axis is reversed
-#define resistor1 121000   // Larger resisitor used on voltage divider to read battery level
-#define resistor2 82000    // Smaller resisitor used on voltage divider to read battery level
+#define resistor1 121000   // Larger resistor used on voltage divider to read battery level
+#define resistor2 82000    // Smaller resistor used on voltage divider to read battery level
 
 //
 // Naigon - NEC Audio
@@ -83,14 +83,18 @@
 // Ease values from Joe. Modify these to increase/decrease the quickness of motor movements.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define flywheelEase 6         // Speed in which flywheel will increase/decrease during gradual movements
+#define easeFlywheel      6.0 // Speed in which flywheel will increase/decrease during gradual movements
 // S2SEase from Joe: 1.5
-#define S2SEase 0.5            // Speed in which side to side moves. Higher number equates to faster movement
-#define easeDome  8.0          // Lower number means more easing when spinning
-#define easeDomeAuto 6.0       // Less agressive ease for automations which are faster than physical sticks.
-#define easeDomeServo 4.0      // Speed for dome spin in servo mode
-#define easeDomeServoAuto 1.5  // Less agressive ease for automations which are faster than physical sticks.
-#define easeDomeTilt 3.2       // Lower number means more easing when moving forward and back a.k.a. slower
+#define easeS2S            0.50 // Speed in which side to side moves. Higher number equates to faster movement
+#define easeMsS2SA        50.00 // Length in milliseconds to reach full increment speed for ScalingEaseApplicator
+#define easeMsS2SD       350.00 // Length in ms from target when ramp down is applied for ScalingEaseApplicator
+#define easeDome           4.00 // Lower number means more easing when spinning
+#define easeDomeServo      4.00 // Speed for dome spin in servo mode
+#define easeDomeServoMsA  50.00 // Length in milliseconds to reach full increment speed for ScalingEaseApplicator
+#define easeDomeServoMsD 200.00 // Length in ms from target when ramp down is applied for ScalingEaseApplicator
+#define easeDomeTilt       4.00 // Lower number means more easing when moving forward and back a.k.a. slower
+#define easeDomeTiltMsA   75.00 // Proportion of ease to add when starting movement for ScalingEaseApplicator
+#define easeDomeTiltMsD  200.00 // Length in ms from target when ramp down is applied for ScalingEaseApplicator
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -221,9 +225,9 @@
 // The following values need tuning if moving to the MK3 flywheel.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 const double Pk1 = 32.0; // Joe's 13
-const double Ik1 = 0.0;
+const double Ik1 = 10.0; // Joe's 0
 // Naigon - Change this value from .3 to .1 or 0 to remove shakey side to side
-const double Dk1 = 0.0;
+const double Dk1 =  0.0;
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -234,7 +238,7 @@ const double Dk1 = 0.0;
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 const double Pk2 = 1.00; // Joe 0.5; M2 Flywheel .4
 const double Ik2 = 0.00; // was .00
-const double Dk2 = 0.01; // was .01
+const double Dk2 = 0.00; // was .01
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -244,22 +248,25 @@ const double Dk2 = 0.01; // was .01
 // The following values will need to be updated if doing the MK3 flywheel and adding the balancing weights.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 const double Pk3 = 5.0; // Joe 5.0;
-const double Ik3 = 0;
-const double Dk3 = 0;
+const double Ik3 = 0.0;
+const double Dk3 = 0.0;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // PID4 is for dome tilt fwd/back
 // Naigon - adjust for pid dome tilt control
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-const double Pk4 = 6; // default is 6
-const double Ik4 = 0;
-const double Dk4 = 0.05;
+const double Pk4 = 4.0; // default is 6
+const double Ik4 = 1.0; // default is 0
+const double Dk4 = 0.0;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // PID5 is for the dome spin servo
+// Naigon - Animations
+// It was important to tune this for animations, as the original values made the head too jerky and would cause It
+// to pop off occasionally.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-const double Pk5 = 4;
-const double Ik5 = 0;
-const double Dk5 = 0;
+const double Pk5 = 2.0;
+const double Ik5 = 1.0;
+const double Dk5 = 0.0;
 
 #endif // __Constants_h_

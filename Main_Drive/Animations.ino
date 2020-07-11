@@ -25,10 +25,10 @@
 
 
 // ********************************************************************************************************************
-// NOTE - These includes and usings are not actually needed for the Arduino compiler, but I added them to prevent
-// intellisense errors in Visual Studio Code, as it is unable to understand that .ino files are concat together. Since
-// the includes are protected by the #ifndef at the beginning, and doing using twice tested as benign, it causes no
-// issues to re-include and re add usings in what becomes the final single .ino file.
+// NOTE - These includes and using statements are not actually needed for the Arduino compiler, but I added them to
+// prevent intellisense errors in Visual Studio Code, as it is unable to understand that .ino files are concat
+// together. Since the includes are protected by the #ifndef at the beginning, and doing using twice tested as benign,
+// it causes no issues to re-include and re add using statements in what becomes the final single .ino file.
 // ********************************************************************************************************************
 #include "Constants.h"
 #include "Enums.h"
@@ -177,7 +177,7 @@ GeneratedAnimation headMovementSpin(
     3 /* minNumAnimationSteps */,
     2 /* maxConcurentActions */,
     Naigon::NECAudio::SoundTypesNumTalking,
-    8000 /* soundTimeout */,
+    4000 /* soundTimeout */,
     &currentResult);
 
 GeneratedAnimation headMovementServo(
@@ -187,7 +187,7 @@ GeneratedAnimation headMovementServo(
     3 /* minNumAnimationSteps */,
     2 /* maxConcurentActions */,
     Naigon::NECAudio::SoundTypesNumTalking,
-    8000 /* soundTimeout */,
+    4000 /* soundTimeout */,
     &currentResult);
 
 // Implementations of extrn variables
@@ -199,21 +199,21 @@ uint16_t AutomatedDomeServoId = headMovementServo.Id();
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Scripted Animations for Button 4 Press - Bank2.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// -------------------  Drive   | Side    | DomeTFB    | DomeTLR | DomeSpin | Flywhl  --------------------------------- 
-int bank2A1Step01[6] = { Centered, Centered, ForwardFull, Centered, LeftThreeFourths,  Centered, };
+// -------------------  Drive   | Side    | DomeTFB     | DomeTLR | DomeSpin | Flywhl  --------------------------------- 
+int bank2A1Step01[6] = { Centered, Centered, ForwardFull, Centered, LeftFull,  Centered, };
 int bank2A1Step02[6] = { Centered, Centered, ForwardFull, Centered, Centered,  Centered, };
 int bank2A1Step03[6] = { Centered, Centered, ForwardFull, Centered, Centered,  Centered, };
-int bank2A1Step04[6] = { Centered, Centered, ForwardFull, Centered, RightThreeFourths, Centered, };
-int bank2A1Step05[6] = { Centered, Centered, ForwardFull, Centered, LeftThreeFourths,  Centered, };
+int bank2A1Step04[6] = { Centered, Centered, ForwardFull, Centered, RightFull, Centered, };
+int bank2A1Step05[6] = { Centered, Centered, ForwardFull, Centered, LeftFull,  Centered, };
 int bank2A1Step06[6] = { Centered, Centered, ForwardHalf, Centered, Centered,  Centered, };
 AnimationStep tiltHeadAndLookBothWays1State[] = {
     // --------- MotorVals | nVal | SoundId                   | MS | Metadata
     AnimationStep(bank2A1Step01, 6, SoundTypes::NotPlaying + 1, 500, &servoDome),
     AnimationStep(bank2A1Step02, 6, SoundTypes::Excited + 1,      0, &servoDome),
-    AnimationStep(bank2A1Step03, 6, SoundTypes::NotPlaying + 1, 200, &servoDome),
-    AnimationStep(bank2A1Step04, 6, SoundTypes::NotPlaying + 1, 500, &servoDome),
-    AnimationStep(bank2A1Step05, 6, SoundTypes::NotPlaying + 1, 500, &servoDome),
-    AnimationStep(bank2A1Step06, 6, SoundTypes::NotPlaying + 1, 100, &servoDome),
+    AnimationStep(bank2A1Step03, 6, SoundTypes::NotPlaying + 1, 350, &servoDome),
+    AnimationStep(bank2A1Step04, 6, SoundTypes::NotPlaying + 1, 600, &servoDome),
+    AnimationStep(bank2A1Step05, 6, SoundTypes::NotPlaying + 1, 600, &servoDome),
+    AnimationStep(bank2A1Step06, 6, SoundTypes::NotPlaying + 1, 350, &servoDome),
 };
 ScriptedAnimation tiltHeadAndLookBothWays1(AnimationTarget::Bank2, 6, &defaultResult, tiltHeadAndLookBothWays1State);
 
@@ -243,7 +243,7 @@ ScriptedAnimation tiltHeadOppositeWays1(AnimationTarget::Bank2, 9, &defaultResul
 
 // NOTE: The flywheel is somewhat backwards because it is upsidedown on the remote. so even though dome and flywheel
 // are the same direction in code, they will spin in opposite directions, which is intended for this animation.
-// ----------------     Drive   | Side    | DomeTFB | DomeTLR | DomeSpin | Flywhl  ------------------------------------
+// -----------------     Drive   | Side    | DomeTFB | DomeTLR | DomeSpin | Flywhl  -----------------------------------
 int bank2A3Step01[6] = { Centered, Centered, Centered, Centered, LeftHalf,  LeftFull, };
 int bank2A3Step02[6] = { Centered, Centered, Centered, Centered, RightFull, RightFull, };
 AnimationStep flywheelSpin1State[] = {
@@ -341,7 +341,7 @@ GeneratedAnimation bank3Servo(
     4 /* minNumAnimationSteps */,
     4 /* maxConcurentActions */,
     Naigon::NECAudio::SoundTypesNumTalking,
-    8000 /* soundTimeout */,
+    1500 /* soundTimeout */,
     &currentResult);
 
 GeneratedAnimation bank3Spin(
@@ -351,13 +351,13 @@ GeneratedAnimation bank3Spin(
     4 /* minNumAnimationSteps */,
     2 /* maxConcurentActions */,
     Naigon::NECAudio::SoundTypesNumTalking,
-    8000 /* soundTimeout */,
+    1500 /* soundTimeout */,
     &currentResult);
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Generated animations for Button 6 hold: Flywheel and S2S - Bank3
+// Generated animations for Button 6 hold: Flywheel and S2S - Bank4
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 const AnimationAction bank4DomeActions[] = {
     AnimationAction::EndAnimation,
@@ -423,7 +423,7 @@ GeneratedAnimation bank4Servo(
     4 /* minNumAnimationSteps */,
     4 /* maxConcurentActions */,
     Naigon::NECAudio::SoundTypesNumTalking,
-    8000 /* soundTimeout */,
+    1500 /* soundTimeout */,
     &currentResult);
 
 GeneratedAnimation bank4Spin(
@@ -433,7 +433,7 @@ GeneratedAnimation bank4Spin(
     4 /* minNumAnimationSteps */,
     3 /* maxConcurentActions */,
     Naigon::NECAudio::SoundTypesNumTalking,
-    8000 /* soundTimeout */,
+    1500 /* soundTimeout */,
     &currentResult);
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
