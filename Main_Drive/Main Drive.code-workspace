@@ -11,6 +11,11 @@
         "editor.renderWhitespace": "all",
         "editor.tabSize": 4,
         "C_Cpp.intelliSenseEngineFallback": "Disabled",
-        "C_Cpp.intelliSenseEngine": "Default"
+        "C_Cpp.intelliSenseEngine": "Default",
+        "cSpell.words": [
+            "Eeprom",
+            "Naigon",
+            "Naigon's"
+        ]
     },
 }
