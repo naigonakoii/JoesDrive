@@ -18,4 +18,11 @@
             "Naigon's"
         ]
     },
+    "extensions": {
+        "recommendations": [
+            "vsciot-vscode.vscode-arduino",
+            "ms-vscode.cpptools",
+            "streetsidesoftware.code-spell-checker"
+        ]
+    },
 }
