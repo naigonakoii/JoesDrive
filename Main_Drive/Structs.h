@@ -95,7 +95,7 @@ struct DriveState
     DomeMode CurrentDomeMode = DomeMode::FullSpinMode;
 
     // Save the previous of each type to switch back to previous when toggling between dome modes.
-    BodyMode PrevousAnimationMode;
+    BodyMode PreviousAnimationMode;
     BodyMode PreviousNormalMode;
 
     // Joe - Allow motors to power down if droid is sitting still.
@@ -116,8 +116,10 @@ struct AnimationStateVars
     // animationRunner indicates an animation has stopped.
     bool IsAnimationRunning = false;
 
+    // Stores the dome mode specified by the animation.
     DomeMode AnimationDomeMode;
 
+    // Flags if this animation wants the reduced range stick for safety.
     bool UseReducedDomeStick;
 };
 

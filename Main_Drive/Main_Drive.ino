@@ -304,7 +304,7 @@ void setup()
     sendToRemote.bodyMode = BodyMode::Slow;
 
     drive.PreviousNormalMode = BodyMode::Slow;
-    drive.PrevousAnimationMode = BodyMode::AutomatedServo;
+    drive.PreviousAnimationMode = BodyMode::AutomatedServo;
 
     // TODO - could make this based on when a button is pressed or a connection to make it more random.
     randomSeed(millis());
@@ -442,8 +442,6 @@ void updateInputHandlers()
 
 void updateBodyMode()
 {
-    uint8_t lastMode = sendToRemote.bodyMode;
-
     //
     // Increment runs through automation and normal modes separately.
     //
@@ -484,6 +482,7 @@ void updateBodyMode()
     // Indicate if the droid is in stationary mode only when in the stationary state.
     drive.IsStationary = sendToRemote.bodyMode == BodyMode::Stationary;
 
+    DomeMode lastDomeMode = drive.CurrentDomeMode;
     // Naigon - Dome Modes
     // The dome servo or normal state is now parsed from the bodyMode.
     drive.CurrentDomeMode = sendToRemote.bodyMode == BodyMode::Servo
@@ -492,15 +491,8 @@ void updateBodyMode()
             ? DomeMode::ServoMode
             : DomeMode::FullSpinMode;
 
-    // Naigon - Animations
-    // Override the dome mode if there is a specific one set by the animation.
-    drive.CurrentDomeMode = animationRunner.IsRunning() && animation.AnimationDomeMode != DomeMode::UnspecifiedDomeSpin
-        ? animation.AnimationDomeMode
-        : drive.CurrentDomeMode;
-
-    if (sendToRemote.bodyMode != lastMode && animation.IsAutomation)
+    if (animation.IsAutomation && lastDomeMode != drive.CurrentDomeMode)
     {
-        // Switched automation modes, so stop the current animation to get the correct new one.
         animationRunner.StopCurrentAnimation();
     }
 
@@ -585,6 +577,7 @@ void updateAnimations()
     }
 
     bool stopAutomation = false;
+
     //
     // Next, see if automation mode is toggled in or out
     //
@@ -597,13 +590,45 @@ void updateAnimations()
         if (animation.IsAutomation)
         {
             drive.PreviousNormalMode = (BodyMode)sendToRemote.bodyMode;
-            sendToRemote.bodyMode = drive.PrevousAnimationMode;
+            sendToRemote.bodyMode = drive.PreviousAnimationMode;
         }
         else
         {
-            drive.PrevousAnimationMode = (BodyMode)sendToRemote.bodyMode;
+            drive.PreviousAnimationMode = (BodyMode)sendToRemote.bodyMode;
             sendToRemote.bodyMode = drive.PreviousNormalMode;
         }
+    }
+
+    //
+    // Now that current animations are handled, set an animation based on button inputs or the current mode.
+    if (button4Handler.GetState() == ButtonState::Pressed)
+    {
+        // Since Bank2 contains all the scripted exact ones, it's important to do those in order. That allows knowing
+        // when one will come, and prevents duplication since they are canned.
+        animationRunner.StartNextAutomation(AnimationTarget::Bank2);
+        animation.IsAnimationRunning = true;
+    }
+    else if (button4Handler.GetState() == ButtonState::Held)
+    {
+        animationRunner.SelectAndStartAnimation(AnimationTarget::Bank4);
+        animation.IsAnimationRunning = true;
+    }
+    else if (button6Handler.GetState() == ButtonState::Pressed)
+    {
+        animationRunner.SelectAndStartAnimation(AnimationTarget::Bank3);
+        animation.IsAnimationRunning = true;
+    }
+    else if (animation.IsAutomation && !animationRunner.IsRunning())
+    {
+        uint16_t id = drive.CurrentDomeMode == DomeMode::ServoMode
+            ? AutomatedDomeServoId
+            : AutomatedDomeSpinId;
+        animationRunner.StartAnimationWithId(id);
+        animation.IsAnimationRunning = true;
+    }
+    else if (stopAutomation && animationRunner.IsRunning())
+    {
+        animationRunner.StopCurrentAnimation();
     }
 
     //
@@ -647,41 +672,6 @@ void updateAnimations()
         // until the head is back into position.
         drive.IsDomeCentering = drive.CurrentDomeMode == DomeMode::ServoMode ? false : true;
         animation.IsAnimationRunning = false;
-    }
-
-    //
-    // Now that current animations are handled, set an animation based on button inputs or the current mode. This
-    // should be after the block above, as sometimes the stick handler changes based on the animation and mode, so
-    // the animation needs to start with the main updateBodyMode() method above.
-    //
-    if (button4Handler.GetState() == ButtonState::Pressed)
-    {
-        // Since Bank2 contains all the scripted exact ones, it's important to do those in order. That allows knowing
-        // when one will come, and prevents duplication since they are canned.
-        animationRunner.StartNextAutomation(AnimationTarget::Bank2);
-        animation.IsAnimationRunning = true;
-    }
-    else if (button4Handler.GetState() == ButtonState::Held)
-    {
-        animationRunner.SelectAndStartAnimation(AnimationTarget::Bank4);
-        animation.IsAnimationRunning = true;
-    }
-    else if (button6Handler.GetState() == ButtonState::Pressed)
-    {
-        animationRunner.SelectAndStartAnimation(AnimationTarget::Bank3);
-        animation.IsAnimationRunning = true;
-    }
-    else if (animation.IsAutomation && !animationRunner.IsRunning())
-    {
-        uint16_t id = drive.CurrentDomeMode == DomeMode::ServoMode
-            ? AutomatedDomeServoId
-            : AutomatedDomeSpinId;
-        animationRunner.StartAnimationWithId(id);
-        animation.IsAnimationRunning = true;
-    }
-    else if (stopAutomation && animationRunner.IsRunning())
-    {
-        animationRunner.StopCurrentAnimation();
     }
 }
 
@@ -851,13 +841,18 @@ void movement()
         turnOffAllTheThings(true /*disableDrive*/);
     }
 
-    if ((drive.CurrentDomeMode == DomeMode::ServoMode || drive.IsDomeCentering)
+    DomeMode currentDomeMode =
+        animationRunner.IsRunning() && animation.AnimationDomeMode != DomeMode::UnspecifiedDomeSpin
+            ? animation.AnimationDomeMode
+            : drive.CurrentDomeMode;
+
+    if ((currentDomeMode == DomeMode::ServoMode || drive.IsDomeCentering)
         && !drive.AutoDisable
         && recFromRemote.motorEnable == 0)
     {
         domeSpinServo(&domeServoEase);
     }
-    else if (drive.CurrentDomeMode == DomeMode::FullSpinMode || drive.AutoDisable || recFromRemote.motorEnable == 1)
+    else if (currentDomeMode == DomeMode::FullSpinMode || drive.AutoDisable || recFromRemote.motorEnable == 1)
     {
         domeSpin(&domeSpinEase);
     }

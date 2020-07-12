@@ -132,7 +132,7 @@
 // for ease of tuning.
 //
 // Joe's default is 70.
-#define MaxDomeSpinServo 90
+#define MaxDomeSpinServo 80
 
 #define MaxDomeSpinAuto 255 * 2 / 3
 #define MaxDomeServoAuto MaxDomeSpinServo
