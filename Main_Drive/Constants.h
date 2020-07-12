@@ -89,9 +89,9 @@
 #define easeMsS2SA        50.00 // Length in milliseconds to reach full increment speed for ScalingEaseApplicator
 #define easeMsS2SD       350.00 // Length in ms from target when ramp down is applied for ScalingEaseApplicator
 #define easeDome           4.00 // Lower number means more easing when spinning
-#define easeDomeServo      4.00 // Speed for dome spin in servo mode
-#define easeDomeServoMsA  50.00 // Length in milliseconds to reach full increment speed for ScalingEaseApplicator
-#define easeDomeServoMsD 200.00 // Length in ms from target when ramp down is applied for ScalingEaseApplicator
+#define easeDomeServo      3.00 // Speed for dome spin in servo mode
+#define easeDomeServoMsA 150.00 // Length in milliseconds to reach full increment speed for ScalingEaseApplicator
+#define easeDomeServoMsD 300.00 // Length in ms from target when ramp down is applied for ScalingEaseApplicator
 #define easeDomeTilt       4.00 // Lower number means more easing when moving forward and back a.k.a. slower
 #define easeDomeTiltMsA   75.00 // Proportion of ease to add when starting movement for ScalingEaseApplicator
 #define easeDomeTiltMsD  200.00 // Length in ms from target when ramp down is applied for ScalingEaseApplicator
@@ -125,12 +125,18 @@
 // Naigon: Amount to limit the flywheel.
 #define MaxFlywheelDrive 255
 
+#define MaxDomeSpin 255
+
 //
 // Naigon: Amount that dome can spin when in servo mode. This was hardcoded inline before; I refactored to a constant
 // for ease of tuning.
 //
 // Joe's default is 70.
-#define MaxDomeSpinServo 75
+#define MaxDomeSpinServo 90
+
+#define MaxDomeSpinAuto 255 * 2 / 3
+#define MaxDomeServoAuto MaxDomeSpinServo
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -225,7 +231,7 @@
 // The following values need tuning if moving to the MK3 flywheel.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 const double Pk1 = 32.0; // Joe's 13
-const double Ik1 = 10.0; // Joe's 0
+const double Ik1 = 00.0; // Joe's 0
 // Naigon - Change this value from .3 to .1 or 0 to remove shakey side to side
 const double Dk1 =  0.0;
 
@@ -236,7 +242,7 @@ const double Dk1 =  0.0;
 //
 // The following values need tuning if moving to the MK3 flywheel.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-const double Pk2 = 1.00; // Joe 0.5; M2 Flywheel .4
+const double Pk2 = 0.75; // Joe 0.5; M2 Flywheel .4
 const double Ik2 = 0.00; // was .00
 const double Dk2 = 0.00; // was .01
 
@@ -247,17 +253,17 @@ const double Dk2 = 0.00; // was .01
 //
 // The following values will need to be updated if doing the MK3 flywheel and adding the balancing weights.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-const double Pk3 = 5.0; // Joe 5.0;
-const double Ik3 = 0.0;
-const double Dk3 = 0.0;
+const double Pk3 = 5.00; // Joe 5.0;
+const double Ik3 = 0.00;
+const double Dk3 = 0.00;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // PID4 is for dome tilt fwd/back
 // Naigon - adjust for pid dome tilt control
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-const double Pk4 = 4.0; // default is 6
-const double Ik4 = 1.0; // default is 0
-const double Dk4 = 0.0;
+const double Pk4 = 3.75; // default is 6
+const double Ik4 = 1.00; // default is 0
+const double Dk4 = 0.00;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // PID5 is for the dome spin servo
@@ -265,8 +271,8 @@ const double Dk4 = 0.0;
 // It was important to tune this for animations, as the original values made the head too jerky and would cause It
 // to pop off occasionally.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-const double Pk5 = 2.0;
-const double Ik5 = 1.0;
-const double Dk5 = 0.0;
+const double Pk5 = 2.25;
+const double Ik5 = 1.00;
+const double Dk5 = 0.00;
 
 #endif // __Constants_h_

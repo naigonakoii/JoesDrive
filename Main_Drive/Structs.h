@@ -116,9 +116,9 @@ struct AnimationStateVars
     // animationRunner indicates an animation has stopped.
     bool IsAnimationRunning = false;
 
-    // Animations can specify if they are specific for dome spin, dome servo, or if it does not matter. Mark it here
-    // so that the mode selection logic can choose the appropriate value.
-    DomeMode AnimatedDomeMode;
+    DomeMode AnimationDomeMode;
+
+    bool UseReducedDomeStick;
 };
 
 //
@@ -151,6 +151,21 @@ struct PIDVals
     double input;
     double setpoint;
     double output;
+};
+
+// Naigon - Animations
+// This is the bag that is passed into the Animation State's metadata.
+// This is basically a struct but since C++ doesn't support struct init like C99 I went
+// with a very basic class to have a constructor.
+class AnimationMetadata
+{
+public:
+    AnimationMetadata(DomeMode m, bool s)
+        : domeMode(m)
+        , useReducedStick(s)
+    { };
+    DomeMode domeMode;
+    bool useReducedStick = true;
 };
 
 #endif // __MainDrive_Structs_h
