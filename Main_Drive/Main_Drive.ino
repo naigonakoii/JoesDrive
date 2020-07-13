@@ -170,6 +170,7 @@ FunctionEaseApplicator *driveApplicatorPtr = &driveApplicatorSlow;
 ScalingEaseApplicator sideToSideEase(0.0, easeS2S, easeMsS2SA, easeMsS2SD, 20);
 ScalingEaseApplicator domeTiltEase(0.0, easeDomeTilt, easeDomeTiltMsA, easeDomeTiltMsD, 20);
 ScalingEaseApplicator domeServoEase(0.0, easeDomeServo, easeDomeServoMsA, easeDomeServoMsD, 20);
+//LinearEaseApplicator domeServoEase(0.0, easeDomeServo);
 LinearEaseApplicator domeSpinEase(0.0, easeDome);
 LinearEaseApplicator flywheelEase(0.0, easeFlywheel);
 
@@ -496,9 +497,16 @@ void updateBodyMode()
         animationRunner.StopCurrentAnimation();
     }
 
+    // Naigon
+    // When switching into servo mode, mark that it centering. This will prevent the spin from being too high.
+    drive.IsDomeCentering = lastDomeMode != DomeMode::ServoMode && drive.CurrentDomeMode == DomeMode::ServoMode
+        ? true
+        : drive.IsDomeCentering;
+
     // Naigon - Analog Input Refactor
     // Swap the rotation handler depending on if the drive is in servo mode or not.
-    domeSpinStickPtr = recFromRemote.motorEnable == 0 && drive.CurrentDomeMode == DomeMode::ServoMode
+    domeSpinStickPtr = recFromRemote.motorEnable == 0
+        && (drive.CurrentDomeMode == DomeMode::ServoMode || drive.IsDomeCentering)
         ? &domeServoStickHandler
         : &domeSpinStickHandler;
 
@@ -665,6 +673,12 @@ void updateAnimations()
         AnimationMetadata *metadata = static_cast<AnimationMetadata*>(aStep->GetMetadata());
         animation.AnimationDomeMode = metadata->domeMode;
         animation.UseReducedDomeStick = metadata->useReducedStick;
+
+        if (metadata->domeMode == DomeMode::ServoMode && drive.CurrentDomeMode != DomeMode::ServoMode)
+        {
+            // Make the dome as centering so that when it enters an animation it doesn't spin too quickly.
+            drive.IsDomeCentering = true;
+        }
     }
     else if (animation.IsAnimationRunning)
     {
@@ -850,7 +864,7 @@ void movement()
         && !drive.AutoDisable
         && recFromRemote.motorEnable == 0)
     {
-        domeSpinServo(&domeServoEase);
+        domeSpinServo(&domeServoEase, drive.IsDomeCentering);
     }
     else if (currentDomeMode == DomeMode::FullSpinMode || drive.AutoDisable || recFromRemote.motorEnable == 1)
     {
@@ -859,7 +873,10 @@ void movement()
 
     // Naigon - Animations
     // Stop forcing the head servo mode now that it is back into position.
-    if (drive.IsDomeCentering && abs(domeServoVals.output) < 10) { drive.IsDomeCentering = false; }
+    if (drive.IsDomeCentering && abs(domeServoVals.output) < 2)
+    {
+        drive.IsDomeCentering = false;
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -977,7 +994,7 @@ void domeTilt(IEaseApplicator *easeApplicatorPtr)
 }
 
 // ------------------------------------------------------------------------------------
-// Dome spin - Manual
+// Dome spin - Full Spin
 // ------------------------------------------------------------------------------------
 void domeSpin(IEaseApplicator *easeApplicatorPtr)
 {
@@ -995,7 +1012,7 @@ void domeSpin(IEaseApplicator *easeApplicatorPtr)
 // ------------------------------------------------------------------------------------
 // Dome spin - Servo
 // ------------------------------------------------------------------------------------
-void domeSpinServo(IEaseApplicator *easeApplicatorPtr)
+void domeSpinServo(IEaseApplicator *easeApplicatorPtr, bool isCentering)
 {
     int ch4Servo = (int)domeSpinStickPtr->GetMappedValue();
 
@@ -1003,11 +1020,11 @@ void domeSpinServo(IEaseApplicator *easeApplicatorPtr)
         ? (int)domeSpinPotHandler.GetMappedValue() + offsets.DomeSpinPotOffset() - 180
         : (int)domeSpinPotHandler.GetMappedValue() + offsets.DomeSpinPotOffset();
 
-    if (domeServoVals.input < -180)
+    if (domeServoVals.input <= -180)
     {
         domeServoVals.input += 360;
     }
-    else if (domeServoVals.input > 180)
+    else if (domeServoVals.input >= 180)
     {
         domeServoVals.input -= 360;
     }
@@ -1017,6 +1034,10 @@ void domeSpinServo(IEaseApplicator *easeApplicatorPtr)
         -MaxDomeSpinServo,
         MaxDomeSpinServo);
     PID5.Compute();
+
+    // Naigon - Animations
+    // To prevent the head from spinning really fast at the end of an animation when re-centering, scale the pwm speed.
+    domeServoVals.output = isCentering ? domeServoVals.output * 3 / 4 : domeServoVals.output;
 
     writeMotorPwm(domeServoPWM, domeServoVals.output, 0, false /*requireBT*/, false /*requireMotorEnable*/);
 }

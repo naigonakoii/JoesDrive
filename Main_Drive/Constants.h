@@ -85,13 +85,13 @@
 
 #define easeFlywheel      6.0 // Speed in which flywheel will increase/decrease during gradual movements
 // S2SEase from Joe: 1.5
-#define easeS2S            0.50 // Speed in which side to side moves. Higher number equates to faster movement
+#define easeS2S            0.25 // Speed in which side to side moves. Higher number equates to faster movement
 #define easeMsS2SA        50.00 // Length in milliseconds to reach full increment speed for ScalingEaseApplicator
 #define easeMsS2SD       350.00 // Length in ms from target when ramp down is applied for ScalingEaseApplicator
 #define easeDome           4.00 // Lower number means more easing when spinning
-#define easeDomeServo      3.00 // Speed for dome spin in servo mode
-#define easeDomeServoMsA 150.00 // Length in milliseconds to reach full increment speed for ScalingEaseApplicator
-#define easeDomeServoMsD 300.00 // Length in ms from target when ramp down is applied for ScalingEaseApplicator
+#define easeDomeServo      1.75 // Speed for dome spin in servo mode
+#define easeDomeServoMsA  50.00 // Length in milliseconds to reach full increment speed for ScalingEaseApplicator
+#define easeDomeServoMsD 150.00 // Length in ms from target when ramp down is applied for ScalingEaseApplicator
 #define easeDomeTilt       4.00 // Lower number means more easing when moving forward and back a.k.a. slower
 #define easeDomeTiltMsA   75.00 // Proportion of ease to add when starting movement for ScalingEaseApplicator
 #define easeDomeTiltMsD  200.00 // Length in ms from target when ramp down is applied for ScalingEaseApplicator
@@ -230,8 +230,8 @@
 //
 // The following values need tuning if moving to the MK3 flywheel.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-const double Pk1 = 32.0; // Joe's 13
-const double Ik1 = 00.0; // Joe's 0
+const double Pk1 = 40.0; // Joe's 13
+const double Ik1 =  0.0; // Joe's 0
 // Naigon - Change this value from .3 to .1 or 0 to remove shakey side to side
 const double Dk1 =  0.0;
 
@@ -271,7 +271,7 @@ const double Dk4 = 0.00;
 // It was important to tune this for animations, as the original values made the head too jerky and would cause It
 // to pop off occasionally.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-const double Pk5 = 2.25;
+const double Pk5 = 2.75;
 const double Ik5 = 1.00;
 const double Dk5 = 0.00;
 

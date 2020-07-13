@@ -167,7 +167,7 @@ public:
         , useReducedStick(s)
     { };
     DomeMode domeMode;
-    bool useReducedStick = true;
+    bool useReducedStick;
 };
 
 #endif // __MainDrive_Structs_h
