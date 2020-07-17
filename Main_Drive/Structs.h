@@ -100,6 +100,10 @@ struct DriveState
 
     // Joe - Allow motors to power down if droid is sitting still.
     bool AutoDisable;
+
+    // Naigon - MK3 Head Tilt
+    // This variable indicates if the remote connection state is good. This will either be the BT or feather.
+    bool IsConnected;
 };
 
 //

@@ -64,6 +64,10 @@
 #include "Offsets.h"
 
 //
+// MK3 Head Tilt related includes
+#include "FeatherRemoteReceiver.h"
+
+//
 // Animations using statements
 //
 using namespace Naigon::Animations::AnimationConstants;
@@ -76,19 +80,36 @@ using Naigon::Animations::GeneratedAnimationPercents;
 using Naigon::Animations::IAnimation;
 using Naigon::Animations::ScriptedAnimation;
 
+//
+// Joe's Drive Specific
+//
 using Naigon::BB_8::ImuProMini;
 using Naigon::BB_8::MotorPWM;
 using Naigon::BB_8::Offsets;
 
+//
+// MK3 Head Tilt related
+//
+using Naigon::BB_8::FeatherRemoteReceiver;
+
+//
+// Naigon Audio
+//
 using Naigon::NECAudio::ISoundPlayer;
 using Naigon::NECAudio::SoundTypes;
 using Naigon::NECAudio::SoundMapper;
 using Naigon::NECAudio::WiredSoundPlayer;
 
+//
+// I/O Wrappers
+//
 using Naigon::IO::AnalogInHandler;
 using Naigon::IO::ButtonHandler;
 using Naigon::IO::ButtonState;
 
+//
+// Ease Applicators
+//
 using Naigon::Util::FunctionEaseApplicator;
 using Naigon::Util::FunctionEaseApplicatorType;
 using Naigon::Util::IEaseApplicator;
@@ -197,6 +218,9 @@ ISoundPlayer *soundPlayer;
 
 SoundTypes forcedSoundType = SoundTypes::NotPlaying;
 
+// For feather remotes.
+FeatherRemoteReceiver featherRemotes(recDelay);
+
 // For the voltage divider.
 float R1 = resistor1;
 float R2 = resistor2;
@@ -206,8 +230,6 @@ unsigned long lastBatteryUpdate;
 int driveSpeed;
 
 unsigned long lastLoopMillis;
-
-int BTstate = 0;
 
 PIDVals s2sTiltVals;
 PID PID1(&s2sTiltVals.input, &s2sTiltVals.output, &s2sTiltVals.setpoint, Pk1, Ik1, Dk1, DIRECT);
@@ -319,6 +341,9 @@ void setup()
 void loop()
 {
     RecIMU.receiveData();
+#ifdef FeatherRemotes
+    featherRemotes.UpdateIteration(&RecRemote);
+#endif
 
     if (millis() - lastLoopMillis >= 20)
     {
@@ -341,6 +366,10 @@ void loop()
         movement();
         lastLoopMillis = millis();
     }
+
+#ifdef FeatherRemotes
+    sendDriveData();
+#endif
 }
 
 // ====================================================================================================================
@@ -352,9 +381,20 @@ void loop()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void sendAndReceive()
 {
+#ifndef FeatherRemotes
     RecRemote.receiveData();
     SendRemote.sendData();
+#endif
     imu.UpdateIteration(recIMUData.pitch, recIMUData.roll, recIMUData.IMUloop);
+}
+
+void sendDriveData()
+{
+    if (featherRemotes.ReceivedData())
+    {
+        SendRemote.sendData();
+        delay(5);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -373,14 +413,16 @@ void readVin()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void BTenable()
 {
-    BTstate = digitalRead(BTstatePin); //read whether BT is connected
+#ifndef FeatherRemotes
+    int btState = digitalRead(BTstatePin); //read whether BT is connected
+    drive.IsConnected = btState == 1;
 
-    if (recFromRemote.motorEnable == 0 && BTstate == 1)
+    if (recFromRemote.motorEnable == 0 && btState == 1)
     { //if motor enable switch is on and BT connected, turn on the motor drivers
         autoDisableMotors();
         digitalWrite(enablePinDome, HIGH);
     }
-    else if (recFromRemote.motorEnable == 1 || BTstate == 0)
+    else if (recFromRemote.motorEnable == 1 || btState == 0)
     { //if motor enable switch is off OR BT disconnected, turn off the motor drivers
         digitalWrite(enablePin, LOW);
         digitalWrite(enablePinDome, LOW);
@@ -389,6 +431,7 @@ void BTenable()
         autoDisable.isAutoDisabled = true;
         autoDisable.autoDisableDoubleCheck = 0;
     }
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -829,7 +872,7 @@ void domeCalib()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void movement()
 {
-    if (recFromRemote.motorEnable == 0 && BTstate == 1 && imu.ProMiniConnected())
+    if (recFromRemote.motorEnable == 0 && drive.IsConnected && imu.ProMiniConnected())
     {
         unsigned long currentMillis = millis();
 
@@ -1061,7 +1104,7 @@ void flywheelSpin(IEaseApplicator *easeApplicatorPtr)
 
 void writeMotorPwm(MotorPWM &motorPwm, int output, int input, bool requireBT, bool requireMotorEnable)
 {
-    if ((requireBT == true && BTstate != 1)
+    if ((requireBT == true && !drive.IsConnected)
         || (requireMotorEnable == true && recFromRemote.motorEnable != 0))
     {
         motorPwm.WriteZeros();
