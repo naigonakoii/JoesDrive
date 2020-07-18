@@ -61,6 +61,14 @@
 #error The define 'AudioHardware' in DriveSetup.h must be set to either 'JoeSerial', 'NECWired', or 'NECWireless'.
 #endif
 
+//
+// Ensure RemoteHardware is set to an appropriate value.
+//
+#ifndef RemoteHardware
+#error Please define 'RemoteHardware' in DriveSetup.h to either 'BTRemote' or 'FeatherPair'.
+#elif RemoteHardware != BTRemote && RemoteHardware != FeatherPair
+#error The define 'RemoteHardware' in DriveSetup.h must be set to either 'BTRemote' or 'FeatherPair'.
+#endif
 
 //
 // These are my libraries. Currently I have them living in this project, but the correct way would also be to install
@@ -90,7 +98,7 @@
 //
 // MK3 Head Tilt related includes
 //
-#ifndef BTRemote
+#if RemoteHardware == FeatherPair
 #include "FeatherRemoteReceiver.h"
 #endif
 
@@ -259,7 +267,7 @@ ISoundPlayer *soundPlayer;
 
 SoundTypes forcedSoundType = SoundTypes::NotPlaying;
 
-#ifndef BTRemote
+#if RemoteHardware == FeatherPair
 // For feather remotes.
 FeatherRemoteReceiver featherRemotes(recDelay);
 #endif
@@ -393,7 +401,7 @@ void setup()
 void loop()
 {
     RecIMU.receiveData();
-#ifndef BTRemote
+#if RemoteHardware == FeatherPair
     featherRemotes.UpdateIteration(&RecRemote);
 #endif
 
@@ -418,7 +426,7 @@ void loop()
         lastLoopMillis = millis();
     }
 
-#ifndef BTRemote
+#if RemoteHardware == FeatherPair
     sendDriveData();
 #endif
 }
@@ -432,7 +440,7 @@ void loop()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void sendAndReceive()
 {
-#ifdef BTRemote
+#if RemoteHardware == BTRemote
     RecRemote.receiveData();
     SendRemote.sendData();
     BTenable();
@@ -463,7 +471,7 @@ void readVin()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Bluetooth enable
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#ifdef BTRemote
+#if RemoteHardware == BTRemote
 void BTenable()
 {
 
