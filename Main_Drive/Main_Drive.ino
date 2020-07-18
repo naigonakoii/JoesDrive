@@ -27,6 +27,7 @@
 #include "Arduino.h"
 
 #include "Constants.h"
+#include "DriveSetup.h"
 #include "Enums.h"
 #include "Structs.h"
 
