@@ -10,4 +10,7 @@
 // Uncomment if you are using the older single remote that communicates via a paired bluetooth.
 //#define BTRemote
 
+// Set to either 'NECWired', 'NECWireless', or 'JoeSerial' for sound playing.
+#define AudioHardware JoeSerial
+
 #endif // __DriveSetup_h_

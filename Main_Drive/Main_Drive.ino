@@ -43,7 +43,7 @@
 // Ensure HeadTiltVersion is only set to MK2_Dome or MK3_Dome.
 //
 #ifndef HeadTiltVersion
-#error Please define 'HeadTiltVersion' in constants.h to either 'MK3_Dome' or 'MK2_Dome'.
+#error Please define 'HeadTiltVersion' in DriveSetup.h to either 'MK3_Dome' or 'MK2_Dome'.
 #elif HeadTiltVersion != MK3_Dome && HeadTiltVersion != MK2_Dome
 #error The define 'HeadTiltVersion' must be set to either 'MK3_Dome' or 'MK2_Dome'.
 #endif
@@ -51,6 +51,16 @@
 #if HeadTiltVersion == MK3_Dome
 #include <VarSpeedServo.h>
 #endif
+
+//
+// Ensure AudioHardware is set to an appropriate value.
+//
+#ifndef AudioHardware
+#error Please define 'AudioHardware' in DriveSetup.h to either 'JoeSerial', 'NECWired', or 'NECWireless'.
+#elif AudioHardware != JoeSerial && AudioHardware != NECWired && AudioHardware != NECWireless
+#error The define 'AudioHardware' in DriveSetup.h must be set to either 'JoeSerial', 'NECWired', or 'NECWireless'.
+#endif
+
 
 //
 // These are my libraries. Currently I have them living in this project, but the correct way would also be to install
@@ -231,9 +241,7 @@ ScalingEaseApplicator domeTiltEaseLR(0.0, easeDomeMK3, easeDomeTiltMsA, easeDome
 ImuProMini imu;
 Offsets offsets;
 
-#ifdef WirelessSound
-// In the future if an XBee is hooked to the Arduino Mega the hard-wired pins will not be needed.
-#else
+#if AudioHardware == NECWired
 //
 // Naigon - NEC Audio.
 //
@@ -320,9 +328,7 @@ void setup()
     pinMode(soundpin5, OUTPUT);     // play sound from pin 4 on Soundboard
     pinMode(soundpin6, OUTPUT);     // play sound from pin 4 on Soundboard
 
-#ifdef WirelessSound
-    // TODO - put the wireless sound setup here.
-#else
+#if AudioHardware == NECWired
     digitalWrite(soundpin6, HIGH);
     digitalWrite(soundpin5, HIGH);
     digitalWrite(soundpin4, HIGH);
@@ -341,9 +347,8 @@ void setup()
 
     // Setup the soundPlayer as the one with a wired interface.
     soundPlayer = new WiredSoundPlayer(mapper, 200);
-#endif
-
     soundPlayer->ClearSounds();
+#endif
 
     // *********** PID setup ***********
 
@@ -402,7 +407,7 @@ void loop()
         reverseDirection();
 
         updateAnimations();
-        handleSounds();
+        sounds();
         readVin();
 
         bodyCalib();
@@ -794,41 +799,18 @@ void updateAnimations()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sounds
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/*
-void sounds() {
-  if ((recFromRemote.but2 == 0 || recFromRemote.but7 == 0) && recFromRemote.but8 == 1 && readPinState == 1 && BTstate ==1 && soundState == 0 && playSound == 0) {   
-    playSound = 1;
-  }///*else if (recFromRemote.but2 == 1 && recFromRemote.but7 == 1 && playSound == 0) {
-    //soundState=0;
-    //digitalWrite((soundPins[0]), HIGH);
-    //digitalWrite((soundPins[1]), HIGH);
-    //digitalWrite((soundPins[2]), HIGH);
-    //digitalWrite((soundPins[3]), HIGH);
-    //digitalWrite((soundPins[4]), HIGH);
-  //}//
-          
-  if ((recFromRemote.but3 == 0) && (readPinState == 1) && (BTstate ==1)) {
-    musicState = 1;
-    musicStateMillis = millis();
-    digitalWrite(soundpin6, LOW);
-  }
-  else if (recFromRemote.but3 == 1) {
-    digitalWrite(soundpin6, HIGH);
-  }
-
-  if(playSound == 1) {
-    randSoundPin = random(0, 5);
-    digitalWrite((soundPins[randSoundPin]), LOW);
-    soundMillis = millis();
-    playSound = 2;
-  }
-  else if(playSound == 2 && (millis() - soundMillis > 200)) {
-    digitalWrite((soundPins[randSoundPin]), HIGH);
-    playSound = 0;
-  }
+void sounds()
+{
+#if AudioHardware == JoeSerial
+    // TODO - Joe's sound player.
+#else
+    soundsNEC();
+#endif
 }
-*/
-void handleSounds()
+
+#if AudioHardware == JoeSerial
+#else
+void soundsNEC()
 {
     //
     // Naigon - NEC Audio
@@ -873,6 +855,7 @@ void handleSounds()
         soundPlayer->PlaySound(SoundTypes::NotPlaying);
     }
 }
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Calibration methods
