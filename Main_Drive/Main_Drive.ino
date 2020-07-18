@@ -26,6 +26,10 @@
 
 #include "Arduino.h"
 
+#include "Constants.h"
+#include "Enums.h"
+#include "Structs.h"
+
 //
 // External library includes. These are included in the /ext folder, but you'll need to install them into the Arduino
 // Library folder (Documents/Arduino/Libraries in Windows).
@@ -34,9 +38,18 @@
 #include <EasyTransfer.h>
 #include <PID_v1.h> //PID loop from http://playground.arduino.cc/Code/PIDLibrary
 
-#include "Constants.h"
-#include "Enums.h"
-#include "Structs.h"
+//
+// Ensure HeadTiltVersion is only set to MK2_Dome or MK3_Dome.
+//
+#ifndef HeadTiltVersion
+#error Please define 'HeadTiltVersion' in constants.h to either 'MK3_Dome' or 'MK2_Dome'.
+#elif HeadTiltVersion != MK3_Dome && HeadTiltVersion != MK2_Dome
+#error The define 'HeadTiltVersion' must be set to either 'MK3_Dome' or 'MK2_Dome'.
+#endif
+
+#if HeadTiltVersion == MK3_Dome
+#include <VarSpeedServo.h>
+#endif
 
 //
 // These are my libraries. Currently I have them living in this project, but the correct way would also be to install
@@ -65,7 +78,10 @@
 
 //
 // MK3 Head Tilt related includes
+//
+#ifndef BTRemote
 #include "FeatherRemoteReceiver.h"
+#endif
 
 //
 // Animations using statements
@@ -152,7 +168,12 @@ AnalogInHandler driveStickHandlerSlow(0, 512, reverseDrive, -MaxDriveSlow, MaxDr
 AnalogInHandler driveStickHandlerMed(0, 512, reverseDrive, -MaxDriveMed, MaxDriveMed, 2.0f);
 AnalogInHandler driveStickHandlerFast(0, 512, reverseDrive, -MaxDriveFast, MaxDriveFast, 2.0f);
 AnalogInHandler sideToSideStickHandler(0, 512, reverseS2S, -MaxSideToSide, MaxSideToSide, 2.0f);
+#if HeadTiltVersion == MK2_Dome
 AnalogInHandler domeTiltStickHandler(0, 512, reverseDomeTilt, -MaxDomeTiltAngle, MaxDomeTiltAngle, 2.0f);
+#else
+AnalogInHandler domeTiltStickHandlerFR(0, 512, reverseDomeTilt, -MaxDomeTiltX, MaxDomeTiltX, 2.0f);
+#endif
+AnalogInHandler domeTiltStickHandlerLR(0, 512, reverseDomeTilt, -MaxDomeTiltY, MaxDomeTiltY, 2.0f);
 AnalogInHandler domeSpinStickHandler(0, 512, reverseDomeSpin, -MaxDomeSpin, MaxDomeSpin, 15.0f);
 AnalogInHandler domeSpinAutoStickHandler(0, 512, reverseDomeSpin, -MaxDomeSpinAuto, MaxDomeSpinAuto, 15.0f);
 AnalogInHandler domeServoStickHandler(0, 512, reverseDomeSpin, -MaxDomeSpinServo, MaxDomeSpinServo, 15.0f);
@@ -160,12 +181,19 @@ AnalogInHandler domeServoAutoStickHandler(0, 512, reverseDomeSpin, -MaxDomeServo
 AnalogInHandler flywheelStickHandler(0, 512, reverseFlywheel, -MaxFlywheelDrive, MaxFlywheelDrive, 50.0f);
 // Pots
 AnalogInHandler sideToSidePotHandler(0, 1024, reverseS2SPot, -MaxS2SPot, MaxS2SPot, 0.0f);
-AnalogInHandler domeTiltPotHandler(0, 1024, reverseDomeTiltPot, -MaxHeadTiltPot, MaxHeadTiltPot, 0.0f);
 AnalogInHandler domeSpinPotHandler(0, 1024, reverseDomeSpinPot, -MaxDomeSpinPot, MaxDomeSpinPot, 0.0f);
+#if HeadTiltVersion == MK2_Dome
+AnalogInHandler domeTiltPotHandler(0, 1024, reverseDomeTiltPot, -MaxHeadTiltPot, MaxHeadTiltPot, 0.0f);
+#endif
 // Pointers to logical mappings. Different drive modes switch these.
 AnalogInHandler *driveStickPtr = &driveStickHandlerSlow;
 AnalogInHandler *sideToSideStickPtr = &sideToSideStickHandler;
+#if HeadTiltVersion == MK2_Dome
 AnalogInHandler *domeTiltStickPtr = &domeTiltStickHandler;
+#else
+AnalogInHandler *domeTiltStickPtr = &domeTiltStickHandlerFR;
+#endif
+AnalogInHandler *domeTiltStickLRPtr = &domeTiltStickHandlerLR;
 AnalogInHandler *domeSpinStickPtr = &domeSpinStickHandler;
 AnalogInHandler *flywheelStickPtr = &flywheelStickHandler;
 
@@ -189,11 +217,15 @@ FunctionEaseApplicator driveApplicatorWiggle(0.0, 5.0, 0.1, FunctionEaseApplicat
 // Naigon - Ease Applicator: for the drive this pointer will always be the one in use.
 FunctionEaseApplicator *driveApplicatorPtr = &driveApplicatorSlow;
 ScalingEaseApplicator sideToSideEase(0.0, easeS2S, easeMsS2SA, easeMsS2SD, 20);
-ScalingEaseApplicator domeTiltEase(0.0, easeDomeTilt, easeDomeTiltMsA, easeDomeTiltMsD, 20);
 ScalingEaseApplicator domeServoEase(0.0, easeDomeServo, easeDomeServoMsA, easeDomeServoMsD, 20);
-//LinearEaseApplicator domeServoEase(0.0, easeDomeServo);
 LinearEaseApplicator domeSpinEase(0.0, easeDome);
 LinearEaseApplicator flywheelEase(0.0, easeFlywheel);
+#if HeadTiltVersion == MK2_Dome
+ScalingEaseApplicator domeTiltEase(0.0, easeDomeTilt, easeDomeTiltMsA, easeDomeTiltMsD, 20);
+#else
+ScalingEaseApplicator domeTiltEaseFR(0.0, easeDomeMK3, easeDomeTiltMsA, easeDomeTiltMsD, 20);
+ScalingEaseApplicator domeTiltEaseLR(0.0, easeDomeMK3, easeDomeTiltMsA, easeDomeTiltMsD, 20);
+#endif
 
 ImuProMini imu;
 Offsets offsets;
@@ -218,8 +250,15 @@ ISoundPlayer *soundPlayer;
 
 SoundTypes forcedSoundType = SoundTypes::NotPlaying;
 
+#ifndef BTRemote
 // For feather remotes.
 FeatherRemoteReceiver featherRemotes(recDelay);
+#endif
+
+#if HeadTiltVersion == MK3_Dome
+VarSpeedServo leftServo;
+VarSpeedServo rightServo;
+#endif
 
 // For the voltage divider.
 float R1 = resistor1;
@@ -255,6 +294,13 @@ void setup()
     Serial.begin(115200);
     Serial1.begin(115200);
     Serial3.begin(115200);
+
+#if HeadTiltVersion == MK3_Dome
+    leftServo.attach(leftDomeTiltServo);
+    rightServo.attach(rightDomeTiltServo);
+    leftServo.write(95,50, false); 
+    rightServo.write(90, 50, false);
+#endif
 
     // Naigon - I changed Serial3 for the IMU, so swap these in code.
     RecRemote.begin(details(recFromRemote), &Serial1);
@@ -341,14 +387,13 @@ void setup()
 void loop()
 {
     RecIMU.receiveData();
-#ifdef FeatherRemotes
+#ifndef BTRemote
     featherRemotes.UpdateIteration(&RecRemote);
 #endif
 
     if (millis() - lastLoopMillis >= 20)
     {
         sendAndReceive();
-        BTenable();
 
         updateInputHandlers();
         setOffsetsAndSaveToEEPROM();
@@ -367,7 +412,7 @@ void loop()
         lastLoopMillis = millis();
     }
 
-#ifdef FeatherRemotes
+#ifndef BTRemote
     sendDriveData();
 #endif
 }
@@ -381,9 +426,10 @@ void loop()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void sendAndReceive()
 {
-#ifndef FeatherRemotes
+#ifdef BTRemote
     RecRemote.receiveData();
     SendRemote.sendData();
+    BTenable();
 #endif
     imu.UpdateIteration(recIMUData.pitch, recIMUData.roll, recIMUData.IMUloop);
 }
@@ -411,9 +457,10 @@ void readVin()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Bluetooth enable
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#ifdef BTRemote
 void BTenable()
 {
-#ifndef FeatherRemotes
+
     int btState = digitalRead(BTstatePin); //read whether BT is connected
     drive.IsConnected = btState == 1;
 
@@ -431,8 +478,8 @@ void BTenable()
         autoDisable.isAutoDisabled = true;
         autoDisable.autoDisableDoubleCheck = 0;
     }
-#endif
 }
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Update values for the current iteration
@@ -454,13 +501,13 @@ void updateInputHandlers()
     button7Handler.UpdateState(recFromRemote.but7);
     button8Handler.UpdateState(recFromRemote.but8);
 
-    int dr, s, dt, ds, fl;
+    int dr, s, dt, ds, fl, lr;
 
     if (sendToRemote.bodyMode == BodyMode::PushToRoll)
     {
         // Naigon - Safe Joystick Button Toggle: Refactored here due to Analog Joystick Refactor
         // Safe mode will keep the default 255 and will not read from the actual sticks.
-        dr = s = dt = ds = fl = 255;
+        dr = s = dt = ds = fl = lr = 255;
     }
     else
     {
@@ -469,17 +516,21 @@ void updateInputHandlers()
         dt = animation.IsAutomation ? 255 : recFromRemote.Joy2Y;
         ds = animation.IsAutomation ? 255 : recFromRemote.Joy2X;
         fl = drive.IsStationary ? recFromRemote.Joy1X : recFromRemote.Joy3X;
+        lr = recFromRemote.Joy4X;
     }
 
     // Joysticks
     driveStickPtr->UpdateState(dr);
     sideToSideStickPtr->UpdateState(s);
-    domeTiltStickPtr->UpdateState(dt);
     domeSpinStickPtr->UpdateState(ds);
     flywheelStickPtr->UpdateState(fl);
+    domeTiltStickPtr->UpdateState(dt);
+    domeTiltStickLRPtr->UpdateState(lr);
 
     // Pots
+#if HeadTiltVersion == MK2_Dome
     domeTiltPotHandler.UpdateState(analogRead(domeTiltPotPin));
+#endif
     domeSpinPotHandler.UpdateState(analogRead(domeSpinPotPin));
     sideToSidePotHandler.UpdateState(analogRead(S2SpotPin));
 }
@@ -573,6 +624,7 @@ void incrementBodyModeToggle(uint8_t firstEntry, uint8_t lastEntry)
         || sideToSideStickPtr->HasMovement()
         || flywheelStickPtr->HasMovement()
         || domeTiltStickPtr->HasMovement()
+        || domeTiltStickLRPtr->HasMovement()
         || domeSpinStickPtr->HasMovement())
     {
         // Only increment when the button was pressed and released, and the joystick was (mostly) centered.
@@ -603,6 +655,7 @@ void reverseDirection()
         && !driveStickPtr->HasMovement()
         && !sideToSideStickPtr->HasMovement()
         && !domeTiltStickPtr->HasMovement()
+        && !domeTiltStickLRPtr->HasMovement()
         && !domeSpinStickPtr->HasMovement()
         && !flywheelStickPtr->HasMovement())
     {
@@ -698,6 +751,11 @@ void updateAnimations()
             && !driveStickPtr->HasMovement())
         {
             domeTiltStickPtr->UpdateState(aStep->GetMotorControlValue(MotorControlId::idDomeTiltFR));
+        }
+        if (!domeTiltStickLRPtr->HasMovement()
+            && !driveStickPtr->HasMovement())
+        {
+            domeTiltStickLRPtr->UpdateState(aStep->GetMotorControlValue(MotorControlId::idDomeTiltLR));
         }
         if (!sideToSideStickPtr->HasMovement()
             && !driveStickPtr->HasMovement())
@@ -820,6 +878,12 @@ void handleSounds()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void bodyCalib()
 {
+#if HeadTiltVersion == MK2_Dome
+        int domeTiltFR = (int)domeTiltPotHandler.GetMappedValue();
+#else
+        int domeTiltFR = 0;
+#endif
+
     if (sendToRemote.bodyStatus == BodyStatus::NormalOperation
         && button8Handler.GetState() == ButtonState::Held
         && button7Handler.GetState() == ButtonState::NotPressed)
@@ -833,7 +897,7 @@ void bodyCalib()
             imu.Pitch(),
             imu.Roll(),
             (int)sideToSidePotHandler.GetMappedValue(),
-            (int)domeTiltPotHandler.GetMappedValue());
+            domeTiltFR);
     }
     else if (sendToRemote.bodyStatus == BodyStatus::BodyCalibration
         && button7Handler.GetState() == ButtonState::Pressed)
@@ -889,7 +953,11 @@ void movement()
             // Normal modes do all the things.
             sideTilt(&sideToSideEase);
             mainDrive(driveApplicatorPtr);
-            domeTilt(&domeTiltEase);
+#if HeadTiltVersion == MK2_Dome
+            domeTiltMK2(&domeTiltEase);
+#else
+            domeTiltMK3(&domeTiltEaseFR, &domeTiltEaseLR);
+#endif
             flywheelSpin(&flywheelEase);
         }
     }
@@ -987,7 +1055,8 @@ void sideTilt(IEaseApplicator *easeApplicatorPtr)
 // ------------------------------------------------------------------------------------
 // Dome tilt
 // ------------------------------------------------------------------------------------
-void domeTilt(IEaseApplicator *easeApplicatorPtr)
+#if HeadTiltVersion == MK2_Dome
+void domeTiltMK2(IEaseApplicator *easeApplicatorPtr)
 {
     //
     //The joystick will go from 0(Forward) to 512(Back).
@@ -1035,6 +1104,96 @@ void domeTilt(IEaseApplicator *easeApplicatorPtr)
 
     writeMotorPwm(headTiltPWM, domeTiltVals.output, domeTiltPot, false /*requireBT*/, false /*requireMotorEnable*/);
 }
+#else
+void domeTiltMK3(IEaseApplicator *easeApplicatorFRPtr, IEaseApplicator *easeApplicatorLRPtr)
+{
+#ifdef HeadTiltStabilization
+    // Naigon - Head Tilt Stabilization
+    // Calculate the pitch to input into the head tilt input in order to keep it level.
+    // Naigon - TODO: once the ease applicator is created, use it here to increment to pitch adjust.
+    int pitchAdjust = sendToRemote.bodyMode != BodyMode::PushToRoll
+        ? (imu.Pitch() + offsets.PitchOffset()) * HeadTiltPitchAndRollProportion
+        : 0;
+
+    int rollAdjust = sendToRemote.bodyMode != BodyMode::PushToRoll
+        ? (imu.Roll() + offsets.RollOffset()) * HeadTiltPitchAndRollProportion
+        : 0;
+#else
+    int pitchAdjust = 0;
+#endif
+
+    int joyX = constrain(
+        domeTiltStickPtr->GetMappedValue(),
+        -MaxDomeTiltX,
+        MaxDomeTiltX);
+
+    int joyY = constrain(
+        domeTiltStickLRPtr->GetMappedValue(),
+        -MaxDomeTiltY,
+        MaxDomeTiltY);
+
+    //
+    // This block of code changes the pitch based on if the drive is rolling or not.
+    // TODO - Figure out if this is needed with testing, as my work to add the tilt may fix it.
+    //
+    //if(Setpoint3 >= 2 || Setpoint3 <= -2)
+    //{
+    //    Joy2YPitch = Joy2YDirection + pitch;
+    //}
+    //else
+    //{
+    //    Joy2YPitch = Joy2YDirection - pitchOffset;
+    //}
+
+    int joy2XEaseMap = easeApplicatorFRPtr->ComputeValueForCurrentIteration(joyX);
+    int joy2YEaseMap = easeApplicatorFRPtr->ComputeValueForCurrentIteration(joyY);
+
+    int joy2Ya, joy2XLowOffset, joy2XHighOffset;
+    if(joy2YEaseMap < 0)
+    {
+        joy2Ya = map(joy2YEaseMap, -20, 0, 70, 0);
+        joy2XLowOffset = map(joy2Ya, 1, 70, -15, -50);
+        joy2XHighOffset = map(joy2Ya, 1, 70, 30, 20);
+    }
+    else if(joy2YEaseMap > 0)
+    {
+        joy2Ya = map(joy2YEaseMap, 0, 24, 0, -80); 
+        joy2XLowOffset = map(joy2Ya, -1, -80, -15, 10);
+        joy2XHighOffset = map(joy2Ya, -1, -80, 30, 90);
+    }
+    else
+    {
+        joy2Ya = 0;
+    }
+
+    int joy2XLowOffsetA, joy2XHighOffsetA, servoLeft, servoRight;
+
+    if(joy2XEaseMap > 0)
+    {
+        joy2XLowOffsetA = map(joy2XEaseMap, 0, 18, 0, joy2XLowOffset);
+        joy2XHighOffsetA = map(joy2XEaseMap, 0, 18, 0, joy2XHighOffset);
+        servoLeft = joy2Ya + joy2XHighOffsetA;
+        servoRight = joy2Ya + joy2XLowOffsetA;
+    }
+    else if(joy2XEaseMap < 0)
+    {
+        joy2XLowOffsetA = map(joy2XEaseMap, -18, 0, joy2XLowOffset, 0);
+        joy2XHighOffsetA = map(joy2XEaseMap, -18, 0, joy2XHighOffset, 0);
+        servoRight = joy2Ya + joy2XHighOffsetA;
+        servoLeft = joy2Ya + joy2XLowOffsetA;
+    }
+    else
+    {
+        joy2XHighOffsetA = 0;
+        joy2XLowOffsetA = 0; 
+        servoRight = joy2Ya;
+        servoLeft = joy2Ya;
+    }
+   
+    leftServo.write(constrain(map(servoLeft, -90, 90, 0, 180),0, 180) + 5, domeSpeed, false); 
+    rightServo.write(constrain(map(servoRight,-90, 90, 180, 0), 0, 180), domeSpeed, false);
+}
+#endif
 
 // ------------------------------------------------------------------------------------
 // Dome spin - Full Spin
@@ -1123,13 +1282,18 @@ void writeMotorPwm(MotorPWM &motorPwm, int output, int input, bool requireBT, bo
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void setOffsetsAndSaveToEEPROM()
 {
+#if HeadTiltVersion == MK2_Dome
+    int domeTiltPot = (int)domeTiltPotHandler.GetMappedValue();
+#else
+    int domeTiltPot = 0;
+#endif
     if (!offsets.AreValuesLoaded())
     {
         offsets.UpdateOffsets(
             imu.Pitch(),
             imu.Roll(),
             (int)sideToSidePotHandler.GetMappedValue(),
-            (int)domeTiltPotHandler.GetMappedValue());
+            domeTiltPot);
 
         offsets.UpdateDomeOffset(
             (int)domeSpinPotHandler.GetMappedValue(),
@@ -1184,6 +1348,7 @@ void autoDisableMotors()
         && !sideToSideStickPtr->HasMovement()
         // Naigon - Head Tilt Stabilization: Add a bit more tolerance here since the stabilization adds to the stick.
         && !domeTiltStickPtr->HasMovement()
+        && !domeTiltStickLRPtr->HasMovement()
         && !domeSpinStickPtr->HasMovement()
         && !flywheelStickPtr->HasMovement()
         && (!autoDisable.isAutoDisabled))
@@ -1196,6 +1361,7 @@ void autoDisableMotors()
         || sideToSideStickPtr->HasMovement()
         // Naigon - Head Tilt Stabilization: Add a bit more tolerance here since the stabilization adds to the stick.
         || domeTiltStickPtr->HasMovement()
+        || domeTiltStickLRPtr->HasMovement()
         || domeSpinStickPtr->HasMovement()
         || flywheelStickPtr->HasMovement()
         || autoDisable.forcedMotorEnable == true)

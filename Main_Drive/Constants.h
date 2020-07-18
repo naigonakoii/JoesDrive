@@ -55,6 +55,9 @@
 #define domeSpinPWM2 10    // PWM Pin for movement, swap the pin numbers on this axis if axis is reversed
 #define flywheelSpinPWM1 7 // PWM Pin for movement, swap the pin numbers on this axis if axis is reversed
 #define flywheelSpinPWM2 8 // PWM Pin for movement, swap the pin numbers on this axis if axis is reversed
+#define leftDomeTiltServo  4  //Signal pin for the left dome tilt servo 
+#define rightDomeTiltServo 5  //Signal pin for the right dome tilt servo
+
 #define resistor1 121000   // Larger resistor used on voltage divider to read battery level
 #define resistor2 82000    // Smaller resistor used on voltage divider to read battery level
 
@@ -72,17 +75,28 @@
 #define StopTrackPin 44
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// HEAD TILT - Set HeadTiltVersion to either MK2_Dome or MK3_Dome depending on your setup.
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#define MK2_Dome 1
+#define MK3_Dome 2
+
+#define HeadTiltVersion MK3_Dome
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Feature flags. Uncomment to turn on a feature.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define HeadTiltStabilization   // uncomment this if you want the head to stabilize on top of the body.
-//#define MK3HeadTilt           // uncomment if your drive has the MK3 head tilt as opposed to the MK2
-#define FeatherRemotes          // uncomment if using the Feather dual remotes instead of the single bluetooth one.
+//#define BTRemote              // uncomment if using the older single bluetooth remote as opposed to the dual remotes
+                                // using Feathers.
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Ease values from Joe. Modify these to increase/decrease the quickness of motor movements.
+// Ease values. Modify these to increase/decrease the quickness of motor movements.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define easeFlywheel      6.0 // Speed in which flywheel will increase/decrease during gradual movements
@@ -97,6 +111,7 @@
 #define easeDomeTilt       4.00 // Lower number means more easing when moving forward and back a.k.a. slower
 #define easeDomeTiltMsA   75.00 // Proportion of ease to add when starting movement for ScalingEaseApplicator
 #define easeDomeTiltMsD  200.00 // Length in ms from target when ramp down is applied for ScalingEaseApplicator
+#define easeDomeMK3        2.00 // Lower number means more easing for the MK3 dome tilt axes.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -139,6 +154,8 @@
 #define MaxDomeSpinAuto 255 * 2 / 3
 #define MaxDomeServoAuto MaxDomeSpinServo
 
+#define MaxDomeTiltY  12      // Maximum angle to tilt the dome in the Y axis ** - MAX IS 20
+#define MaxDomeTiltX  12      // Maximum angle to tilt the dome in the X axis ** - MAX IS 18
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -199,11 +216,12 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// MK3 Head Tilt Remote
+// MK3 Head Tilt
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#define dataDelay   0
-#define recDelay    10
-#define sendDelay   40
+#define dataDelay    0
+#define recDelay    10  // Delay to wait after receiving data.
+#define sendDelay   40  // Delay to wait after sending data.
+#define domeSpeed   60  // Speed at which the servos move.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
