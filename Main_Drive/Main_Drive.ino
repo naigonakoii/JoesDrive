@@ -315,12 +315,12 @@ void setup()
     Serial1.begin(115200);
     Serial3.begin(115200);
 
-#if HeadTiltVersion == MK3_Dome
+    #if HeadTiltVersion == MK3_Dome
     leftServo.attach(leftDomeTiltServo);
     rightServo.attach(rightDomeTiltServo);
     leftServo.write(95,50, false); 
     rightServo.write(90, 50, false);
-#endif
+    #endif
 
     // Naigon - I changed Serial3 for the IMU, so swap these in code.
     RecRemote.begin(details(recFromRemote), &Serial1);
@@ -329,8 +329,12 @@ void setup()
 
     pinMode(enablePin, OUTPUT);     // enable pin
     pinMode(enablePinDome, OUTPUT); // enable pin for dome spin
-    pinMode(BTstatePin, INPUT);     // BT paired status
 
+    #if RemoteHardware == BTRemote
+    pinMode(BTstatePin, INPUT);     // BT paired status
+    #endif
+
+    #if AudioHardware == JoeWired
     pinMode(readpin, INPUT_PULLUP); // read stat of Act on Soundboard
     pinMode(soundpin1, OUTPUT);     // play sound from pin 0 on Soundboard
     pinMode(soundpin2, OUTPUT);     // play sound from pin 1 on Soundboard
@@ -338,8 +342,7 @@ void setup()
     pinMode(soundpin4, OUTPUT);     // play sound from pin 3 on Soundboard
     pinMode(soundpin5, OUTPUT);     // play sound from pin 4 on Soundboard
     pinMode(soundpin6, OUTPUT);     // play sound from pin 4 on Soundboard
-
-#if AudioHardware == NECWired
+    #elif AudioHardware == NECWired
     digitalWrite(soundpin6, HIGH);
     digitalWrite(soundpin5, HIGH);
     digitalWrite(soundpin4, HIGH);
@@ -359,7 +362,7 @@ void setup()
     // Setup the soundPlayer as the one with a wired interface.
     soundPlayer = new WiredSoundPlayer(mapper, 200);
     soundPlayer->ClearSounds();
-#endif
+    #endif
 
     // *********** PID setup ***********
 
@@ -404,9 +407,10 @@ void setup()
 void loop()
 {
     RecIMU.receiveData();
-#if RemoteHardware == FeatherPair
+
+    #if RemoteHardware == FeatherPair
     featherRemotes.UpdateIteration(&RecRemote);
-#endif
+    #endif
 
     if (millis() - lastLoopMillis >= 20)
     {
@@ -429,9 +433,9 @@ void loop()
         lastLoopMillis = millis();
     }
 
-#if RemoteHardware == FeatherPair
+    #if RemoteHardware == FeatherPair
     sendDriveData();
-#endif
+    #endif
 }
 
 // ====================================================================================================================
@@ -443,11 +447,12 @@ void loop()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void sendAndReceive()
 {
-#if RemoteHardware == BTRemote
+    #if RemoteHardware == BTRemote
     RecRemote.receiveData();
     SendRemote.sendData();
     BTenable();
-#endif
+    #endif
+
     imu.UpdateIteration(recIMUData.pitch, recIMUData.roll, recIMUData.IMUloop);
 }
 
@@ -545,9 +550,10 @@ void updateInputHandlers()
     domeTiltStickLRPtr->UpdateState(lr);
 
     // Pots
-#if HeadTiltVersion == MK2_Dome
+    #if HeadTiltVersion == MK2_Dome
     domeTiltPotHandler.UpdateState(analogRead(domeTiltPotPin));
-#endif
+    #endif
+
     domeSpinPotHandler.UpdateState(analogRead(domeSpinPotPin));
     sideToSidePotHandler.UpdateState(analogRead(S2SpotPin));
 }
@@ -812,11 +818,11 @@ void updateAnimations()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void sounds()
 {
-#if AudioHardware == JoeSerial
+    #if AudioHardware == JoeSerial
     // TODO - Joe's sound player.
-#else
+    #else
     soundsNEC();
-#endif
+    #endif
 }
 
 #if AudioHardware == JoeSerial
@@ -873,11 +879,11 @@ void soundsNEC()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void bodyCalib()
 {
-#if HeadTiltVersion == MK2_Dome
-        int domeTiltFR = (int)domeTiltPotHandler.GetMappedValue();
-#else
-        int domeTiltFR = 0;
-#endif
+    #if HeadTiltVersion == MK2_Dome
+    int domeTiltFR = (int)domeTiltPotHandler.GetMappedValue();
+    #else
+    int domeTiltFR = 0;
+    #endif
 
     if (sendToRemote.bodyStatus == BodyStatus::NormalOperation
         && button8Handler.GetState() == ButtonState::Held
@@ -948,11 +954,13 @@ void movement()
             // Normal modes do all the things.
             sideTilt(&sideToSideEase);
             mainDrive(driveApplicatorPtr);
-#if HeadTiltVersion == MK2_Dome
+
+            #if HeadTiltVersion == MK2_Dome
             domeTiltMK2(&domeTiltEase);
-#else
+            #else
             domeTiltMK3(&domeTiltEaseFR, &domeTiltEaseLR);
-#endif
+            #endif
+
             flywheelSpin(&flywheelEase);
         }
     }
@@ -1102,7 +1110,7 @@ void domeTiltMK2(IEaseApplicator *easeApplicatorPtr)
 #else
 void domeTiltMK3(IEaseApplicator *easeApplicatorFRPtr, IEaseApplicator *easeApplicatorLRPtr)
 {
-#ifdef HeadTiltStabilization
+    #ifdef HeadTiltStabilization
     // Naigon - Head Tilt Stabilization
     // Calculate the pitch to input into the head tilt input in order to keep it level.
     // Naigon - TODO: once the ease applicator is created, use it here to increment to pitch adjust.
@@ -1113,9 +1121,9 @@ void domeTiltMK3(IEaseApplicator *easeApplicatorFRPtr, IEaseApplicator *easeAppl
     int rollAdjust = sendToRemote.bodyMode != BodyMode::PushToRoll
         ? (imu.Roll() + offsets.RollOffset()) * HeadTiltPitchAndRollProportion
         : 0;
-#else
+    #else
     int pitchAdjust = 0;
-#endif
+    #endif
 
     int joyX = constrain(
         domeTiltStickPtr->GetMappedValue(),
@@ -1277,11 +1285,12 @@ void writeMotorPwm(MotorPWM &motorPwm, int output, int input, bool requireBT, bo
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void setOffsetsAndSaveToEEPROM()
 {
-#if HeadTiltVersion == MK2_Dome
+    #if HeadTiltVersion == MK2_Dome
     int domeTiltPot = (int)domeTiltPotHandler.GetMappedValue();
-#else
+    #else
     int domeTiltPot = 0;
-#endif
+    #endif
+
     if (!offsets.AreValuesLoaded())
     {
         offsets.UpdateOffsets(

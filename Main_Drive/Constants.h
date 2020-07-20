@@ -64,11 +64,11 @@
 #define enablePin 31          // Pin that provides power to motor driver enable pins
 #define enablePinDome 33      // Pin that provides power to Dome motor driver enable pin
 #define S2SpotPin A0          // Pin connected to side tilt potentiometer 
-#define ACTpin 34            // Pin connected to ACT on soundboard
+#define ACTpin 34             // Pin connected to ACT on soundboard
 #define fadePin A2            // Connected to + of one channel on sound board(use resistor to ground)
 #define easeDomeUp 23         // Lower number means more easing when spinning
 #define easeDomeDown 35       // Lower number means more easing when spinning
-#define domeSpinPot A4        // Pin used to monitor dome spin potentiometer
+#define domeSpinPotPin A4     // Pin used to monitor dome spin potentiometer
 #define battMonitor A3        // Pin used to monitor battery voltage
 #define outputVoltage 5.2     // This is the output voltage from the Buck Converter powering the arduino
 #define drivePWM1 12          // PWM Pin for movement, swap the pin numbers on this axis if axis is reversed

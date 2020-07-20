@@ -19,6 +19,7 @@
 #define JoeSerial 1
 #define NECWired 2
 #define NECWireless 3
+#define JoeWired 4
 
 // Set to either 'NECWired', 'NECWireless', or 'JoeSerial' for sound playing.
 #define AudioHardware JoeSerial
