@@ -222,10 +222,13 @@ AnalogInHandler *flywheelStickPtr = &flywheelStickHandler;
 //
 MotorPWM drivePwm(drivePWM1, drivePWM2, 0, 2);
 MotorPWM sideToSidePWM(s2sPWM1, s2sPWM2, MaxSideToSide, 1);
-MotorPWM headTiltPWM(domeTiltPWM1, domeTiltPWM2, HeadTiltPotThresh, 0);
 MotorPWM domeSpinPWM(domeSpinPWM1, domeSpinPWM2, 0, 20);
 MotorPWM domeServoPWM(domeSpinPWM1, domeSpinPWM2, 0, 4);
 MotorPWM flywheelPWM(flywheelSpinPWM1, flywheelSpinPWM2, 0, 35);
+#if HeadTiltVersion == MK2_Dome
+MotorPWM headTiltPWM(domeTiltPWM1, domeTiltPWM2, HeadTiltPotThresh, 0);
+#endif
+
 // Naigon - Ease Applicator
 // Refactor the code to use the new IEaseApplicator instances.
 //
