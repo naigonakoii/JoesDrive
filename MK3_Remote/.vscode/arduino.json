@@ -1,0 +1,7 @@
+{
+    "board": "adafruit:samd:adafruit_feather_m0",
+    "configuration": "usbstack=arduino,debug=off",
+    "port": "com3",
+    "sketch": "MK3_Remote.ino",
+    "output": "bin"
+}
