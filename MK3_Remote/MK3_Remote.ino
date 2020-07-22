@@ -69,6 +69,13 @@ SSD1306AsciiWire oled;
 #define DOME_ADDRESS    3    // The recipient of packets
 #define DRIVE_ADDRESS   4
 
+// Naigon - Visual Studio Code
+//
+// This is just to make the VS Code IDE happy
+#ifndef RF69_915MHZ
+#define RF69_915MHZ 91
+#endif
+
 //Match frequency to the hardware version of the radio on your Feather
 #define FREQUENCY     RF69_915MHZ
 #define IS_RFM69HCW   true // set to 'true' if you are using an RFM69HCW module
@@ -212,7 +219,7 @@ void setup()
     delay(100);
 
     // Initialize radio
-    radio.initialize(FREQUENCY,REMOTE_ADDRESS,NETWORKID);
+    radio.initialize(FREQUENCY, REMOTE_ADDRESS, NETWORKID);
     if (IS_RFM69HCW) {
         radio.setHighPower();    // Only for RFM69HCW & HW!
     }

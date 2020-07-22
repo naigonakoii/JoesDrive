@@ -1,6 +1,5 @@
 {
-    "board": "adafruit:samd:adafruit_feather_m0",
-    "configuration": "usbstack=arduino,debug=off",
+    "board": "adafruit:avr:feather32u4",
     "port": "com3",
     "sketch": "MK3_Remote.ino",
     "output": "bin"
