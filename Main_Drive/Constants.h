@@ -278,7 +278,7 @@
 #define reverseRoll         false
 #define reverseDomeTiltPot  true
 #define reverseDomeSpinPot  false
-#define reverseS2SPot       true
+#define reverseS2SPot       false
 
 #endif
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

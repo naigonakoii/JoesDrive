@@ -5,6 +5,7 @@
         }
     ],
     "settings": {
+        "arduino.enableUSBDetection": true,
         "editor.detectIndentation": false,
         "editor.formatOnSave": false,
         "editor.insertSpaces": true,
@@ -16,7 +17,8 @@
             "Eeprom",
             "Naigon",
             "Naigon's",
-            "println"
+            "println",
+            "irqn"
         ]
     },
     "extensions": {

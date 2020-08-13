@@ -70,6 +70,13 @@
 #error The define 'RemoteHardware' in DriveSetup.h must be set to either 'BTRemote' or 'FeatherPair'.
 #endif
 
+#ifndef IMUSerialPort
+#error Please define 'IMUSerialPort in DriveSetup.h to either 2 or 3 to match your hardware.
+#elif IMUSerialPort != 2 && IMUSerialPort != 3
+#error The define 'IMUSerialPort' in DriveSetup.h must be set to either 2 or 3.
+#endif
+
+
 //
 // These are my libraries. Currently I have them living in this project, but the correct way would also be to install
 // these into the Arduino libraries folder, and then update these references with angle bracket notation and just the
@@ -325,13 +332,20 @@ void setup()
     // Naigon - I changed Serial3 for the IMU, so swap these in code.
     RecRemote.begin(details(recFromRemote), &Serial1);
     SendRemote.begin(details(sendToRemote), &Serial1);
+
+    #if IMUSerialPort == 3
     RecIMU.begin(details(recIMUData), &Serial3);
+    #else
+    RecIMU.begin(details(recIMUData), &Serial2);
+    #endif
 
     pinMode(enablePin, OUTPUT);     // enable pin
     pinMode(enablePinDome, OUTPUT); // enable pin for dome spin
 
     #if RemoteHardware == BTRemote
     pinMode(BTstatePin, INPUT);     // BT paired status
+    #elseif RemoteHardware == FeatherPair
+    
     #endif
 
     #if AudioHardware == JoeWired
@@ -533,12 +547,21 @@ void updateInputHandlers()
     }
     else
     {
+        #if HeadTiltVersion == MK3_Dome
         dr = drive.IsStationary ? 255 : recFromRemote.Joy1Y;
         s = animation.IsAutomation ? recFromRemote.Joy2X : recFromRemote.Joy1X;
         dt = animation.IsAutomation ? 255 : recFromRemote.Joy2Y;
+        lr = animation.IsAutomation ? 255 : recFromRemote.Joy2X;
+        ds = animation.IsAutomation ? 255 : recFromRemote.Joy4X;
+        fl = drive.IsStationary ? recFromRemote.Joy1X : recFromRemote.Joy3X;
+        #else
+        dr = drive.IsStationary ? 255 : recFromRemote.Joy1Y;
+        s = animation.IsAutomation ? recFromRemote.Joy2X : recFromRemote.Joy1X;
+        dt = animation.IsAutomation ? 255 : recFromRemote.Joy2Y;
+        lr = 255;
         ds = animation.IsAutomation ? 255 : recFromRemote.Joy2X;
         fl = drive.IsStationary ? recFromRemote.Joy1X : recFromRemote.Joy3X;
-        lr = recFromRemote.Joy4X;
+        #endif
     }
 
     // Joysticks

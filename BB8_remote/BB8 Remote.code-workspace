@@ -8,6 +8,7 @@
 		"editor.tabSize": 4,
 		"editor.insertSpaces": true,
 		"C_Cpp.formatting": "Default",
-		"editor.formatOnSave": false
+		"editor.formatOnSave": false,
+		"editor.renderWhitespace": "all"
 	}
 }
