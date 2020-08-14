@@ -1,0 +1,6 @@
+{
+    "board": "adafruit:avr:feather32u4",
+    "port": "com6",
+    "sketch": "MK3_Feather_Standalone.ino",
+    "output": "bin"
+}

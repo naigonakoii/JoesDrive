@@ -1,0 +1,28 @@
+{
+	"folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {
+        "editor.detectIndentation": false,
+        "editor.formatOnSave": false,
+        "editor.insertSpaces": true,
+        "editor.renderWhitespace": "all",
+        "editor.tabSize": 4,
+        "C_Cpp.intelliSenseEngineFallback": "Disabled",
+        "C_Cpp.intelliSenseEngine": "Default",
+        "cSpell.words": [
+            "Eeprom",
+            "Naigon",
+            "Naigon's"
+        ]
+    },
+    "extensions": {
+        "recommendations": [
+            "vsciot-vscode.vscode-arduino",
+            "ms-vscode.cpptools",
+            "streetsidesoftware.code-spell-checker"
+        ]
+    },
+}
