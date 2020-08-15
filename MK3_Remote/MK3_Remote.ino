@@ -308,7 +308,7 @@ void readInputs()
     sendToBody.but5 = digitalRead(rJoySelectPIN);
     sendToBody.but6 = digitalRead(rBut1PIN);
     sendToBody.but7 = digitalRead(rBut2PIN);
-    sendToBody.but8 = analogRead(rBut3PIN);
+    sendToBody.but8 = digitalRead(rBut3PIN);
 
     Joy1Xa = analogRead(Joy1XPIN);
     Joy1Ya = analogRead(Joy1YPIN);

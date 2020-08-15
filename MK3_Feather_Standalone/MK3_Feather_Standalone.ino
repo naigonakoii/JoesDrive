@@ -40,6 +40,11 @@
 EasyTransfer SendRemote;
 EasyTransfer SendBody;
 
+// Naigon
+// Uncomment this to debug the values coming from the remote across the RMF69 channel.
+//#define DebugRemote
+
+
 //*********************************************************************************************
 // *********** IMPORTANT SETTINGS - YOU MUST CHANGE/CONFIGURE TO FIT YOUR HARDWARE ************
 //*********************************************************************************************
@@ -71,7 +76,7 @@ uint8_t remfrom;
 uint8_t rembuf[RH_RF69_MAX_MESSAGE_LEN];
 uint8_t rembuflen = sizeof(rembuf);
 uint8_t bodyfrom;
-unsigned long lastLoop, lastRec, lastSent;
+unsigned long lastLoop, lastSent;
 
 typedef struct RECEIVE_DATA_STRUCTURE_REMOTE
 {
@@ -107,8 +112,6 @@ typedef struct RECEIVE_DATA_STRUCTURE_REMOTE
 recRemoteData recFromRemote;
 
 byte send_buf[sizeof(recFromRemote)];
-bool Send;
-
 
 typedef struct RECEIVE_DATA_STRUCTURE_DRIVE
 {
@@ -171,9 +174,50 @@ void loop()
     }
 }
 
+void PrintDebugValues()
+{
+    Serial.print(recFromRemote.Joy1Y);
+    Serial.print(F(" , "));
+    Serial.print(recFromRemote.Joy1X);
+    Serial.print(F(" , "));
+    Serial.print(recFromRemote.Joy2Y);
+    Serial.print(F(" , "));
+    Serial.print(recFromRemote.Joy2X);
+    Serial.print(F(" , "));
+    Serial.print(recFromRemote.Joy3X);
+    Serial.print(F(" , "));
+    Serial.print(recFromRemote.Joy4X);
+    Serial.print(F(" , "));
+    Serial.print(recFromRemote.but1);
+    Serial.print(F(" , "));
+    Serial.print(recFromRemote.but2);
+    Serial.print(F(" , "));
+    Serial.print(recFromRemote.but3);
+    Serial.print(F(" , "));
+    Serial.print(recFromRemote.but4);
+    Serial.print(F(" , "));
+    Serial.print(recFromRemote.but5);
+    Serial.print(F(" , "));
+    Serial.print(recFromRemote.but6);
+    Serial.print(F(" , "));
+    Serial.print(recFromRemote.but7);
+    Serial.print(F(" , "));
+    Serial.print(recFromRemote.but8);
+    Serial.print(F(" , "));
+    Serial.print(recFromRemote.motorEnable);
+    Serial.println();
+}
+
 void recRemote()
 {
-    if (radio.receiveDone() && radio.SENDERID == uint8_t(REMOTE_ADDRESS))
+    bool received = radio.receiveDone();
+
+    // Do nothing if no new data.
+    if (!received) { return; }
+
+    uint16_t id = radio.SENDERID;
+
+    if (id == uint16_t(REMOTE_ADDRESS))
     {
         if (radio.DATALEN != sizeof(recFromRemote))
         {
@@ -182,13 +226,16 @@ void recRemote()
         else
         {
             recFromRemote = *(recRemoteData*)radio.DATA;
+
+            #ifdef DebugRemote
+            PrintDebugValues();
+            #endif
+
             SendRemote.sendData();
             delay(5);
         }
     }
 
-    lastRec = millis();
-    Send = true;
     recBody();
 }
 

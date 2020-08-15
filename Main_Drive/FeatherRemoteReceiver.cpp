@@ -24,6 +24,11 @@ bool FeatherRemoteReceiver::ReceivedData() const
     return _receivedData;
 }
 
+bool FeatherRemoteReceiver::IsControllerConnected() const
+{
+    return _isControllerConnected;
+}
+
 void FeatherRemoteReceiver::UpdateIteration(EasyTransfer *remoteData)
 {
     _receivedData = false;

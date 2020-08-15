@@ -449,7 +449,7 @@ void loop()
 
         bodyCalib();
         domeCalib();
-        //debugRoutines();
+        debugRoutines();
 
         movement();
         lastLoopMillis = millis();
@@ -472,9 +472,9 @@ void sendAndReceive()
     #if RemoteHardware == BTRemote
     RecRemote.receiveData();
     SendRemote.sendData();
-    BTenable();
     #endif
 
+    updateWireless();
     imu.UpdateIteration(recIMUData.pitch, recIMUData.roll, recIMUData.IMUloop);
 }
 
@@ -499,21 +499,24 @@ void readVin()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Bluetooth enable
+// Wireless Connection Enable
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#if RemoteHardware == BTRemote
-void BTenable()
-{
 
+void updateWireless()
+{
+    #if RemoteHardware == BTRemote
     int btState = digitalRead(BTstatePin); //read whether BT is connected
     drive.IsConnected = btState == 1;
+    #elif RemoteHardware == FeatherPair
+    drive.IsConnected = featherRemotes.IsControllerConnected();
+    #endif
 
-    if (recFromRemote.motorEnable == 0 && btState == 1)
+    if (recFromRemote.motorEnable == 0 && drive.IsConnected)
     { //if motor enable switch is on and BT connected, turn on the motor drivers
         autoDisableMotors();
         digitalWrite(enablePinDome, HIGH);
     }
-    else if (recFromRemote.motorEnable == 1 || btState == 0)
+    else if (recFromRemote.motorEnable == 1 || !drive.IsConnected)
     { //if motor enable switch is off OR BT disconnected, turn off the motor drivers
         digitalWrite(enablePin, LOW);
         digitalWrite(enablePinDome, LOW);
@@ -523,7 +526,7 @@ void BTenable()
         autoDisable.autoDisableDoubleCheck = 0;
     }
 }
-#endif
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Update values for the current iteration

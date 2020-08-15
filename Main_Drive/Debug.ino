@@ -22,7 +22,6 @@
 // ====================================================================================================================
 // ====================================================================================================================
 
-
 void debugRoutines()
 {
     // Uncomment " #Define " above
@@ -129,15 +128,17 @@ void debugRoutines()
 
 #ifdef printRemote
     Serial.print(F("  Remote: "));
-    Serial.print(recFromRemote.ch1);
+    Serial.print(recFromRemote.Joy1Y);
     Serial.print(" , ");
-    Serial.print(recFromRemote.ch2);
+    Serial.print(recFromRemote.Joy1X);
     Serial.print(F(" , "));
-    Serial.print(recFromRemote.ch3);
+    Serial.print(recFromRemote.Joy2Y);
     Serial.print(F(" , "));
-    Serial.print(recFromRemote.ch4);
+    Serial.print(recFromRemote.Joy2X);
     Serial.print(F(" , "));
-    Serial.print(recFromRemote.ch5);
+    Serial.print(recFromRemote.Joy3X);
+    Serial.print(F(" , "));
+    Serial.print(recFromRemote.Joy4X);
     Serial.print(F(" , "));
     Serial.print(recFromRemote.but1);
     Serial.print(F(" , "));
@@ -156,7 +157,7 @@ void debugRoutines()
     Serial.print(recFromRemote.but8);
     Serial.print(F(" , "));
     Serial.print(recFromRemote.motorEnable);
-    Serial.print('\n');
+    Serial.println();
 #endif
 
 #ifdef printOffsets

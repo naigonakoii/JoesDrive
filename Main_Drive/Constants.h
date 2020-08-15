@@ -55,6 +55,8 @@
 #define domeSpinPWM2 10      // PWM Pin for movement, swap the pin numbers on this axis if axis is reversed
 #define flywheelSpinPWM1 7   // PWM Pin for movement, swap the pin numbers on this axis if axis is reversed
 #define flywheelSpinPWM2 8   // PWM Pin for movement, swap the pin numbers on this axis if axis is reversed
+#define resistor1 121000     // Larger resistor used on voltage divider to read battery level
+#define resistor2 82000      // Smaller resistor used on voltage divider to read battery level
 
 #else
 
@@ -83,13 +85,12 @@
 #define leftDomeTiltServo  4  //Signal pin for the left dome tilt servo 
 #define rightDomeTiltServo 5  //Signal pin for the right dome tilt servo
 #define resetPin 40
+#define resistor1 151000      // Larger resisitor used on voltage divider to read battery level
+#define resistor2 82000       // Smaller resisitor used on voltage divider to read battery level
 
 #endif
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-#define resistor1 121000   // Larger resistor used on voltage divider to read battery level
-#define resistor2 82000    // Smaller resistor used on voltage divider to read battery level
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -278,7 +279,7 @@
 #define reverseRoll         false
 #define reverseDomeTiltPot  true
 #define reverseDomeSpinPot  false
-#define reverseS2SPot       false
+#define reverseS2SPot       true
 
 #endif
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
