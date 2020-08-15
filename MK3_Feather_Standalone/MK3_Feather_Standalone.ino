@@ -1,181 +1,208 @@
-   // ===================================================================================================================================================================================================== 
-  //                         Joe's Drive  - Remote "MK3"  - Updated 4/11
-  //
-  //             ***         You are free to use, and share this code as long as it is not sold. There is no warranty, guarantee, or other tomfoolery. 
-  //                         This entire project was masterminded by an average Joe, your mileage may vary. 
-  // ===================================================================================================================================================================================================== 
-  //                            Written by Joe Latiola - https://www.facebook.com/groups/JoesDrive/
-  //
-  //                            You will need libraries: Modified Low PowerLab: https://travis-ci.org/LowPowerLab/RFM69  
-  //                                                     EasyTransfer: https://github.com/madsci1016/Arduino-EasyTransfer
-  //                                                     
-  //
-  // ===================================================================================================================================================================================================== 
-  // =====================================================================================================================================================================================================
-   
-  /*
-   * 
-   * 
-   * 
-   *        Find file: RFM69.h
-   *        Find: #define RF69_CSMA_LIMIT_MS 1000
-   *        Change to: #define RF69_CSMA_LIMIT_MS 100
-   * 
-   * 
-   * 
-   * 
-   */ 
+// ===================================================================================================================================================================================================== 
+//                         Joe's Drive  - Remote "MK3"  - Updated 4/11
+//
+//             ***         You are free to use, and share this code as long as it is not sold. There is no warranty, guarantee, or other tomfoolery. 
+//                         This entire project was masterminded by an average Joe, your mileage may vary. 
+// ===================================================================================================================================================================================================== 
+//                            Written by Joe Latiola - https://www.facebook.com/groups/JoesDrive/
+//
+//                            You will need libraries: Modified Low PowerLab: https://travis-ci.org/LowPowerLab/RFM69  
+//                                                     EasyTransfer: https://github.com/madsci1016/Arduino-EasyTransfer
+//                                                     
+//
+// ===================================================================================================================================================================================================== 
+// =====================================================================================================================================================================================================
 
+/*
+ * 
+ * 
+ * 
+ *        Find file: RFM69.h
+ *        Find: #define RF69_CSMA_LIMIT_MS 1000
+ *        Change to: #define RF69_CSMA_LIMIT_MS 100
+ * 
+ * 
+ * 
+ * 
+ */ 
 
-  
-  #define dataDelay 5
-  #define sendDelay 45
-  
-  #include <SPI.h>
-  #include <RFM69.h>
-  #include <RH_RF69.h>
-  #include <RHReliableDatagram.h>
-  #include <RH_Serial.h>
-  #include "Arduino.h"
-  #include <EasyTransfer.h>
+#define dataDelay 5
+#define sendDelay 45
 
-  EasyTransfer SendRemote;
-  EasyTransfer SendBody;
+#include <SPI.h>
+#include <RFM69.h>
+#include <RH_RF69.h>
+#include <RHReliableDatagram.h>
+#include <RH_Serial.h>
+#include "Arduino.h"
+#include <EasyTransfer.h>
+
+EasyTransfer SendRemote;
+EasyTransfer SendBody;
 
 //*********************************************************************************************
-  // *********** IMPORTANT SETTINGS - YOU MUST CHANGE/CONFIGURE TO FIT YOUR HARDWARE ************
-  //*********************************************************************************************
-  #define NETWORKID       100  // The same on all nodes that talk to each other
-  #define REMOTE_ADDRESS  1    // The unique identifier of this node
-  #define BODY_ADDRESS    2    // The recipient of packets
-  #define DOME_ADDRESS    3    // The recipient of packets
-  #define DRIVE_ADDRESS   4
-  
-  //Match frequency to the hardware version of the radio on your Feather
-  #define FREQUENCY     RF69_915MHZ
-  #define IS_RFM69HCW   true // set to 'true' if you are using an RFM69HCW module
-  
-  //*********************************************************************************************
-  #define SERIAL_BAUD   115200
-  
-  // for Feather 32u4 Radio
-  #define RFM69_CS      8
-  #define RFM69_IRQ     7
-  #define RFM69_IRQN    4  // Pin 7 is IRQ 4!
-  #define RFM69_RST     4
+// *********** IMPORTANT SETTINGS - YOU MUST CHANGE/CONFIGURE TO FIT YOUR HARDWARE ************
+//*********************************************************************************************
+#define NETWORKID       100  // The same on all nodes that talk to each other
+#define REMOTE_ADDRESS  1    // The unique identifier of this node
+#define BODY_ADDRESS    2    // The recipient of packets
+#define DOME_ADDRESS    3    // The recipient of packets
+#define DRIVE_ADDRESS   4
 
-  
+//Match frequency to the hardware version of the radio on your Feather
+#define FREQUENCY     RF69_915MHZ
+#define IS_RFM69HCW   true // set to 'true' if you are using an RFM69HCW module
 
-  
-  RFM69 radio = RFM69(RFM69_CS, RFM69_IRQ, IS_RFM69HCW, RFM69_IRQN);
+//*********************************************************************************************
+#define SERIAL_BAUD   115200
 
-  RH_Serial driver(Serial1);
-  RHReliableDatagram manager(driver, BODY_ADDRESS);
+// for Feather 32u4 Radio
+#define RFM69_CS      8
+#define RFM69_IRQ     7
+#define RFM69_IRQN    4  // Pin 7 is IRQ 4!
+#define RFM69_RST     4
 
-  
-      uint8_t remfrom;
-      uint8_t rembuf[RH_RF69_MAX_MESSAGE_LEN];
-      uint8_t rembuflen = sizeof(rembuf);
-      uint8_t bodyfrom;
-      
-  unsigned long lastLoop, lastRec, lastSent;
+RFM69 radio = RFM69(RFM69_CS, RFM69_IRQ, IS_RFM69HCW, RFM69_IRQN);
 
-  typedef struct RECEIVE_DATA_STRUCTURE_REMOTE{
-        int Joy1Y=256; //main drive
-        int Joy1X=256; //tilt / steer
-        int Joy2Y=256; //head tilt
-        int Joy2X=256; //head spin
-        int Joy3X=256; //spin Flywheel
-        int Joy4X=256;
-        byte ServoMode; //Select on left joystick
-        byte lBut1=1; //left 1
-        byte lBut2=1; //left 2
-        byte lBut3; //left3
-        byte Fwd; //Select on right joystick = rJoySelect
-        byte Speed;
-        byte rBut2; //right 2
-        byte rBut3=1; //right 3
-        byte motorEnable=1; //toggle on top
-        byte CalibID;
-        byte wireless=1;
-        
-  }recRemoteData; 
-  recRemoteData recFromRemote;
+RH_Serial driver(Serial1);
+RHReliableDatagram manager(driver, BODY_ADDRESS);
 
-  byte send_buf[sizeof(recFromRemote)];
-  bool Send;   
+uint8_t remfrom;
+uint8_t rembuf[RH_RF69_MAX_MESSAGE_LEN];
+uint8_t rembuflen = sizeof(rembuf);
+uint8_t bodyfrom;
+unsigned long lastLoop, lastRec, lastSent;
 
+typedef struct RECEIVE_DATA_STRUCTURE_REMOTE
+{
+    int Joy1Y; //right joystick up/down
+    int Joy1X; //right joystick left/right
+    int Joy2Y; //left joystick up/down
+    int Joy2X; //left joystick left/right
+    int Joy3X; //back stick left/right
+    int Joy4X;
+    // but1 (stick 1) from Joe is selecting between dome servo and dome spin
+    // Naigon - this now cycles through the combined drive mode and dome mode.
+    uint8_t but1 = 1; //left select
+    // but2 from Joe is audio
+    // Naigon - button 2 press plays a happy/neutral sound. Holding plays a longer/sader sound
+    uint8_t but2 = 1; //left button 1
+    // but3 from Joe is audio
+    // Naigon - button 3 press starts music, and cycles tracks. Holding stops music.
+    uint8_t but3 = 1; //left button 2
+    // but4 from Joe is to trigger Body/dome lighting changes
+    // Naigon - Button 4 TBD
+    uint8_t but4 = 1; //left button 3
+    // but5 (stick 2) toggles fwd/rev
+    uint8_t but5 = 0; //right select (fwd/rev)
+    // but6 from Joe is for switching between drive speeds
+    // Naigon - Button 6 is now TBD.
+    uint8_t but6 = 1; //right button 1
+    // but7 from Joe is for body calibration only currently when holding
+    uint8_t but7 = 1; //right button 2
+    // but8 is for select only
+    uint8_t but8 = 1; //right button 3 (right select)
+    uint8_t motorEnable = 1;
+} recRemoteData; 
+recRemoteData recFromRemote;
 
-  typedef struct RECEIVE_DATA_STRUCTURE_DRIVE{
-        int PSI;
-        byte ledStatus;
-        float bodyBatt;
-        //float domeBatt;
-        
-  }recBodyData;
-  recBodyData recFromBody;
-
-  uint8_t bodybuf[sizeof(recFromBody)];
-  uint8_t bodybuflen = sizeof(recFromBody);
-
-  typedef struct RECEIVE_DATA_STRUCTURE_DOME{
- 
-        float domeBatt;
-        
-  }recDomeData;
-  recDomeData recFromDome;
-
-  uint8_t from;
-  uint8_t buf[RH_RF69_MAX_MESSAGE_LEN];
-  uint8_t buflen = sizeof(buf);
+byte send_buf[sizeof(recFromRemote)];
+bool Send;
 
 
-  
+typedef struct RECEIVE_DATA_STRUCTURE_DRIVE
+{
+    double bodyBatt = 0.0;
+    double domeBatt = 0.0;
+    uint8_t bodyStatus;
+    uint8_t bodyMode;
+    uint8_t bodyDirection;
+} recBodyData;
+recBodyData recFromBody;
 
-  
-  void setup() {
+uint8_t bodybuf[sizeof(recFromBody)];
+uint8_t bodybuflen = sizeof(recFromBody);
+
+uint8_t from;
+uint8_t buf[RH_RF69_MAX_MESSAGE_LEN];
+uint8_t buflen = sizeof(buf);
+
+void setup()
+{
     // put your setup code here, to run once:
-  Serial.begin(115200);
-  Serial1.begin(57600);
-  driver.serial().begin(57600);
+    Serial.begin(115200);
+    Serial1.begin(57600);
+    driver.serial().begin(57600);
     if (!manager.init())
-    Serial.println("init failed");
+    {
+        Serial.println("init failed");
+    }
 
- // Hard Reset the RFM module
+    // Hard Reset the RFM module
     pinMode(RFM69_RST, OUTPUT);
     digitalWrite(RFM69_RST, HIGH);
     delay(100);
     digitalWrite(RFM69_RST, LOW);
     delay(100);
-  
+
     // Initialize radio
     radio.initialize(FREQUENCY,BODY_ADDRESS,NETWORKID);
-    if (IS_RFM69HCW) {
+    if (IS_RFM69HCW)
+    {
       radio.setHighPower();    // Only for RFM69HCW & HW!
     }
     radio.setPowerLevel(20); // power output ranges from 0 (5dBm) to 31 (20dBm)
 
-  SendRemote.begin(details(recFromRemote), &Serial1);
-  SendBody.begin(details(recFromBody), &Serial1);
-  
-    
-  
-  }
-  
-  void loop() {
-    if(millis() - lastLoop >= 2){
-      lastLoop = millis();
-      recRemote();
+    SendRemote.begin(details(recFromRemote), &Serial1);
+    SendBody.begin(details(recFromBody), &Serial1);
+}
+
+void loop()
+{
+    if(millis() - lastLoop >= 2)
+    {
+        lastLoop = millis();
+        recRemote();
     } 
-     
-    if(millis() - lastSent >= 80){
-      recBody();
+
+    if(millis() - lastSent >= 80)
+    {
+        recBody();
+    }
+}
+
+void recRemote()
+{
+    if (radio.receiveDone() && radio.SENDERID == uint8_t(REMOTE_ADDRESS))
+    {
+        if (radio.DATALEN != sizeof(recFromRemote))
+        {
+            Serial.print("Invalid payload received, not matching Payload struct!");
+        }
+        else
+        {
+            recFromRemote = *(recRemoteData*)radio.DATA;
+            SendRemote.sendData();
+            delay(5);
+        }
     }
 
+    lastRec = millis();
+    Send = true;
+    recBody();
+}
 
-  
-  }  
-  
-  
-  
-  
+void recBody()
+{
+    if(Serial1.available() > 0)
+    {
+        SendBody.receiveData();
+        memcpy(bodybuf, &recFromBody, sizeof(recFromBody));
+        // Naigon
+        // Joe had some version here where the dome would communicate through this module to the remote;
+        // I took that out, so that the dome will directly send its voltage to the body.
+        radio.send(REMOTE_ADDRESS, bodybuf, sizeof(recFromBody));
+        delay(5);
+    }
+    lastSent = millis();
+}

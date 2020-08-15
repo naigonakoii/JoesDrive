@@ -319,23 +319,31 @@ PID PID5(&domeServoVals.input, &domeServoVals.output, &domeServoVals.setpoint, P
 void setup()
 {
     Serial.begin(115200);
+
+    #if RemoteHardware == FeatherPair
+    // Connection to separate feather runs slower than direct to bluetooth.
+    Serial1.begin(57600);
+    #else
+    // Bluetooth runs at full speed.
     Serial1.begin(115200);
-    Serial3.begin(115200);
+    #endif
 
     #if HeadTiltVersion == MK3_Dome
     leftServo.attach(leftDomeTiltServo);
     rightServo.attach(rightDomeTiltServo);
-    leftServo.write(95,50, false); 
+    leftServo.write(95, 50, false); 
     rightServo.write(90, 50, false);
     #endif
 
-    // Naigon - I changed Serial3 for the IMU, so swap these in code.
     RecRemote.begin(details(recFromRemote), &Serial1);
     SendRemote.begin(details(sendToRemote), &Serial1);
 
+    // Naigon - I changed Serial3 for the IMU, so swap these in code.
     #if IMUSerialPort == 3
+    Serial3.begin(115200);
     RecIMU.begin(details(recIMUData), &Serial3);
     #else
+    Serial2.begin(115200);
     RecIMU.begin(details(recIMUData), &Serial2);
     #endif
 
