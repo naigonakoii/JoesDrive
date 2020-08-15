@@ -187,32 +187,16 @@ int Joy2Y, Joy2Ya, Joy2Yb;
 int Joy3X, Joy3Xa, Joy3Xb;
 int Joy4X, Joy4Xa, Joy4Xb;
 int Joy1XCenter, Joy1YCenter, Joy2XCenter, Joy2YCenter, Joy3XCenter, Joy4XCenter;
-int joyconfigX1, joyconfigY1, joyconfigX2, joyconfigY2, joyconfigX3, joyconfigX4;
-byte enable, bodyConfigStep, ServoMode, lBut1State, rBut1State;
-byte rJoySelect, domeSend;
-byte JoySelectState, ServoJoySelectState, dome180, DomeDirection;
-byte menuConfirm, cursorMove, updateScreen = 1;
-byte casenum, lastcasenum = 1;
-byte start, wireless, bodyWireless;
-byte joyConfStep = 1;
-byte But1State, But2State, But1Sound, voiceSend, But2Sound, musicSend;
-int joyConfCountdown;
-byte waitTime = 5;
-String menuItems[] = {"Reverse Dome", "Dome Config", "Body Config", "Joystick Config"};
+byte updateScreen = 1;
+byte wireless, bodyWireless;
 
-String speedDisplay[] = {"Slow", "Medium", "Fast"};
 //int rectime[20];
 //byte rectimeloc;
 const int eepromSet = 890;
-int rBut1 = 1;
 float measuredvbat;
-unsigned long buttonTimer, menuTimeout, joyConfMillis, lastScreenUpdate, domeConfigTimeout; 
-unsigned long bodyConfigMillis, domeConnectivityMillis, lastrecdata = 1000; 
+unsigned long lastScreenUpdate; 
+unsigned long lastrecdata = 1000; 
 unsigned long lastReading, lastLoopMillis, lastrecDataMillis, lastSend;
-unsigned long But1Millis, But2Millis;
-
-uint8_t rBut3=1, rBut3Timer;
-unsigned long rBut3Millis;
 
 byte startup = 1;
 
@@ -324,20 +308,7 @@ void readInputs()
     sendToBody.but5 = digitalRead(rJoySelectPIN);
     sendToBody.but6 = digitalRead(rBut1PIN);
     sendToBody.but7 = digitalRead(rBut2PIN);
-
-    if(analogRead(rBut3PIN) > 1)
-    {
-        rBut3 = 1;
-    }
-    else
-    {
-        rBut3 = 0;
-    }
-
-    if(sendToBody.but8 != 0)
-    {
-        sendToBody.but8 = 0;
-    }
+    sendToBody.but8 = analogRead(rBut3PIN);
 
     Joy1Xa = analogRead(Joy1XPIN);
     Joy1Ya = analogRead(Joy1YPIN);
@@ -712,18 +683,10 @@ void timeJoystickCalibration()
 void resetMenu()
 {
     oled.clear();
-    joyConfStep = 1;
-    casenum = 0;
-    lastcasenum = 1;
-    menuConfirm = 0;
-    joyConfCountdown = 0;
-    waitTime = 5;
-    bodyConfigStep = 0;
 }
 
 void setJoystickCenter()
 {
-    start = 0;
     EEPROM.writeInt(0, analogRead(Joy1XPIN));
     EEPROM.writeInt(2, analogRead(Joy1YPIN));
     EEPROM.writeInt(4, analogRead(Joy2XPIN));
