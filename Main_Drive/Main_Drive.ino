@@ -933,6 +933,7 @@ void bodyCalib()
             imu.Roll(),
             (int)sideToSidePotHandler.GetMappedValue(),
             domeTiltFR);
+        sendToRemote.bodyStatus = BodyStatus::NormalOperation;
     }
     else if (sendToRemote.bodyStatus == BodyStatus::BodyCalibration
         && button7Handler.GetState() == ButtonState::Pressed)
@@ -1339,12 +1340,6 @@ void setOffsetsAndSaveToEEPROM()
     }
 
     offsets.WriteOffsets();
-
-    if (!offsets.NeedsWrite())
-    {
-        // Update the body status back to normal once all is saved.
-        sendToRemote.bodyStatus = BodyStatus::NormalOperation;
-    }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

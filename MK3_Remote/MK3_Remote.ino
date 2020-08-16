@@ -201,7 +201,7 @@ unsigned long lastReading, lastLoopMillis, lastrecDataMillis, lastSend;
 byte startup = 1;
 
 uint8_t lastBodyStatus = 1000;
-uint8_t lastDirveMode = BodyMode::UnknownSpeed;
+uint8_t lastDriveMode = BodyMode::UnknownSpeed;
 uint8_t lastDirection = Direction::UnknownDirection;
 
 bool displayJoystickCalibration = false;
@@ -489,16 +489,11 @@ void recData()
 
 bool needsScreenUpdate()
 {
-    if (recFromBody.bodyStatus != BodyStatus::NormalOperation)
-    {
-        return false;
-    }
-
     // Naigon - Drive-side (Server-side) Refactor
     // Toggle displaying new values based on changes coming from the drive.
     return ((millis() - lastScreenUpdate) > 15000
         || lastBodyStatus != recFromBody.bodyStatus
-        || lastDirveMode != recFromBody.bodyMode
+        || lastDriveMode != recFromBody.bodyMode
         || lastDirection != recFromBody.bodyDirection
         || updateScreen == 1
         || displayJoystickCalibration);
@@ -516,10 +511,6 @@ void Screen()
         timeJoystickCalibration();
         displayJoystickCalibration = false;
     }
-    else if(recFromBody.bodyStatus == BodyStatus::NormalOperation)
-    {
-        infoScreen();
-    }
     else if(recFromBody.bodyStatus == BodyStatus::BodyCalibration)
     {
         bodyCalibration();
@@ -528,8 +519,12 @@ void Screen()
     {
         domeCenterCalibration();
     }
+    else if(recFromBody.bodyStatus == BodyStatus::NormalOperation)
+    {
+        infoScreen();
+    }
 
-    lastDirveMode = recFromBody.bodyMode;
+    lastDriveMode = recFromBody.bodyMode;
     lastDirection = recFromBody.bodyDirection;
     lastBodyStatus = recFromBody.bodyStatus;
 }
@@ -543,40 +538,40 @@ void infoScreen()
     BodyMode bodyM = (BodyMode)recFromBody.bodyMode;
     if (bodyM == BodyMode::Slow || bodyM == BodyMode::Servo)
     {
-        oled.println(F("Slw     "));
+        oled.println(F("Slw                                "));
     }
     else if (bodyM == BodyMode::SlowWithTilt || bodyM == BodyMode::ServoWithTilt)
     {
-        oled.println(F("SlwT   "));
+        oled.println(F("SlwT                               "));
     }
     else if (bodyM == BodyMode::Medium)
     {
-        oled.println(F("Med    "));
+        oled.println(F("Med                                "));
     }
     else if (bodyM == BodyMode::Fast)
     {
-        oled.println(F("Fst     "));
+        oled.println(F("Fst                                "));
     }
     else if (bodyM == BodyMode::Stationary)
     {
-        oled.println(F("Wgl     "));
+        oled.println(F("Wgl                                "));
     }
     else if (bodyM == BodyMode::PushToRoll)
     {
-        oled.println(F("Safe    "));
+        oled.println(F("Safe                               "));
     }
     else if (bodyM == BodyMode::Automated
         || bodyM == BodyMode::AutomatedServo)
     {
-        oled.println(F("Auto    "));
+        oled.println(F("Auto                               "));
     }
     else if (bodyM == BodyMode::AutomatedTilt)
     {
-        oled.println(F("aTlt    "));
+        oled.println(F("aTlt                               "));
     }
     else
     {
-        oled.println(F("OFF      "));
+        oled.println(F("OFF                                "));
     }
 
     oled.setCursor(100,0);
@@ -591,22 +586,22 @@ void infoScreen()
     oled.print(F("Body: ")); 
     if(wireless == 1 && recFromDome.bodyBatt != 99.99)
     {
-        oled.print(recFromDome.bodyBatt); oled.println(F("v                 "));
+        oled.print(recFromDome.bodyBatt); oled.println(F("v                         "));
     }
     else
     {
-        oled.println(F("Disconnected              "));
+        oled.println(F("Disconnected                      "));
     }
     oled.print(F("Dome: ")); 
     if(wireless == 1 && recFromDome.domeBatt != 99.99)
     {
-        oled.print(recFromDome.domeBatt); oled.println("v                 ");
+        oled.print(recFromDome.domeBatt); oled.println("v                         ");
     }
     else
     {
-        oled.println(F("Disconnected              "));
+        oled.println(F("Disconnected                      "));
     }
-    oled.print("Remote: "); oled.print(measuredvbat); oled.println(F("v               "));
+    oled.print("Remote: "); oled.print(measuredvbat); oled.println(F("v                       "));
     lastScreenUpdate = millis();
 }
 
