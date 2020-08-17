@@ -1,14 +1,31 @@
 {
-	"folders": [
-		{
-			"path": "."
-		}
-	],
-	"settings": {
-		"editor.tabSize": 4,
-		"editor.insertSpaces": true,
-		"C_Cpp.formatting": "Default",
-		"editor.formatOnSave": false,
-		"editor.renderWhitespace": "all"
-	}
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {
+        "arduino.enableUSBDetection": true,
+        "editor.detectIndentation": false,
+        "editor.formatOnSave": false,
+        "editor.insertSpaces": true,
+        "editor.renderWhitespace": "all",
+        "editor.tabSize": 4,
+        "C_Cpp.intelliSenseEngineFallback": "Disabled",
+        "C_Cpp.intelliSenseEngine": "Default",
+        "cSpell.words": [
+            "Eeprom",
+            "Naigon",
+            "Naigon's",
+            "println",
+            "irqn"
+        ]
+    },
+    "extensions": {
+        "recommendations": [
+            "vsciot-vscode.vscode-arduino",
+            "ms-vscode.cpptools",
+            "streetsidesoftware.code-spell-checker"
+        ]
+    },
 }

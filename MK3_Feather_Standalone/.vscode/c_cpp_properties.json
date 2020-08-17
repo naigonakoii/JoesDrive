@@ -1,7 +1,7 @@
 {
     "configurations": [
         {
-            "name": "Arduino",
+            "name": "Win32",
             "defines": [
                 "ARDUINO=100",
                 "UBRRH",
@@ -25,7 +25,9 @@
                 "D:/My Documents/Arduino/libraries/VarSpeedServo",
                 "${workspaceFolder}",
                 "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\**",
-                "C:\\Program Files (x86)\\Arduino\\tools\\**"
+                "C:\\Program Files (x86)\\Arduino\\tools\\**",
+                "C:\\Users\\Admin\\AppData\\Local\\Arduino15\\packages\\adafruit\\hardware\\avr\\1.4.13\\**",
+                "C:\\Users\\Admin\\AppData\\Local\\Arduino15\\packages\\adafruit\\tools\\**"
             ],
             "forcedInclude": [
                 "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\cores\\arduino\\Arduino.h"

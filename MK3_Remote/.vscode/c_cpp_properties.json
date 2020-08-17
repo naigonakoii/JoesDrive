@@ -1,7 +1,7 @@
 {
     "configurations": [
         {
-            "name": "Arduino",
+            "name": "Win32",
             "defines": [
                 "ARDUINO=100",
                 "UBRRH",
@@ -19,7 +19,7 @@
                 "C:/Program Files (x86)/Arduino/hardware/tools/avr/avr/include",
                 "C:/Program Files (x86)/Arduino/hardware/tools/avr/lib/gcc/avr/7.3.0/include",
                 "C:/Program Files (x86)/Arduino/hardware/arduino/avr/variants/mega",
-                "D:/My Documents/Arduino/libraries/Arduino-EEPROMEx-master",
+                "D:/My Documents/Arduino/libraries/Arduino-EEPROMEx",
                 "D:/My Documents/Arduino/libraries/Arduino-PID-Library-master",
                 "D:/My Documents/Arduino/libraries/EZTransfer",
                 "D:/My Documents/Arduino/libraries/LowPower",
