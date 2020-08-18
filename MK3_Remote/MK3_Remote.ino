@@ -46,6 +46,7 @@
 #define sendDelay     20
 #define recDelay      2
 
+// Naigon - Uncomment this line to debug the values the remote is sending across the wire.
 #define debug
 
 #include <EEPROMex.h>
@@ -310,20 +311,32 @@ void readInputs()
     sendToBody.but7 = digitalRead(rBut2PIN);
     sendToBody.but8 = digitalRead(rBut3PIN);
 
+    sendToBody.motorEnable = digitalRead(enablePIN);
+
     Joy1Xa = analogRead(Joy1XPIN);
     Joy1Ya = analogRead(Joy1YPIN);
     Joy2Xa = analogRead(Joy2XPIN);
     Joy2Ya = analogRead(Joy2YPIN);
     Joy3Xa = analogRead(Joy3XPIN);
     Joy4Xa = analogRead(Joy4XPIN);
-    sendToBody.motorEnable = digitalRead(enablePIN);
 
     centerChannels();
 
-    sendToBody.Joy1Y = Joy1Y; //main drive
-    sendToBody.Joy1X = Joy1X; //tilt / steer
-    sendToBody.Joy2Y = Joy2Y; //head tilt
-    sendToBody.Joy2X = Joy2X; //head spin
+    if (recFromBody.bodyDirection == Direction::Reverse)
+    {
+        sendToBody.Joy1Y = map(Joy1Y, 0, 512, 512, 0);
+        sendToBody.Joy1X = map(Joy1X, 0, 512, 512, 0);
+        sendToBody.Joy2Y = map(Joy2Y, 0, 512, 512, 0);
+        sendToBody.Joy2X = map(Joy2X, 0, 512, 512, 0);
+    }
+    else
+    {
+        sendToBody.Joy1Y = Joy1Y; //main drive
+        sendToBody.Joy1X = Joy1X; //tilt / steer
+        sendToBody.Joy2Y = Joy2Y; //head tilt
+        sendToBody.Joy2X = Joy2X; //head spin
+    }
+
     sendToBody.Joy3X = Joy3X; //spin Flywheel
     sendToBody.Joy4X = Joy4X;
 
@@ -470,7 +483,6 @@ void recData()
             {
                 recFromBody = *(recBodyData*)radio.DATA; 
                 recFromDome.bodyBatt = recFromBody.bodyBatt;
-                Serial.println("rec body");
                 lastrecdata = millis();
                 lastrecDataMillis = millis();
                 if(recFromDome.domeBatt != 99.99)
@@ -575,14 +587,16 @@ void infoScreen()
     }
 
     oled.setCursor(100,0);
-    if(recFromBody.bodyDirection == Direction::Forward)
-    {
-        oled.println(F("Fwd     "));
-    }
-    else
+
+    if (recFromBody.bodyDirection == Direction::Reverse)
     {
         oled.println(F("Rev     "));
     }
+    else
+    {
+        oled.println(F("Fwd     "));
+    }
+
     oled.print(F("Body: ")); 
     if(wireless == 1 && recFromDome.bodyBatt != 99.99)
     {
@@ -694,7 +708,7 @@ void setJoystickCenter()
 
 void timeout()
 {
-    if(millis() - lastrecdata >= 2500)
+    if(millis() - lastrecdata >= 5000)
     {
         if(wireless == 1)
         {
