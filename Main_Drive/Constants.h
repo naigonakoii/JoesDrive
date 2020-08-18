@@ -62,14 +62,12 @@
 
 // MK3 values
 //
-#define S2SenablePin 29       // Pin that provides power to motor driver enable pins
-#define enablePin 31          // Pin that provides power to motor driver enable pins
+#define enablePinS2S 31       // Pin that provides power to motor driver enable pins
+#define enablePin 29          // Pin that provides power to motor driver enable pins
 #define enablePinDome 33      // Pin that provides power to Dome motor driver enable pin
 #define S2SpotPin A0          // Pin connected to side tilt potentiometer 
 #define ACTpin 34             // Pin connected to ACT on soundboard
 #define fadePin A2            // Connected to + of one channel on sound board(use resistor to ground)
-#define easeDomeUp 23         // Lower number means more easing when spinning
-#define easeDomeDown 35       // Lower number means more easing when spinning
 #define domeSpinPotPin A4     // Pin used to monitor dome spin potentiometer
 #define battMonitor A3        // Pin used to monitor battery voltage
 #define outputVoltage 5.2     // This is the output voltage from the Buck Converter powering the arduino

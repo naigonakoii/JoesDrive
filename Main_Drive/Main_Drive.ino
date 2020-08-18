@@ -290,7 +290,7 @@ VarSpeedServo rightServo;
 // For the voltage divider.
 float R1 = resistor1;
 float R2 = resistor2;
-unsigned long lastBatteryUpdate;
+unsigned long lastBatteryUpdate = 0;
 
 // Drive motor
 int driveSpeed;
@@ -311,6 +311,9 @@ PID PID4(&domeTiltVals.input, &domeTiltVals.output, &domeTiltVals.setpoint, Pk4,
 
 PIDVals domeServoVals;
 PID PID5(&domeServoVals.input, &domeServoVals.output, &domeServoVals.setpoint, Pk5, Ik5, Dk5, DIRECT);
+
+// Mark this function as external to make visual studio code happy. This is not needed for Arduino but doesn't hurt.
+extern void debugRoutines();
 
 // ================================================================
 // ===                      INITIAL SETUP                       ===
@@ -349,6 +352,7 @@ void setup()
 
     pinMode(enablePin, OUTPUT);     // enable pin
     pinMode(enablePinDome, OUTPUT); // enable pin for dome spin
+    pinMode(enablePinS2S, OUTPUT);
 
     #if RemoteHardware == BTRemote
     pinMode(BTstatePin, INPUT);     // BT paired status
@@ -480,11 +484,13 @@ void sendAndReceive()
 
 void sendDriveData()
 {
+    #if RemoteHardware == FeatherPair
     if (featherRemotes.ReceivedData())
     {
         SendRemote.sendData();
         delay(5);
     }
+    #endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -492,7 +498,8 @@ void sendDriveData()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void readVin()
 {
-    if(millis() - lastBatteryUpdate >= 15000){
+    // Naigon - Send the voltage right away the first time.
+    if(millis() - lastBatteryUpdate >= 15000 || lastBatteryUpdate == 0){
       lastBatteryUpdate = millis();
       sendToRemote.bodyBatt = ((analogRead(battMonitor) * outputVoltage) / 1024.0) / (R2 / (R1 + R2));
     }
@@ -518,7 +525,7 @@ void updateWireless()
     }
     else if (recFromRemote.motorEnable == 1 || !drive.IsConnected)
     { //if motor enable switch is off OR BT disconnected, turn off the motor drivers
-        digitalWrite(enablePin, LOW);
+        disableMotors();
         digitalWrite(enablePinDome, LOW);
         // TODO - I think there was a bug here, as in Joe's code this was 0, but from rest of code 0 seems to mean
         // false.
@@ -1371,6 +1378,28 @@ void turnOffAllTheThings(bool includingDrive)
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Auto disable motors
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void enableMotors()
+{
+    digitalWrite(enablePin, HIGH);
+
+    // Naigon - MK3 Head Tilt
+    // MK3 has a separate enable for the S2S pin; MK2 had only one pin for all main motors.
+    #if HeadTiltVersion == MK3_Dome
+    digitalWrite(enablePinS2S, HIGH);
+    #endif
+}
+
+void disableMotors()
+{
+    digitalWrite(enablePin, LOW);
+
+    // Naigon - MK3 Head Tilt
+    // MK3 has a separate enable for the S2S pin; MK2 had only one pin for all main motors.
+    #if HeadTiltVersion == MK3_Dome
+    digitalWrite(enablePinS2S, LOW);
+    #endif
+}
+
 void autoDisableMotors()
 {
     double output1A = abs(s2sTiltVals.output);
@@ -1400,7 +1429,7 @@ void autoDisableMotors()
         || autoDisable.forcedMotorEnable == true)
     {
         autoDisable.isAutoDisabled = false;
-        digitalWrite(enablePin, HIGH);
+        
         autoDisable.autoDisableDoubleCheck = 0;
         drive.AutoDisable = false;
         autoDisable.forcedMotorEnable = false;
@@ -1410,13 +1439,13 @@ void autoDisableMotors()
         && (millis() - autoDisable.autoDisableMotorsMillis) >= (unsigned long)AutoDisableMS
         && (output1A <= S2SOutThresh && output3A <= DriveOutThresh))
     {
-        digitalWrite(enablePin, LOW);
+        disableMotors();
         drive.AutoDisable = true;
     }
     else if (output1A > 50 || output3A > 20)
     {
         autoDisable.isAutoDisabled = false;
-        digitalWrite(enablePin, HIGH);
+        enableMotors();
         autoDisable.autoDisableDoubleCheck = 0;
         drive.AutoDisable = false;
     }
@@ -1430,7 +1459,7 @@ void autoDisableMotors()
         if (output1A > S2SOutThresh || output3A > DriveOutThresh)
         {
             autoDisable.isAutoDisabled = false;
-            digitalWrite(enablePin, HIGH);
+            enableMotors();
             autoDisable.autoDisableDoubleCheck = 0;
             drive.AutoDisable = false;
         }
