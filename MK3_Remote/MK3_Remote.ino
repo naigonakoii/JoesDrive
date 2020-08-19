@@ -39,15 +39,15 @@
 #define Joy1YPIN      A5
 #define rBut1PIN      6
 #define rBut2PIN      5
-#define rBut3PIN      9    //   This is the only button / pin that must not change. 
-#define Joy3XPIN      A3
-#define Joy4XPIN      A2
+#define rBut3PIN      9
+#define Joy3XPIN      A2
+#define Joy4XPIN      A3
 #define dataDelay     0
 #define sendDelay     20
 #define recDelay      2
 
 // Naigon - Uncomment this line to debug the values the remote is sending across the wire.
-#define debug
+// #define debug
 
 #include <EEPROMex.h>
 #include "Arduino.h"
@@ -179,6 +179,12 @@ RFM69 radio = RFM69(RFM69_CS, RFM69_IRQ, IS_RFM69HCW, RFM69_IRQN);
 //
 const int JoyLow = 0;
 const int JoyHigh = 1023;
+
+// Naigon - MK3 Head Tilt
+// To avoid having the user need to wiggle the back joysticks as part of the calibration,
+// I took an average of my two sticks output here to get this value.
+const int PSPLow = (115 * 2);
+const int PSPHigh = 1023 - (115 * 2);
 
 bool SEND;
 int Joy1X, Joy1Xa, Joy1Xb;
@@ -406,11 +412,11 @@ void centerChannels()
     }
     else if (Joy3Xa > Joy3XCenter)
     {
-        Joy3Xb = map(Joy3Xa, Joy3XCenter, JoyHigh, 255, 0);
+        Joy3Xb = map(Joy3Xa, Joy3XCenter, PSPHigh, 255, 0);
     }
     else if (Joy3Xa < Joy3XCenter)
     {
-        Joy3Xb = map(Joy3Xa, JoyLow, Joy3XCenter, 512, 257);
+        Joy3Xb = map(Joy3Xa, PSPLow, Joy3XCenter, 512, 257);
     }
   
     if (Joy4Xa == Joy4XCenter)
@@ -419,11 +425,11 @@ void centerChannels()
     }
     else if (Joy4Xa > Joy4XCenter)
     {
-        Joy4Xb = map(Joy4Xa, Joy4XCenter, JoyHigh, 255, 0);
+        Joy4Xb = map(Joy4Xa, Joy4XCenter, PSPHigh, 255, 0);
     }
     else if (Joy4Xa < Joy4XCenter)
     {
-        Joy4Xb = map(Joy4Xa, JoyLow, Joy4XCenter, 512, 257);
+        Joy4Xb = map(Joy4Xa, PSPLow, Joy4XCenter, 512, 257);
     }
 
     Joy1X = constrain(Joy1Xb, 0, 512);
