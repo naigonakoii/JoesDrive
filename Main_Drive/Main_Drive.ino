@@ -197,9 +197,9 @@ AnalogInHandler sideToSideStickHandler(0, 512, reverseS2S, -MaxSideToSide, MaxSi
 #if HeadTiltVersion == MK2_Dome
 AnalogInHandler domeTiltStickHandler(0, 512, reverseDomeTilt, -MaxDomeTiltAngle, MaxDomeTiltAngle, 2.0f);
 #else
-AnalogInHandler domeTiltStickHandlerFR(0, 512, reverseDomeTilt, -MaxDomeTiltX, MaxDomeTiltX, 2.0f);
+AnalogInHandler domeTiltStickHandlerFR(0, 512, reverseDomeTiltFR, -MaxDomeTiltX, MaxDomeTiltX, 2.0f);
 #endif
-AnalogInHandler domeTiltStickHandlerLR(0, 512, reverseDomeTilt, -MaxDomeTiltY, MaxDomeTiltY, 2.0f);
+AnalogInHandler domeTiltStickHandlerLR(0, 512, reverseDomeTiltLR, -MaxDomeTiltY, MaxDomeTiltY, 2.0f);
 AnalogInHandler domeSpinStickHandler(0, 512, reverseDomeSpin, -MaxDomeSpin, MaxDomeSpin, 15.0f);
 AnalogInHandler domeSpinAutoStickHandler(0, 512, reverseDomeSpin, -MaxDomeSpinAuto, MaxDomeSpinAuto, 15.0f);
 AnalogInHandler domeServoStickHandler(0, 512, reverseDomeSpin, -MaxDomeSpinServo, MaxDomeSpinServo, 15.0f);
@@ -1165,14 +1165,15 @@ void domeTiltMK3(IEaseApplicator *easeApplicatorFRPtr, IEaseApplicator *easeAppl
         : 0;
     #else
     int pitchAdjust = 0;
+    int rollAdjust = 0;
     #endif
 
-    int joyX = constrain(
+    int joyY = constrain(
         domeTiltStickPtr->GetMappedValue(),
         -MaxDomeTiltX,
         MaxDomeTiltX);
 
-    int joyY = constrain(
+    int joyX = constrain(
         domeTiltStickLRPtr->GetMappedValue(),
         -MaxDomeTiltY,
         MaxDomeTiltY);
@@ -1190,8 +1191,8 @@ void domeTiltMK3(IEaseApplicator *easeApplicatorFRPtr, IEaseApplicator *easeAppl
     //    Joy2YPitch = Joy2YDirection - pitchOffset;
     //}
 
-    int joy2XEaseMap = easeApplicatorFRPtr->ComputeValueForCurrentIteration(joyX);
     int joy2YEaseMap = easeApplicatorFRPtr->ComputeValueForCurrentIteration(joyY);
+    int joy2XEaseMap = easeApplicatorLRPtr->ComputeValueForCurrentIteration(joyX);
 
     int joy2Ya, joy2XLowOffset, joy2XHighOffset;
     if(joy2YEaseMap < 0)

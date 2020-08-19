@@ -265,12 +265,15 @@
 #define reverseDomeTiltPot  false
 #define reverseDomeSpinPot  false
 #define reverseS2SPot       false
+// Naigon - Needed to prevent build breaks, but completely unused with MK2.
+#define reverseDomeTiltLR   false
 
 #else
 
 #define reverseDrive        false
-#define reverseDomeTilt     false
-#define reverseS2S          false
+#define reverseDomeTiltFR   false
+#define reverseDomeTiltLR   true
+#define reverseS2S          true
 #define reverseDomeSpin     true
 #define reverseFlywheel     false
 #define reversePitch        false
