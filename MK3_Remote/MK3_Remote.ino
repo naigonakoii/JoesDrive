@@ -233,6 +233,13 @@ void setup()
     pinMode (rBut2PIN, INPUT_PULLUP);
     pinMode (enablePIN, INPUT_PULLUP);
 
+    pinMode (Joy1XPIN, INPUT);
+    pinMode (Joy1YPIN, INPUT);
+    pinMode (Joy2XPIN, INPUT);
+    pinMode (Joy2YPIN, INPUT);
+    pinMode (Joy3XPIN, INPUT);
+    pinMode (Joy4XPIN, INPUT);
+
     // Hard Reset the RFM module
     pinMode(RFM69_RST, OUTPUT);
     digitalWrite(RFM69_RST, HIGH);
