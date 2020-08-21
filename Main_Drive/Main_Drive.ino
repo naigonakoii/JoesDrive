@@ -197,9 +197,9 @@ AnalogInHandler sideToSideStickHandler(0, 512, reverseS2S, -MaxSideToSide, MaxSi
 #if HeadTiltVersion == MK2_Dome
 AnalogInHandler domeTiltStickHandler(0, 512, reverseDomeTilt, -MaxDomeTiltAngle, MaxDomeTiltAngle, 2.0f);
 #else
-AnalogInHandler domeTiltStickHandlerFR(0, 512, reverseDomeTiltFR, -MaxDomeTiltX, MaxDomeTiltX, 2.0f);
+AnalogInHandler domeTiltStickHandlerFR(0, 512, reverseDomeTiltFR, -MaxDomeTiltY, MaxDomeTiltY, 2.0f);
 #endif
-AnalogInHandler domeTiltStickHandlerLR(0, 512, reverseDomeTiltLR, -MaxDomeTiltY, MaxDomeTiltY, 2.0f);
+AnalogInHandler domeTiltStickHandlerLR(0, 512, reverseDomeTiltLR, -MaxDomeTiltX, MaxDomeTiltX, 2.0f);
 AnalogInHandler domeSpinStickHandler(0, 512, reverseDomeSpin, -MaxDomeSpin, MaxDomeSpin, 15.0f);
 AnalogInHandler domeSpinAutoStickHandler(0, 512, reverseDomeSpin, -MaxDomeSpinAuto, MaxDomeSpinAuto, 15.0f);
 AnalogInHandler domeServoStickHandler(0, 512, reverseDomeSpin, -MaxDomeSpinServo, MaxDomeSpinServo, 15.0f);
@@ -252,9 +252,10 @@ LinearEaseApplicator flywheelEase(0.0, easeFlywheel);
 #if HeadTiltVersion == MK2_Dome
 ScalingEaseApplicator domeTiltEase(0.0, easeDomeTilt, easeDomeTiltMsA, easeDomeTiltMsD, 20);
 #else
-ScalingEaseApplicator domeTiltEaseFR(0.0, easeDomeMK3, easeDomeTiltMsA, easeDomeTiltMsD, 20);
-ScalingEaseApplicator domeTiltEaseLR(0.0, easeDomeMK3, easeDomeTiltMsA, easeDomeTiltMsD, 20);
+ScalingEaseApplicator domeTiltEaseFR(0.0, easeDomeMK3, easeTiltMK3MsA, easeTiltMK3MsD, 20);
+ScalingEaseApplicator domeTiltEaseLR(0.0, easeDomeMK3, easeTiltMK3MsA, easeTiltMK3MsD, 20);
 #endif
+
 
 ImuProMini imu;
 Offsets offsets;
@@ -425,6 +426,8 @@ void setup()
 
     drive.PreviousNormalMode = BodyMode::Slow;
     drive.PreviousAnimationMode = BodyMode::AutomatedServo;
+    // Naigon - MK3 Head Tilt
+    drive.HasDomeMoved = false;
 
     // TODO - could make this based on when a button is pressed or a connection to make it more random.
     randomSeed(millis());
@@ -1122,16 +1125,16 @@ void domeTiltMK2(IEaseApplicator *easeApplicatorPtr)
             ? (double)driveStickPtr->GetMappedValue() * (double)DomeTiltAmount / (double)driveSpeed
             : 0.0;
 
-#ifdef HeadTiltStabilization
+    #ifdef HeadTiltStabilization
     // Naigon - Head Tilt Stabilization
     // Calculate the pitch to input into the head tilt input in order to keep it level.
     // Naigon - TODO: once the ease applicator is created, use it here to increment to pitch adjust.
     int pitchAdjust = sendToRemote.bodyMode != BodyMode::PushToRoll
         ? (imu.Pitch() + offsets.PitchOffset()) * HeadTiltPitchAndRollProportion
         : 0;
-#else
+    #else
     int pitchAdjust = 0;
-#endif
+    #endif
 
     int domeTiltPot = (int)domeTiltPotHandler.GetMappedValue() + offsets.DomeTiltPotOffset();
 
@@ -1174,27 +1177,31 @@ void domeTiltMK3(IEaseApplicator *easeApplicatorFRPtr, IEaseApplicator *easeAppl
     #endif
 
     int joyY = constrain(
-        domeTiltStickPtr->GetMappedValue(),
-        -MaxDomeTiltX,
-        MaxDomeTiltX);
-
-    int joyX = constrain(
-        domeTiltStickLRPtr->GetMappedValue(),
+        domeTiltStickPtr->GetMappedValue() + pitchAdjust,
         -MaxDomeTiltY,
         MaxDomeTiltY);
 
+    int joyX = constrain(
+        domeTiltStickLRPtr->GetMappedValue() + rollAdjust,
+        -MaxDomeTiltX,
+        MaxDomeTiltX);
+
     //
-    // This block of code changes the pitch based on if the drive is rolling or not.
-    // TODO - Figure out if this is needed with testing, as my work to add the tilt may fix it.
+    // Naigon - MK3 Head Tilt
+    // This is loosely based on Joe's existing code, but from testing if the initial run the Y is not moved a miniscule
+    // amount, the left and right will blow by their end stops. This is the code the ensures the Y moves a bit the
+    // first time.
     //
-    //if(Setpoint3 >= 2 || Setpoint3 <= -2)
-    //{
-    //    Joy2YPitch = Joy2YDirection + pitch;
-    //}
-    //else
-    //{
-    //    Joy2YPitch = Joy2YDirection - pitchOffset;
-    //}
+    if(!drive.HasDomeMoved
+        && joyY <= 2.0 && joyY >= -2.0
+        && (joyX > 2.0 ||  joyX < -2.0))
+    {
+        joyY = 2.0;
+    }
+    else if (joyY > 2.0 || joyY < -2.0)
+    {
+        drive.HasDomeMoved = true;
+    }
 
     int joy2YEaseMap = easeApplicatorFRPtr->ComputeValueForCurrentIteration(joyY);
     int joy2XEaseMap = easeApplicatorLRPtr->ComputeValueForCurrentIteration(joyX);

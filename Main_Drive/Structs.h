@@ -98,6 +98,10 @@ struct DriveState
     BodyMode PreviousAnimationMode;
     BodyMode PreviousNormalMode;
 
+    // Naigon - MK3 Head Tilt
+    // The head needs to move initially at the beginning to ensure the X will not go past the end stops.
+    bool HasDomeMoved;
+
     // Joe - Allow motors to power down if droid is sitting still.
     bool AutoDisable;
 
