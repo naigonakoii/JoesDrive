@@ -506,8 +506,8 @@ void sendDriveData()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void readVin()
 {
-    // Naigon - Send the voltage right away the first time.
-    if(millis() - lastBatteryUpdate >= 15000 || lastBatteryUpdate == 0){
+    // Naigon - Send the voltage right away the first time, and if the voltage is some really low value.
+    if(millis() - lastBatteryUpdate >= 15000 || lastBatteryUpdate == 0 || sendToRemote.bodyBatt < 1.00){
       lastBatteryUpdate = millis();
       sendToRemote.bodyBatt = ((analogRead(battMonitor) * outputVoltage) / 1024.0) / (R2 / (R1 + R2));
     }
