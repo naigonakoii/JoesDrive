@@ -37,24 +37,22 @@ void debugRoutines()
 #endif
 
 #ifdef debugS2S
-    Serial.print(F(" joystickS2S: "));
-    Serial.print(joystickS2S);
-    Serial.print(F(" Roll: "));
-    Serial.print(roll);
-    Serial.print(F(" RollOffset: "));
-    Serial.print(rollOffset);
-    Serial.print(F(" S2SPot: "));
-    Serial.print(S2Spot);
-    Serial.print(F(" In2: "));
-    Serial.print(Input2);
-    Serial.print(F(" Set2: "));
-    Serial.print(Setpoint2);
-    Serial.print(F(" Out2/Set1: "));
-    Serial.print(Output2);
-    Serial.print(F(" In1: "));
-    Serial.print(Input1);
-    Serial.print(F(" Out1: "));
-    Serial.println(Output1);
+    Serial.print(F("joy: "));
+    Serial.print(sideToSideStickPtr->GetMappedValue());
+    Serial.print(F(", r: "));
+    Serial.print(imu.Roll());
+    Serial.print(F(", rO: "));
+    Serial.print(offsets.RollOffset());
+    Serial.print(F(", Pot: "));
+    Serial.print(sideToSidePotHandler.GetMappedValue());
+    Serial.print(F(", PotO: "));
+    Serial.print(offsets.SideToSidePotOffset());
+    Serial.print(F(", I1: "));
+    Serial.print(s2sTiltVals.input);
+    Serial.print(F(", S1: "));
+    Serial.print(s2sTiltVals.setpoint);
+    Serial.print(F(", O1: "));
+    Serial.println(s2sTiltVals.output);
 #endif
 
 #ifdef debugDomeTilt
@@ -69,28 +67,12 @@ void debugRoutines()
 #endif
 
 #ifdef debugdomeRotation
-    Serial.print(F(" domeRotation: "));
-    Serial.print(domeRotation);
-    Serial.print(F(" currentDomeSpeed: "));
+    Serial.print(F(" domeEase: "));
+    Serial.print(domeSpinEase.GetValue());
+    Serial.print(F(", pot: "));
+    Serial.print(F(", output: "));
     Serial.print(currentDomeSpeed);
-    Serial.print(F(" ch4Servo: "));
-    Serial.print(ch4Servo);
-    Serial.print(F(" In5: "));
-    Serial.print(Input5);
-    Serial.print(F(" Set5: "));
-    Serial.print(Setpoint5);
-    Serial.print(F(" Out5: "));
-    Serial.print(Output5);
-    //Serial.print(F(" yawOffset: "));
-    //Serial.print(yawOffset);
-    Serial.print(F(" domeServo: "));
-    Serial.print(domeServo);
-    //Serial.print(F(" domeYaw: "));
-    //Serial.print(recFromDome.domeYaw);
-    //Serial.print(F(" yaw: "));
-    //Serial.print(yaw);
-    Serial.print(F(" pot: "));
-    Serial.println(analogRead(domeSpinPot));
+    Serial.println();
 #endif
 
 #ifdef debugSound

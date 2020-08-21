@@ -99,13 +99,14 @@ bool Offsets::LoadOffsetsFromMemory()
 
 void Offsets::UpdateOffsets(float pitchOffset, float rollOffset, int sideToSideOffset, int domeTiltOffset)
 {
-    _offsets[OffsetIndicies::Pitch] = pitchOffset * -1;
-    _offsets[OffsetIndicies::Roll] = rollOffset * -1;
+    _offsets[OffsetIndicies::Pitch] = pitchOffset * -1.0f;
+    _offsets[OffsetIndicies::Roll] = rollOffset * -1.0f;
     _offsets[OffsetIndicies::SideToSide] = 0 - sideToSideOffset;
     _offsets[OffsetIndicies::DomeTilt] = 0 - domeTiltOffset;
 
     _offsetsNeedWrite = true;
     _areOffsetsValid = true;
+    _writeStep = 0;
 }
 
 void Offsets::UpdateDomeOffset(int domeSpinOffset, bool isDomeSpinReversed)
@@ -115,7 +116,6 @@ void Offsets::UpdateDomeOffset(int domeSpinOffset, bool isDomeSpinReversed)
         : 0 - domeSpinOffset;
 
     _domeOffsetNeedsWrite = true;
-    _writeStep = 0;
     _isDomeValid = true;
 }
 

@@ -76,8 +76,6 @@ private:
     void CheckProMiniTime(int imuLoop);
 
     float _pitch, _roll;
-    float _pitchPrev[PitchAndRollFilterCount];
-    float _rollPrev[PitchAndRollFilterCount];
     bool _isFirstPitchAndRoll;
     float _lastLoopMillis;
     bool _proMiniConnected;

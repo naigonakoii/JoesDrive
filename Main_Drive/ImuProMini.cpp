@@ -49,27 +49,8 @@ void ImuProMini::UpdateIteration(float pitch, float roll, int imuLoop)
         return;
     }
 
-    pitch = reversePitch ? pitch * -1 : pitch;
-    roll = reverseRoll ? roll * -1 : roll;
-
-    if (_isFirstPitchAndRoll)
-    {
-        // Naigon - Head Tilt Stabilization
-        // Initialize the first time to the current value to prevent anomilies at startup.
-        for (int i = 0; i < PitchAndRollFilterCount; i++)
-        {
-            _pitchPrev[i] = pitch;
-            _rollPrev[i] = roll;
-        }
-        _isFirstPitchAndRoll = false;
-    }
-
-    //
-    // Naigon - Head Tilt Stablilization
-    // The pitch and roll are now computed as a rolling average to filter noise. This prevents jerkyness in any movements
-    // based on these values.
-    _pitch = updatePrevValsAndComputeAvg(_pitchPrev, pitch);
-    _roll = updatePrevValsAndComputeAvg(_rollPrev, roll);
+    _pitch = reversePitch ? pitch * -1 : pitch;
+    _roll = reverseRoll ? roll * -1 : roll;
 
     // After setting the values, update the status to know if the values are okay.
     CheckProMiniTime(imuLoop);

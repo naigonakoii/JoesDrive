@@ -153,10 +153,9 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Ease values. Modify these to increase/decrease the quickness of motor movements.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 #define easeFlywheel      6.0 // Speed in which flywheel will increase/decrease during gradual movements
 // S2SEase from Joe: 1.5
-#define easeS2S            0.25 // Speed in which side to side moves. Higher number equates to faster movement
+#define easeS2S            1.50 // Speed in which side to side moves. Higher number equates to faster movement
 #define easeMsS2SA        50.00 // Length in milliseconds to reach full increment speed for ScalingEaseApplicator
 #define easeMsS2SD       350.00 // Length in ms from target when ramp down is applied for ScalingEaseApplicator
 #define easeDome           4.00 // Lower number means more easing when spinning
@@ -166,7 +165,8 @@
 #define easeDomeTilt       4.00 // Lower number means more easing when moving forward and back a.k.a. slower
 #define easeDomeTiltMsA   75.00 // Proportion of ease to add when starting movement for ScalingEaseApplicator
 #define easeDomeTiltMsD  200.00 // Length in ms from target when ramp down is applied for ScalingEaseApplicator
-#define easeDomeMK3        2.00 // Lower number means more easing for the MK3 dome tilt axes.
+#define easeDomeMK3        1.00 // Lower number means more easing for the MK3 dome tilt axes.
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -340,7 +340,7 @@
 //
 // The following values need tuning if moving to the MK3 flywheel.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-const double Pk1 = 40.0; // Joe's 13
+const double Pk1 = 14.0; // Joe's 13
 const double Ik1 =  0.0; // Joe's 0
 // Naigon - Change this value from .3 to .1 or 0 to remove shakey side to side
 const double Dk1 =  0.0;
@@ -352,7 +352,7 @@ const double Dk1 =  0.0;
 //
 // The following values need tuning if moving to the MK3 flywheel.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-const double Pk2 = 0.75; // Joe 0.5; M2 Flywheel .4
+const double Pk2 = 0.50; // Joe 0.5; M2 Flywheel .4
 const double Ik2 = 0.00; // was .00
 const double Dk2 = 0.00; // was .01
 

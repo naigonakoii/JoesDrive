@@ -245,7 +245,7 @@ FunctionEaseApplicator driveApplicatorHigh(0.0, 38.0, 0.2, FunctionEaseApplicato
 FunctionEaseApplicator driveApplicatorWiggle(0.0, 5.0, 0.1, FunctionEaseApplicatorType::Quadratic);
 // Naigon - Ease Applicator: for the drive this pointer will always be the one in use.
 FunctionEaseApplicator *driveApplicatorPtr = &driveApplicatorSlow;
-ScalingEaseApplicator sideToSideEase(0.0, easeS2S, easeMsS2SA, easeMsS2SD, 20);
+LinearEaseApplicator sideToSideEase(0.0, easeS2S); //, easeMsS2SA, easeMsS2SD, 20);
 ScalingEaseApplicator domeServoEase(0.0, easeDomeServo, easeDomeServoMsA, easeDomeServoMsD, 20);
 LinearEaseApplicator domeSpinEase(0.0, easeDome);
 LinearEaseApplicator flywheelEase(0.0, easeFlywheel);
@@ -306,12 +306,15 @@ PID PID2(&s2sServoVals.input, &s2sServoVals.output, &s2sServoVals.setpoint, Pk2,
 PIDVals driveVals;
 PID PID3(&driveVals.input, &driveVals.output, &driveVals.setpoint, Pk3, Ik3, Dk3, DIRECT); // Main drive motor
 
+#if HeadTiltVersion == MK2_Dome
 PIDVals domeTiltVals;
 PID PID4(&domeTiltVals.input, &domeTiltVals.output, &domeTiltVals.setpoint, Pk4, Ik4, Dk4, DIRECT);
+#endif
 
 PIDVals domeServoVals;
 PID PID5(&domeServoVals.input, &domeServoVals.output, &domeServoVals.setpoint, Pk5, Ik5, Dk5, DIRECT);
 
+int currentDomeSpeed;
 // Mark this function as external to make visual studio code happy. This is not needed for Arduino but doesn't hurt.
 extern void debugRoutines();
 
@@ -404,9 +407,11 @@ void setup()
     PID3.SetOutputLimits(-255, 255);
     PID3.SetSampleTime(15);
 
+    #if HeadTiltVersion == MK2_Dome
     PID4.SetMode(AUTOMATIC); // PID Setup - dome tilt
     PID4.SetOutputLimits(-255, 255);
     PID4.SetSampleTime(15);
+    #endif
 
     PID5.SetMode(AUTOMATIC);
     PID5.SetOutputLimits(-255, 255); // PID Setup - dome spin 'servo'
@@ -1248,7 +1253,7 @@ void domeSpin(IEaseApplicator *easeApplicatorPtr)
 {
     int domeRotation = (int)domeSpinStickPtr->GetMappedValue();
 
-    int currentDomeSpeed = constrain(
+    currentDomeSpeed = constrain(
         easeApplicatorPtr->ComputeValueForCurrentIteration(domeRotation),
         -255,
         255);
@@ -1364,9 +1369,12 @@ void turnOffAllTheThings(bool includingDrive)
     s2sTiltVals.input = 0;
     s2sTiltVals.setpoint = 0;
     s2sTiltVals.output = 0;
+
+    #if HeadTiltVersion == MK2_Dome
     domeTiltVals.input = 0;
     domeTiltVals.setpoint = 0;
     domeTiltVals.output = 0;
+    #endif
 
     if (includingDrive)
     {
