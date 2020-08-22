@@ -1130,7 +1130,7 @@ void domeTiltMK2(IEaseApplicator *easeApplicatorPtr)
     // Calculate the pitch to input into the head tilt input in order to keep it level.
     // Naigon - TODO: once the ease applicator is created, use it here to increment to pitch adjust.
     int pitchAdjust = sendToRemote.bodyMode != BodyMode::PushToRoll
-        ? (imu.Pitch() + offsets.PitchOffset()) * HeadTiltPitchAndRollProportion
+        ? (imu.FilteredPitch() + offsets.PitchOffset()) * HeadTiltPitchAndRollProportion
         : 0;
     #else
     int pitchAdjust = 0;
@@ -1165,11 +1165,11 @@ void domeTiltMK3(IEaseApplicator *easeApplicatorFRPtr, IEaseApplicator *easeAppl
     // Calculate the pitch to input into the head tilt input in order to keep it level.
     // Naigon - TODO: once the ease applicator is created, use it here to increment to pitch adjust.
     int pitchAdjust = sendToRemote.bodyMode != BodyMode::PushToRoll
-        ? (imu.Pitch() + offsets.PitchOffset()) * HeadTiltPitchAndRollProportion
+        ? (imu.FilteredPitch() + offsets.PitchOffset()) * HeadTiltPitchAndRollProportion
         : 0;
 
     int rollAdjust = sendToRemote.bodyMode != BodyMode::PushToRoll
-        ? (imu.Roll() + offsets.RollOffset()) * HeadTiltPitchAndRollProportion
+        ? (imu.FilteredRoll() + offsets.RollOffset()) * HeadTiltPitchAndRollProportion
         : 0;
     #else
     int pitchAdjust = 0;

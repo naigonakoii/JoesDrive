@@ -37,6 +37,16 @@ float ImuProMini::Roll() const
     return _roll;
 }
 
+float ImuProMini::FilteredPitch() const
+{
+    return _filteredPitch;
+}
+
+float ImuProMini::FilteredRoll() const
+{
+    return _filteredRoll;
+}
+
 bool ImuProMini::ProMiniConnected() const
 {
     return _proMiniConnected;
@@ -51,6 +61,25 @@ void ImuProMini::UpdateIteration(float pitch, float roll, int imuLoop)
 
     _pitch = reversePitch ? pitch * -1 : pitch;
     _roll = reverseRoll ? roll * -1 : roll;
+
+    if (_isFirstPitchAndRoll)
+    {
+        // Naigon - Head Tilt Stabilization
+        // Initialize the first time to the current value to prevent anomilies at startup.
+        for (int i = 0; i < PitchAndRollFilterCount; i++)
+        {
+            _pitchPrev[i] = _pitch;
+            _rollPrev[i] = _roll;
+        }
+        _isFirstPitchAndRoll = false;
+    }
+
+    //
+    // Naigon - Head Tilt Stablilization
+    // The pitch and roll are now computed as a rolling average to filter noise. This prevents jerkyness in any movements
+    // based on these values.
+    _filteredPitch = updatePrevValsAndComputeAvg(_pitchPrev, _pitch);
+    _filteredRoll = updatePrevValsAndComputeAvg(_rollPrev, _roll);
 
     // After setting the values, update the status to know if the values are okay.
     CheckProMiniTime(imuLoop);
