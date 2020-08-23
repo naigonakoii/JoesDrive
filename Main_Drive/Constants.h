@@ -80,15 +80,15 @@
 #define domeSpinPWM2 11       // PWM Pin for movement, swap the pin numbers on this axis if axis is reversed
 #define flywheelSpinPWM1 8    // PWM Pin for movement, swap the pin numbers on this axis if axis is reversed 
 #define flywheelSpinPWM2 9    // PWM Pin for movement, swap the pin numbers on this axis if axis is reversed 
-#define leftDomeTiltServo  4  //Signal pin for the left dome tilt servo 
-#define rightDomeTiltServo 5  //Signal pin for the right dome tilt servo
+#define leftDomeTiltServo  4  // Signal pin for the left dome tilt servo 
+#define rightDomeTiltServo 5  // Signal pin for the right dome tilt servo
 #define resetPin 40
+#define SFX_RST 37            // Reset pin for the Adafruit audio player
 #define resistor1 151000      // Larger resisitor used on voltage divider to read battery level
 #define resistor2 82000       // Smaller resisitor used on voltage divider to read battery level
 
 #endif
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -100,29 +100,6 @@
 #define soundpin4 32          // Connected to sound pin 3
 #define soundpin5 46          // Connected to sound pin 4
 #define soundpin6 44          // Connected to sound pin 5
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Joe's Serial Sound Player settings
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#define numberOfVoice   50        // This is the number of 'voice' sound files NOT INCLUDING Music and such
-#define numberOfMusic   6         // This is the number of 'music' files
-// Below are used for the multipress button sounds. Pressing button 1 on the left or button 3 on the right once plays a
-// speech track at random, pressing 2-6 times will play quickVoice1-5. 
-#define quickVoice1     6
-#define quickVoice2     8
-#define quickVoice3     20
-#define quickVoice4     22
-#define quickVoice5     1
-// Below are used for the multipress button sounds. Pressing button 2 on the left once plays a sound at random, pressing
-// 2-6 times will play quickMusic1-5. 
-#define quickMusic1     33
-#define quickMusic2     34
-#define quickMusic3     35
-#define quickMusic4     36
-#define quickMusic5     38
-#define SFX_RST 37
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
