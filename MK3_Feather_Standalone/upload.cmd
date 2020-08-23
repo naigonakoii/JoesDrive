@@ -7,4 +7,4 @@ popd
 
 echo %uploadCmd%
 
-call %uploadCmd% MK3_Remote.ino.hex
+call %uploadCmd% MK3_Feather_Standalone.ino.hex
