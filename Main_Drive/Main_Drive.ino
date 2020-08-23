@@ -29,6 +29,7 @@
 #include "Constants.h"
 #include "DriveSetup.h"
 #include "Enums.h"
+#include "JoeSerialAudio.h"
 #include "Structs.h"
 
 //
@@ -68,6 +69,8 @@
 #error Please define 'RemoteHardware' in DriveSetup.h to either 'BTRemote' or 'FeatherPair'.
 #elif RemoteHardware != BTRemote && RemoteHardware != FeatherPair
 #error The define 'RemoteHardware' in DriveSetup.h must be set to either 'BTRemote' or 'FeatherPair'.
+#elif RemoteHardware == BTRemote && AudioHardware == JoeSerial
+#warning Joe's Serial Audio with the bluetooth remote does not support PSI blinking.
 #endif
 
 #ifndef IMUSerialPort
@@ -76,6 +79,9 @@
 #error The define 'IMUSerialPort' in DriveSetup.h must be set to either 2 or 3.
 #endif
 
+#if AudioHardware == JoeSerial
+#include <Adafruit_Soundboard.h>
+#endif
 
 //
 // These are my libraries. Currently I have them living in this project, but the correct way would also be to install
@@ -163,13 +169,16 @@ EasyTransfer SendRemote;
 EasyTransfer RecIMU;
 
 RECEIVE_DATA_STRUCTURE_REMOTE recFromRemote;
-SEND_DATA_STRUCTURE_REMOTE sendToRemote;
 RECEIVE_DATA_STRUCTURE_IMU recIMUData;
+#if RemoteHardware == FeatherPair
+SEND_DATA_STRUCTURE_FEATHER sendToRemote;
+#else
+SEND_DATA_STRUCTURE_REMOTE sendToRemote;
+#endif
 
 DriveState drive;
 AnimationStateVars animation;
 AutoDisableState autoDisable;
-AudioParams audio;
 
 
 // Define the AnimationRunner instance as external, as it will be actually instanciated in the Animations.ino file.
@@ -274,6 +283,13 @@ SoundMapper mapper(
     PlayTrackPin,
     StopTrackPin);
 ISoundPlayer *soundPlayer;
+#elif AudioHardware == JoeSerial
+#if IMUSerialPort == 2
+Adafruit_Soundboard sfx = Adafruit_Soundboard(&Serial3, NULL, SFX_RST);
+#elif IMUSerialPort == 3
+Adafruit_Soundboard sfx = Adafruit_Soundboard(&Serial2, NULL, SFX_RST);
+#endif
+SerialAudioParams audio;
 #endif
 
 SoundTypes forcedSoundType = SoundTypes::NotPlaying;
@@ -349,9 +365,19 @@ void setup()
     #if IMUSerialPort == 3
     Serial3.begin(115200);
     RecIMU.begin(details(recIMUData), &Serial3);
-    #else
+    #elif IMUSerialPort == 2
     Serial2.begin(115200);
     RecIMU.begin(details(recIMUData), &Serial2);
+    #endif
+
+    #if AudioHardware == JoeSerial
+    #if IMUSerialPort == 2
+    Serial3.begin(9600);
+    #elif IMUSerialPort == 3
+    Serial2.begin(9600);
+    #else
+    #error Serial Audio must be on Serial3; Please move the IMU to Serial2 and update DriveSetup.h.
+    #endif
     #endif
 
     pinMode(enablePin, OUTPUT);     // enable pin
@@ -360,11 +386,10 @@ void setup()
 
     #if RemoteHardware == BTRemote
     pinMode(BTstatePin, INPUT);     // BT paired status
-    #elseif RemoteHardware == FeatherPair
-    
     #endif
 
     #if AudioHardware == JoeWired
+
     pinMode(readpin, INPUT_PULLUP); // read stat of Act on Soundboard
     pinMode(soundpin1, OUTPUT);     // play sound from pin 0 on Soundboard
     pinMode(soundpin2, OUTPUT);     // play sound from pin 1 on Soundboard
@@ -372,13 +397,26 @@ void setup()
     pinMode(soundpin4, OUTPUT);     // play sound from pin 3 on Soundboard
     pinMode(soundpin5, OUTPUT);     // play sound from pin 4 on Soundboard
     pinMode(soundpin6, OUTPUT);     // play sound from pin 4 on Soundboard
-    #elif AudioHardware == NECWired
     digitalWrite(soundpin6, HIGH);
     digitalWrite(soundpin5, HIGH);
     digitalWrite(soundpin4, HIGH);
     digitalWrite(soundpin3, HIGH);
     digitalWrite(soundpin2, HIGH);
     digitalWrite(soundpin1, HIGH);
+
+    #elif AudioHardware == JoeSerial
+
+    pinMode(ACTpin, INPUT_PULLUP); // read stat of Act on Soundboard
+    sfx.reset();
+    delay(500);
+    sfx.playTrack((uint8_t)0);
+
+    // Initialize to -1 since method is pre-increment which will make it start at zero.
+    audio.currentMusic = -1;
+    audio.currentSound = -1;
+    audio.isMusicPlaying = false;
+
+    #elif AudioHardware == NECWired
 
     pinMode(HappySoundPin, OUTPUT);
     pinMode(SadSoundPin, OUTPUT);
@@ -868,14 +906,88 @@ void updateAnimations()
 void sounds()
 {
     #if AudioHardware == JoeSerial
-    // TODO - Joe's sound player.
+    soundsJoeSerial();
     #else
     soundsNEC();
     #endif
 }
 
 #if AudioHardware == JoeSerial
-#else
+
+void psiVal(bool isAudioPlaying)
+{
+    #ifndef disablePSIflash
+    sendToRemote.psi = isAudioPlaying && !audio.isMusicPlaying
+        ? constrain(analogRead(fadePin), 0, 255)
+        : 0;
+    #endif
+}
+
+void writeSerialSound(int num)
+{
+    if (!sfx.playTrack(num))
+    {
+        // If the track failed to play, assume we need to stop an existing one.
+        sfx.stop();
+        delay(2);
+        sfx.playTrack(num);
+    }
+}
+
+void soundsJoeSerial()
+{
+    //
+    // Naigon - this is the "sounds()" method from Joe's MK3 drive for serial audio, with slight revision to work with
+    // my custom button layout.
+    //
+    bool quit = false;
+    bool isPlaying = digitalRead(ACTpin) == HIGH;
+
+    if(button2Handler.GetState() == ButtonState::Held)
+    {
+        // Hold left button 1 to play a random voice sound.
+        int voiceNum = random(0, numberOfVoice);
+        writeSerialSound(voiceNum);
+    }
+    else if(button2Handler.GetState() == ButtonState::Pressed)
+    {
+        // Press left button 1 to play the voice sounds in order.
+        audio.currentSound = audio.currentSound == numberOfVoice - 1
+            ? 0
+            : audio.currentSound + 1;
+        writeSerialSound(audio.currentSound);
+    }
+    else if(button3Handler.GetState() == ButtonState::Pressed)
+    { 
+        // Press left button 2 to sequentially play through the "music" tracks
+        audio.currentMusic = audio.currentMusic == numberOfMusic - 1
+            ? 0
+            : audio.currentMusic + 1;
+        writeSerialSound(numberOfVoice + audio.currentMusic);
+        audio.isMusicPlaying = true;
+    }
+    else if(button3Handler.GetState() == ButtonState::Held && audio.isMusicPlaying)
+    {
+        // Hold left button 2 to stop music.
+        quit = true;
+    }
+
+    if(quit && audio.isMusicPlaying)
+    {
+        // Stop playing music per button request.
+        audio.isMusicPlaying = false;
+        sfx.stop();
+    }
+    else if (audio.isMusicPlaying && !isPlaying)
+    {
+        audio.isMusicPlaying = false;
+    }
+
+    psiVal(isPlaying);
+}
+
+#elif AudioHardware == NECWired || AudioHardware == NECWireless
+
 void soundsNEC()
 {
     //
@@ -921,6 +1033,7 @@ void soundsNEC()
         soundPlayer->PlaySound(SoundTypes::NotPlaying);
     }
 }
+
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

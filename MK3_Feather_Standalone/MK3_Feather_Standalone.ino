@@ -120,8 +120,27 @@ typedef struct RECEIVE_DATA_STRUCTURE_DRIVE
     uint8_t bodyStatus;
     uint8_t bodyMode;
     uint8_t bodyDirection;
+    uint8_t psi;
 } recBodyData;
 recBodyData recFromBody;
+
+typedef struct SEND_DATA_STRUCTURE_REMOTE
+{
+    double bodyBatt = 0.0;
+    double domeBatt = 0.0;
+    uint8_t bodyStatus;
+    uint8_t bodyMode;
+    uint8_t bodyDirection;
+} sendRemoteData;
+sendRemoteData sendToRemote;
+
+typedef struct RECEIVE_DATA_STRUCTURE
+{
+    int psi=0;
+    byte button4 = 1;
+    float bodyBatt;
+} sendDomeData;
+sendDomeData sendToDome;
 
 uint8_t bodybuf[sizeof(recFromBody)];
 uint8_t bodybuflen = sizeof(recFromBody);
@@ -244,11 +263,23 @@ void recBody()
     if(Serial1.available() > 0)
     {
         SendBody.receiveData();
-        memcpy(bodybuf, &recFromBody, sizeof(recFromBody));
+
         // Naigon
-        // Joe had some version here where the dome would communicate through this module to the remote;
-        // I took that out, so that the dome will directly send its voltage to the body.
-        radio.send(REMOTE_ADDRESS, bodybuf, sizeof(recFromBody));
+        // I combined the remote and dome stuff into one send object, and just split out the dome data to send separately.
+        //
+        sendToRemote.bodyBatt = recFromBody.bodyBatt;
+        sendToRemote.bodyMode = recFromBody.bodyMode;
+        sendToRemote.bodyStatus = recFromBody.bodyStatus;
+        sendToRemote.bodyDirection = recFromBody.bodyDirection;
+        memcpy(bodybuf, &sendToRemote, sizeof(sendToRemote));
+
+        radio.send(REMOTE_ADDRESS, bodybuf, sizeof(sendToRemote));
+        delay(5);
+
+        // Copy out the psi value directly from the remote values.
+        sendToDome.psi = recFromBody.psi;
+        memcpy(bodybuf, &sendToDome, sizeof(sendToDome));
+        radio.send(DOME_ADDRESS, bodybuf, sizeof(sendToDome));
         delay(5);
     }
     lastSent = millis();

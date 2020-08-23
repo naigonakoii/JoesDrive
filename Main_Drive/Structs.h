@@ -71,6 +71,20 @@ struct SEND_DATA_STRUCTURE_REMOTE
     uint8_t bodyDirection = 0;
 };
 
+//
+// Naigon - Serial Audio
+// The body now sends everything in one struct, but on the Feather 32u4 it will split out the data to go to the
+// remote vs the dome.
+struct SEND_DATA_STRUCTURE_FEATHER
+{
+    double bodyBatt = 0.0;
+    double domeBattSend;
+    uint8_t bodyStatus = 0;
+    uint8_t bodyMode = 0;
+    uint8_t bodyDirection = 0;
+    uint8_t psi = 0;
+};
+
 struct RECEIVE_DATA_STRUCTURE_IMU
 {
     float IMUloop;
@@ -144,16 +158,14 @@ struct AutoDisableState
 };
 
 //
-// Joe's Audio Player
+// Joe's Serial Audio Player
 //
-struct AudioParams
+struct SerialAudioParams
 {
-    int readPinState = 1;
-    int randSoundPin;
-    int soundState;
-    int musicState;
-    unsigned long musicStateMillis = 0;
-    int soundPins[4] = { soundpin1, soundpin2, soundpin3, soundpin4 };
+    int currentSound;
+    int currentMusic;
+    bool isPlaying;
+    bool isMusicPlaying;
 };
 
 struct PIDVals
