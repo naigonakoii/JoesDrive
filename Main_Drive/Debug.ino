@@ -135,12 +135,16 @@ void debugRoutines()
     Serial.print(F(", JoyX: "));
     Serial.print(domeTiltStickLRPtr->GetMappedValue());
 
+    Serial.print(F(", P"));
+    Serial.print(imu.Pitch());
     Serial.print(F(", fP"));
     Serial.print(imu.FilteredPitch());
     Serial.print(F(", oP"));
     Serial.print(offsets.PitchOffset());
 
     #if HeadTiltVersion == MK3_Dome
+    Serial.print(F(", R"));
+    Serial.print(imu.Roll());
     Serial.print(F(", fR"));
     Serial.print(imu.FilteredRoll());
     Serial.print(F(", oR"));

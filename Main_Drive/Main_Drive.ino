@@ -338,7 +338,7 @@ int servoLeft, servoRight;
 // Global for debugging; this acts like the PID output for dome spin.
 int currentDomeSpeed;
 // Global for debugging; this acts like the PID output for the flywheel spin.
-int flywheelOutput;
+int flywheelRotation;
 
 // Mark this function as external to make visual studio code happy. This is not needed for Arduino but doesn't hurt.
 extern void debugRoutines();
@@ -1430,10 +1430,10 @@ void flywheelSpin(IEaseApplicator *easeApplicatorPtr)
 {
     // Naigon - Stationary/Wiggle Mode
     // When in stationary mode, use the drive stick as the flywheel, as the drive is disabled.
-    flywheelOutput = (int)flywheelStickPtr->GetMappedValue();
+    int flywheelStick = (int)flywheelStickPtr->GetMappedValue();
 
-    int flywheelRotation = constrain(
-        easeApplicatorPtr->ComputeValueForCurrentIteration(flywheelOutput),
+    flywheelRotation = constrain(
+        easeApplicatorPtr->ComputeValueForCurrentIteration(flywheelStick),
         -255,
         255);
 
