@@ -261,8 +261,8 @@ LinearEaseApplicator flywheelEase(0.0, easeFlywheel);
 #if HeadTiltVersion == MK2_Dome
 ScalingEaseApplicator domeTiltEase(0.0, easeDomeTilt, easeDomeTiltMsA, easeDomeTiltMsD, 20);
 #else
-ScalingEaseApplicator domeTiltEaseFR(0.0, easeDomeMK3, easeTiltMK3MsA, easeTiltMK3MsD, 20);
-ScalingEaseApplicator domeTiltEaseLR(0.0, easeDomeMK3, easeTiltMK3MsA, easeTiltMK3MsD, 20);
+ScalingEaseApplicator domeTiltEaseFR(0.0, easeDomeFR, easeTiltMK3MsA, easeTiltMK3MsD, 20);
+ScalingEaseApplicator domeTiltEaseLR(0.0, easeDomeLR, easeTiltMK3MsA, easeTiltMK3MsD, 20);
 #endif
 
 
@@ -313,6 +313,7 @@ unsigned long lastBatteryUpdate = 0;
 int driveSpeed;
 
 unsigned long lastLoopMillis;
+unsigned long lastImuMillis;
 
 PIDVals s2sTiltVals;
 PID PID1(&s2sTiltVals.input, &s2sTiltVals.output, &s2sTiltVals.setpoint, Pk1, Ik1, Dk1, DIRECT);
@@ -492,6 +493,12 @@ void loop()
     featherRemotes.UpdateIteration(&RecRemote);
     #endif
 
+    if (millis() - lastImuMillis >= 2)
+    {
+        imu.UpdateIteration(recIMUData.pitch, recIMUData.roll, recIMUData.IMUloop);
+        lastImuMillis = millis();
+    }
+
     if (millis() - lastLoopMillis >= 20)
     {
         sendAndReceive();
@@ -533,7 +540,6 @@ void sendAndReceive()
     #endif
 
     updateWireless();
-    imu.UpdateIteration(recIMUData.pitch, recIMUData.roll, recIMUData.IMUloop);
 }
 
 void sendDriveData()

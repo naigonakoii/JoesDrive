@@ -142,7 +142,8 @@
 #define easeDomeTilt       4.00 // Lower number means more easing when moving forward and back a.k.a. slower
 #define easeDomeTiltMsA   75.00 // Proportion of ease to add when starting movement for ScalingEaseApplicator
 #define easeDomeTiltMsD  200.00 // Length in ms from target when ramp down is applied for ScalingEaseApplicator
-#define easeDomeMK3        0.50 // Lower number means more easing for the MK3 dome tilt axes.
+#define easeDomeFR         0.50 // Lower number means more easing for the MK3 dome tilt axes.
+#define easeDomeLR         1.00 // Lower number means more easing for the MK3 dome tilt axes.
 #define easeTiltMK3MsA   100.00
 #define easeTiltMK3MsD   400.00
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
