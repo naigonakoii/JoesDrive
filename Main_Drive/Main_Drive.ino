@@ -331,7 +331,15 @@ PID PID4(&domeTiltVals.input, &domeTiltVals.output, &domeTiltVals.setpoint, Pk4,
 PIDVals domeServoVals;
 PID PID5(&domeServoVals.input, &domeServoVals.output, &domeServoVals.setpoint, Pk5, Ik5, Dk5, DIRECT);
 
+#if HeadTiltVersion == MK3_Dome
+// Global for debugging; these act like the PID output values.
+int servoLeft, servoRight;
+#endif
+// Global for debugging; this acts like the PID output for dome spin.
 int currentDomeSpeed;
+// Global for debugging; this acts like the PID output for the flywheel spin.
+int flywheelOutput;
+
 // Mark this function as external to make visual studio code happy. This is not needed for Arduino but doesn't hurt.
 extern void debugRoutines();
 
@@ -1337,7 +1345,7 @@ void domeTiltMK3(IEaseApplicator *easeApplicatorFRPtr, IEaseApplicator *easeAppl
         joy2Ya = 0;
     }
 
-    int joy2XLowOffsetA, joy2XHighOffsetA, servoLeft, servoRight;
+    int joy2XLowOffsetA, joy2XHighOffsetA;
 
     if(joy2XEaseMap > 0)
     {
@@ -1422,10 +1430,10 @@ void flywheelSpin(IEaseApplicator *easeApplicatorPtr)
 {
     // Naigon - Stationary/Wiggle Mode
     // When in stationary mode, use the drive stick as the flywheel, as the drive is disabled.
-    int ch5PWM = (int)flywheelStickPtr->GetMappedValue();
+    flywheelOutput = (int)flywheelStickPtr->GetMappedValue();
 
     int flywheelRotation = constrain(
-        easeApplicatorPtr->ComputeValueForCurrentIteration(ch5PWM),
+        easeApplicatorPtr->ComputeValueForCurrentIteration(flywheelOutput),
         -255,
         255);
 

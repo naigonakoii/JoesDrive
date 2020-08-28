@@ -299,9 +299,7 @@
 //#define printbodyBatt            // Uncomment to see battery level
 //#define printYPR                 // Uncomment to see Yaw, Pitch, and Roll
 //#define printDome                // Uncomment to see the Dome's Yaw
-//#define printOffsets             // Uncomment to see the offsets
 //#define debugRSelectMillis
-//#define printOutputs
 //#define printSoundPins
 //#define debugFlywheelSpin
 //#define debugSound
