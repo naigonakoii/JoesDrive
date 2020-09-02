@@ -957,7 +957,8 @@ void soundsJoeSerial()
     bool quit = false;
     bool isPlaying = digitalRead(ACTpin) == HIGH;
 
-    if(button2Handler.GetState() == ButtonState::Held)
+    if(button2Handler.GetState() == ButtonState::Held
+        || forcedSoundType != SoundTypes::NotPlaying)
     {
         // Hold left button 1 to play a random voice sound.
         int voiceNum = random(0, numberOfVoice);
