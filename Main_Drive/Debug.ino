@@ -22,9 +22,13 @@
 // ====================================================================================================================
 // ====================================================================================================================
 
-//
-// The following includes are only needed for VS Code's IDE/Intellisense to work correctly, but are not needed for
-// Arduino. Since the includes are #ifdef protected it causes no harm to include them again.
+// ********************************************************************************************************************
+// NOTE - These includes, using statements, and extrn variable definitions are not actually needed for the Arduino
+// compiler, but I added them to prevent intellisense errors in Visual Studio Code, as it is unable to understand that
+// .ino files are concat together. Since the includes are protected by the #ifndef at the beginning, and doing using
+// twice tested as benign, it causes no issues to re-include and re add using statements in what becomes the final
+// single .ino file.
+// ********************************************************************************************************************
 #include "Arduino.h"
 
 #include "Constants.h"
@@ -37,16 +41,11 @@
 #include "Offsets.h"
 
 
-//
-// The following usings are not needed for Arduino, but are for the VS Code IDE.
 using Naigon::BB_8::ImuProMini;
 using Naigon::BB_8::Offsets;
 using Naigon::IO::AnalogInHandler;
 
 
-//
-// The following ext variables are only needed for VS Code. In Arduino, it is not needed but does not cause any negative
-// effects.
 extern AnalogInHandler *driveStickPtr;
 extern AnalogInHandler *sideToSideStickPtr;
 extern AnalogInHandler *domeTiltStickPtr;
@@ -78,6 +77,8 @@ extern int servoLeft, servoRight;
 #endif
 extern int currentDomeSpeed;
 extern int flywheelRotation;
+// ********************************************************************************************************************
+
 
 // ------------------------------------------------------------------------------------
 // Debug Output Naming Convention:
@@ -93,6 +94,7 @@ extern int flywheelRotation;
 //   Pot   - revalant potentiometer output
 //   Joy   - revalant joystick current value
 //   E     - revalant ease current value
+// ------------------------------------------------------------------------------------
 void debugRoutines()
 {
     //
