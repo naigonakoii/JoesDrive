@@ -35,18 +35,32 @@ public:
     ImuProMini();
 
     ///////////////////////////////////////////////////////////////////////////////////
-    // @summary Gets the current filtered pitch value.
+    // @summary Gets the current raw pitch value.
     //
     // @ret     Pitch value.
     ///////////////////////////////////////////////////////////////////////////////////
     float Pitch() const;
 
     ///////////////////////////////////////////////////////////////////////////////////
-    // @summary Gets the current filtered roll value.
+    // @summary Gets the current raw roll value.
     //
     // @ret     Roll value.
     ///////////////////////////////////////////////////////////////////////////////////
     float Roll() const;
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Gets the current filtered pitch value.
+    //
+    // @ret     Pitch value.
+    ///////////////////////////////////////////////////////////////////////////////////
+    float FilteredPitch() const;
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Gets the current filtered roll value.
+    //
+    // @ret     Roll value.
+    ///////////////////////////////////////////////////////////////////////////////////
+    float FilteredRoll() const;
 
     ///////////////////////////////////////////////////////////////////////////////////
     // @summary Returns the connection state of the ProMini. False would mean that
@@ -75,12 +89,12 @@ public:
 private:
     void CheckProMiniTime(int imuLoop);
 
-    float _pitch, _roll;
     float _pitchPrev[PitchAndRollFilterCount];
     float _rollPrev[PitchAndRollFilterCount];
-    bool _isFirstPitchAndRoll;
+    float _pitch, _roll;
+    float _filteredPitch, _filteredRoll;
     float _lastLoopMillis;
-    bool _proMiniConnected;
+    bool _proMiniConnected, _isFirstPitchAndRoll;
 };
 
 }   //namespace Naigon::BB_8

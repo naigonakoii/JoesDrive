@@ -90,7 +90,7 @@ class FunctionEaseApplicator : public IEaseApplicator
 {
 public:
     ///////////////////////////////////////////////////////////////////////////////////
-    // @summary Constructs an instance of the SCurveEaseApplicator class.
+    // @summary Constructs an instance of the FunctionEaseApplicator class.
     //
     //          This class applies an S-curve from 0 to 1 inclusively. That value is
     //          then multiplied by the maxValue to get the result.
@@ -106,7 +106,7 @@ public:
     //
     //          Finally, there is a reverse quadratic, which is another simple equation
     //
-    //              -x^2 + 1
+    //              f(x) = -(x-1)^2 + 1
     //
     //          x above is internally stored in a LinearEaseApplicator instance, Arduino
     //          that value is fed into the s-function.

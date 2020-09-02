@@ -10,24 +10,36 @@
                 "UBRR3H",
                 "UBRR4H",
                 "UBRR5H",
-                "UBRR6H"
+                "UBRR6H",
+                "USBCON",
+                "__AVR_ATmega32U4__"
             ],
             "includePath": [
                 "C:/Program Files (x86)/Arduino/hardware/arduino/avr/cores/arduino",
                 "C:/Program Files (x86)/Arduino/hardware/tools/avr/avr/include",
                 "C:/Program Files (x86)/Arduino/hardware/tools/avr/lib/gcc/avr/7.3.0/include",
                 "C:/Program Files (x86)/Arduino/hardware/arduino/avr/variants/mega",
-                "D:/My Documents/Arduino/libraries/Adafruit_Soundboard",
                 "D:/My Documents/Arduino/libraries/Arduino-EEPROMEx",
                 "D:/My Documents/Arduino/libraries/Arduino-PID-Library-master",
                 "D:/My Documents/Arduino/libraries/EZTransfer",
+                "D:/My Documents/Arduino/libraries/LowPower",
+                "D:/My Documents/Arduino/libraries/RFM69",
+                "D:/My Documents/Arduino/libraries/SPIFlash",
+                "D:/My Documents/Arduino/libraries/SSD1306Ascii/src",
                 "D:/My Documents/Arduino/libraries/VarSpeedServo",
                 "${workspaceFolder}",
                 "C:/Program Files (x86)/Arduino/hardware/arduino/avr/**",
-                "C:/Program Files (x86)/Arduino/tools/**"
+                "C:/Program Files (x86)/Arduino/tools/**",
+                "C:/Program Files (x86)/Arduino/hardware/arduino/avr/**",
+                "C:/Program Files (x86)/Arduino/tools/**",
+                "C:/Users/Admin/AppData/Local/Arduino15/packages/adafruit/hardware/avr/1.4.13/**",
+                "C:/Users/Admin/AppData/Local/Arduino15/packages/adafruit/hardware/avr/1.4.13/variants/adafruit32u4",
+                "C:/Program Files (x86)/Arduino/hardware/arduino/avr/libraries/SPI/src",
+                "C:/Users/Admin/AppData/Local/Arduino15/packages/adafruit/tools/**"
             ],
             "forcedInclude": [
-                "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\cores\\arduino\\Arduino.h"
+                "C:/Program Files (x86)/Arduino/hardware/arduino/avr/cores/arduino/Arduino.h",
+                "C:/Users/Admin/AppData/Local/Arduino15/packages/adafruit/hardware/avr/1.4.13/variants/adafruit32u4/pins_arduino.h"
             ],
             "intelliSenseMode": "gcc-x86",
             "compilerPath": "C:/Program Files (x86)/Arduino/hardware/tools/avr/bin/avr-gcc.exe",

@@ -173,7 +173,7 @@ void setup()
     //oled.clear();
     oled.println(F("==========================="));
     oled.println(F("         Joe's Drive       "));
-    oled.println(F("  Naigon MK3 Flywheel  "));
+    oled.println(F("       Naigon Edition  "));
     oled.println(F("==========================="));
     delay(2000);
     oled.clear();
@@ -234,7 +234,6 @@ void loop()
 
 void timeJoystickCalibration()
 {
-
     unsigned long currentMillisCenter = millis();
 
     if (sendToBody.but8 == 0 && sendToBody.but7 == 0 && sendToBody.motorEnable == 1 && joystickCalibState == 0)

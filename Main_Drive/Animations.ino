@@ -30,7 +30,10 @@
 // together. Since the includes are protected by the #ifndef at the beginning, and doing using twice tested as benign,
 // it causes no issues to re-include and re add using statements in what becomes the final single .ino file.
 // ********************************************************************************************************************
+#include "Arduino.h"
+
 #include "Constants.h"
+#include "DriveSetup.h"
 #include "Enums.h"
 #include "Structs.h"
 
@@ -119,8 +122,17 @@ const uint16_t domeActPer[] =
     33, // Remaining MotorControl
 };
 
+#if HeadTiltVersion == MK3_Dome
+const uint8_t domeMotorControls[] =
+    { MotorControlId::idDomeSpin, MotorControlId::idDomeTiltFR, MotorControlId::idDomeTiltLR };
+const uint16_t domeMotorControlPer[] =
+    {                         60,                           20,                           20 };
+const uint8_t bank1MotorControlSize = 3;
+#else
 const uint8_t domeMotorControls[] = { MotorControlId::idDomeSpin, MotorControlId::idDomeTiltFR, };
 const uint16_t domeMotorControlPer[] = {                      60,                           40, };
+const uint8_t bank1MotorControlSize = 2;
+#endif
 
 const uint16_t millisVals[] = { 250, 350, 500, 750, 1000, 1250 };
 const uint16_t millisPer[]  = {  10,  10,  30,  20,   20,   10};
@@ -136,7 +148,7 @@ GeneratedAnimationPercents domeAnimationPercents(
     2 /* actionSize */,
     domeMotorControls,
     domeMotorControlPer,
-    2,
+    bank1MotorControlSize,
     millisVals,
     millisPer,
     6 /* msSize */,
@@ -156,7 +168,7 @@ GeneratedAnimationPercents domeAnimationServoPercents(
     2 /* actionSize */,
     domeMotorControls,
     domeMotorControlPer,
-    2,
+    bank1MotorControlSize,
     millisVals,
     millisPer,
     6 /* msSize */,
@@ -276,16 +288,29 @@ const uint8_t bank3MotorControlIds[] =
 {
     MotorControlId::idDomeSpin,
     MotorControlId::idDomeTiltFR,
+#if HeadTiltVersion == MK3_Dome
+    MotorControlId::idDomeTiltLR,
+#endif
     MotorControlId::idFlywheel,
 };
 
 const uint16_t bank3MotorControlPer[] =
 {
     38, // Dome Spin
+#if HeadTiltVersion == MK3_Dome
+    22, // Tilt Forward/reverse
+    15, // Tilt Left/right
+#else
     37, // Tilt Dome
+#endif
     15, // Flywheel
 };
 
+#if HeadTiltVersion == MK3_Dome
+const uint8_t bank3MotorControlSize = 4;
+#else
+const uint8_t bank3MotorControlSize = 3;
+#endif
 const uint16_t bank3MillisVals[] = { 250, 350, 500, 750, 1000, 1250, 1500, };
 const uint16_t bank3MillisPer[]  = {   4,  12,  24,  24,   18,   12,    5, };
 
@@ -300,7 +325,7 @@ GeneratedAnimationPercents bank3Percents(
     3 /* actionSize */,
     bank3MotorControlIds,
     bank3MotorControlPer,
-    3 /* motorControlSize */,
+    bank3MotorControlSize,
     bank3MillisVals,
     bank3MillisPer,
     7 /* msSize */,
@@ -320,7 +345,7 @@ GeneratedAnimationPercents bank3ServoPercents(
     3 /* actionSize */,
     bank3MotorControlIds,
     bank3MotorControlPer,
-    3 /* motorControlSize */,
+    bank3MotorControlSize,
     bank3MillisVals,
     bank3MillisPer,
     7 /* msSize */,
@@ -377,6 +402,9 @@ const uint8_t bank4MotorControlIds[] =
 {
     MotorControlId::idDomeSpin,
     MotorControlId::idDomeTiltFR,
+#if HeadTiltVersion == MK3_Dome
+    MotorControlId::idDomeTiltLR,
+#endif
     MotorControlId::idFlywheel,
     MotorControlId::idSideToSide,
 };
@@ -384,10 +412,21 @@ const uint8_t bank4MotorControlIds[] =
 const uint16_t bank4MotorControlPer[] =
 {
     30, // Dome Spin
+#if HeadTiltVersion == MK3_Dome
+    18, // Tilt Forward/reverse
+    12, // Tilt Left/right
+#else
     30, // Tilt Dome
+#endif
     20, // Flywheel
     20, // Side to Side
 };
+
+#if HeadTiltVersion == MK3_Dome
+const uint8_t bank4MotorControlSize = 5;
+#else
+const uint8_t bank4MotorControlSize = 4;
+#endif
 
 const uint16_t bank4MillisVals[] = { 250, 350, 500, 750, 1000, 1200, 1500, };
 const uint16_t bank4MillisPer[]  = {   5,  15,  25,  25,   15,   10,    5, };
@@ -402,7 +441,7 @@ GeneratedAnimationPercents bank4Percents(
     3 /* actionSize */,
     bank4MotorControlIds,
     bank4MotorControlPer,
-    4 /* motorControlSize */,
+    bank4MotorControlSize,
     bank4MillisVals,
     bank4MillisPer,
     7 /* msSize */,

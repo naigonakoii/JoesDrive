@@ -22,122 +22,217 @@
 // ====================================================================================================================
 // ====================================================================================================================
 
+// ********************************************************************************************************************
+// NOTE - These includes, using statements, and extrn variable definitions are not actually needed for the Arduino
+// compiler, but I added them to prevent intellisense errors in Visual Studio Code, as it is unable to understand that
+// .ino files are concat together. Since the includes are protected by the #ifndef at the beginning, and doing using
+// twice tested as benign, it causes no issues to re-include and re add using statements in what becomes the final
+// single .ino file.
+// ********************************************************************************************************************
+#include "Arduino.h"
 
+#include "Constants.h"
+#include "DriveSetup.h"
+#include "Structs.h"
+
+#include "src/Libraries/NaigonIO/src/AnalogInHandler.h"
+
+#include "ImuProMini.h"
+#include "Offsets.h"
+
+
+using Naigon::BB_8::ImuProMini;
+using Naigon::BB_8::Offsets;
+using Naigon::IO::AnalogInHandler;
+
+
+extern AnalogInHandler *driveStickPtr;
+extern AnalogInHandler *sideToSideStickPtr;
+extern AnalogInHandler *domeTiltStickPtr;
+extern AnalogInHandler *domeTiltStickLRPtr;
+extern AnalogInHandler *domeSpinStickPtr;
+extern AnalogInHandler *flywheelStickPtr;
+
+extern AnalogInHandler sideToSidePotHandler;
+extern AnalogInHandler domeSpinPotHandler;
+
+#if RemoteHardware == FeatherPair
+extern SEND_DATA_STRUCTURE_FEATHER sendToRemote;
+#else
+extern SEND_DATA_STRUCTURE_REMOTE sendToRemote;
+#endif
+
+extern ImuProMini imu;
+extern Offsets offsets;
+
+extern PIDVals s2sTiltVals;
+extern PIDVals s2sServoVals;
+extern PIDVals driveVals;
+#if HeadTiltVersion == MK2_Dome
+extern PIDVals domeTiltVals;
+#endif
+extern PIDVals domeServoVals;
+#if HeadTiltVersion == MK3_Dome
+extern int servoLeft, servoRight;
+#endif
+extern int currentDomeSpeed;
+extern int flywheelRotation;
+// ********************************************************************************************************************
+
+
+// ------------------------------------------------------------------------------------
+// Debug Output Naming Convention:
+//
+//   R     - IMU Roll
+//   P     - IMU Pitch
+//   fR    - IMU Filtered Roll
+//   fP    - IMU Filtered Pitch
+//   o     - Offset prefix; ie oR = Roll Offset
+//   I     - PID input value
+//   S     - PID setpoint value
+//   O     - PID output value
+//   Pot   - revalant potentiometer output
+//   Joy   - revalant joystick current value
+//   E     - revalant ease current value
+// ------------------------------------------------------------------------------------
 void debugRoutines()
 {
-    // Uncomment " #Define " above
+    //
+    // Uncomment " #Define " in Constants.h
+    //
+
 #ifdef debugDrive
-    Serial.print(F(" joystickDrive: "));
-    Serial.print(joystickDrive);
-    Serial.print(F(" SetDrive: "));
-    Serial.print(Setpoint3);
-    Serial.print(F(" InDrive: "));
-    Serial.print(Input3);
-    Serial.print(F(" OutDrive: "));
-    Serial.print(Output3);
+    Serial.print(F(" Joy: "));
+    Serial.print(driveStickPtr->GetMappedValue());
+    Serial.print(F(", S3: "));
+    Serial.print(driveVals.setpoint);
+    Serial.print(F(", I3: "));
+    Serial.print(driveVals.input);
+    Serial.print(F(", O3: "));
+    Serial.println(driveVals.output);
 #endif
 
 #ifdef debugS2S
-    Serial.print(F(" joystickS2S: "));
-    Serial.print(joystickS2S);
-    Serial.print(F(" Roll: "));
-    Serial.print(roll);
-    Serial.print(F(" RollOffset: "));
-    Serial.print(rollOffset);
-    Serial.print(F(" S2SPot: "));
-    Serial.print(S2Spot);
-    Serial.print(F(" In2: "));
-    Serial.print(Input2);
-    Serial.print(F(" Set2: "));
-    Serial.print(Setpoint2);
-    Serial.print(F(" Out2/Set1: "));
-    Serial.print(Output2);
-    Serial.print(F(" In1: "));
-    Serial.print(Input1);
-    Serial.print(F(" Out1: "));
-    Serial.println(Output1);
+    Serial.print(F("Joy: "));
+    Serial.print(sideToSideStickPtr->GetMappedValue());
+    Serial.print(F(", R: "));
+    Serial.print(imu.Roll());
+    Serial.print(F(", oR: "));
+    Serial.print(offsets.RollOffset());
+    Serial.print(F(", Pot: "));
+    Serial.print(sideToSidePotHandler.GetMappedValue());
+    Serial.print(F(", oPot: "));
+    Serial.print(offsets.SideToSidePotOffset());
+    Serial.print(F(", I1: "));
+    Serial.print(s2sTiltVals.input);
+    Serial.print(F(", S1: "));
+    Serial.print(s2sTiltVals.setpoint);
+    Serial.print(F(", O1: "));
+    Serial.println(s2sTiltVals.output);
 #endif
 
 #ifdef debugDomeTilt
-    Serial.print(F(" joystickDome: "));
-    Serial.print(joystickDome);
-    Serial.print(F(" In4 :"));
-    Serial.print(Input4);
-    Serial.print(F(" Set4 :"));
-    Serial.print(Setpoint4);
-    Serial.print(F(" Out4 :"));
-    Serial.println(Output4);
+    Serial.print(F(" JoyY: "));
+    Serial.print(domeTiltStickPtr->GetMappedValue());
+    Serial.print(F(", JoyX: "));
+    Serial.print(domeTiltStickLRPtr->GetMappedValue());
+
+    Serial.print(F(", P"));
+    Serial.print(imu.Pitch());
+    Serial.print(F(", fP"));
+    Serial.print(imu.FilteredPitch());
+    Serial.print(F(", oP"));
+    Serial.print(offsets.PitchOffset());
+
+    #if HeadTiltVersion == MK3_Dome
+    Serial.print(F(", R"));
+    Serial.print(imu.Roll());
+    Serial.print(F(", fR"));
+    Serial.print(imu.FilteredRoll());
+    Serial.print(F(", oR"));
+    Serial.print(offsets.RollOffset());
+    #endif
+
+    #if HeadTiltVersion == MK2_Dome
+    Serial.print(F(" I4 :"));
+    Serial.print(domeTiltVals.input);
+    Serial.print(F(" S4 :"));
+    Serial.print(domeTiltVals.setpoint);
+    Serial.print(F(" O4 :"));
+    Serial.println(domeTiltVals.output);
+    #else
+    Serial.print(F(", sL"));
+    Serial.print(servoLeft);
+    Serial.print(F(", sR"));
+    Serial.print(servoRight);
+    #endif
+    Serial.println();
 #endif
 
 #ifdef debugdomeRotation
-    Serial.print(F(" domeRotation: "));
-    Serial.print(domeRotation);
-    Serial.print(F(" currentDomeSpeed: "));
-    Serial.print(currentDomeSpeed);
-    Serial.print(F(" ch4Servo: "));
-    Serial.print(ch4Servo);
-    Serial.print(F(" In5: "));
-    Serial.print(Input5);
-    Serial.print(F(" Set5: "));
-    Serial.print(Setpoint5);
-    Serial.print(F(" Out5: "));
-    Serial.print(Output5);
-    //Serial.print(F(" yawOffset: "));
-    //Serial.print(yawOffset);
-    Serial.print(F(" domeServo: "));
-    Serial.print(domeServo);
-    //Serial.print(F(" domeYaw: "));
-    //Serial.print(recFromDome.domeYaw);
-    //Serial.print(F(" yaw: "));
-    //Serial.print(yaw);
+    // NOTE: This only debugs with non-server dome spin modes per Joe's original code. I will look at improveing it later.
     Serial.print(F(" pot: "));
-    Serial.println(analogRead(domeSpinPot));
+    Serial.print(domeSpinPotHandler.GetMappedValue());
+    Serial.print(F(", out: "));
+    Serial.println(currentDomeSpeed);
 #endif
 
-#ifdef debugSound
+#ifdef debugSound && SoundHardware == NaigonWired
     Serial.print(F(" playing sound: "));
     Serial.println(soundPlayer->SoundTypeCurrentlyPlaying());
 #endif
 
 #ifdef debugPSI
-    Serial.print(F(" readPinState: "));
-    Serial.print(readPinState);
-    Serial.print(F(" fadeVal: "));
-    Serial.print(fadeVal);
+    //Serial.print(F(" readPinState: "));
+    //Serial.print(readPinState);
+    //Serial.print(F(" fadeVal: "));
+    //Serial.print(fadeVal);
 #endif
 
 #ifdef printbodyBatt
     Serial.print(F(" Vin: "));
-    Serial.print(sendToRemote.bodyBatt);
+    Serial.println(sendToRemote.bodyBatt);
 #endif
 
 #ifdef printYPR
     //Serial.print(F(" Yaw: "));
     //Serial.print(yaw);
-    Serial.print(F(" Roll: "));
-    Serial.print(roll);
-    Serial.print(F("  Pitch: "));
-    Serial.println(pitch);
+    Serial.print(F(" R: "));
+    Serial.print(imu.Roll());
+    Serial.print(F(", fR: "));
+    Serial.print(imu.FilteredRoll());
+    Serial.print(F(", oR: "));
+    Serial.print(offsets.RollOffset());
+
+
+    Serial.print(F(",  P: "));
+    Serial.println(imu.Pitch());
+    Serial.print(F(",  fP: "));
+    Serial.println(imu.FilteredPitch());
+    Serial.print(F(", oP: "));
+    Serial.println(offsets.PitchOffset());
 #endif
 
 #ifdef printDome
     //Serial.print(F(" Dome Yaw: "));
     //Serial.print(recFromDome.domeYaw);
-    Serial.print(F(" Dome Batt: "));
-    Serial.print(recFromDome.domeBatt);
+    //Serial.print(F(" Dome Batt: "));
+    //Serial.println(recFromDome.domeBatt);
 #endif
 
 #ifdef printRemote
     Serial.print(F("  Remote: "));
-    Serial.print(recFromRemote.ch1);
+    Serial.print(recFromRemote.Joy1Y);
     Serial.print(" , ");
-    Serial.print(recFromRemote.ch2);
+    Serial.print(recFromRemote.Joy1X);
     Serial.print(F(" , "));
-    Serial.print(recFromRemote.ch3);
+    Serial.print(recFromRemote.Joy2Y);
     Serial.print(F(" , "));
-    Serial.print(recFromRemote.ch4);
+    Serial.print(recFromRemote.Joy2X);
     Serial.print(F(" , "));
-    Serial.print(recFromRemote.ch5);
+    Serial.print(recFromRemote.Joy3X);
+    Serial.print(F(" , "));
+    Serial.print(recFromRemote.Joy4X);
     Serial.print(F(" , "));
     Serial.print(recFromRemote.but1);
     Serial.print(F(" , "));
@@ -156,18 +251,7 @@ void debugRoutines()
     Serial.print(recFromRemote.but8);
     Serial.print(F(" , "));
     Serial.print(recFromRemote.motorEnable);
-    Serial.print('\n');
-#endif
-
-#ifdef printOffsets
-    Serial.print(" pitchOffset: ");
-    Serial.print(pitchOffset);
-    Serial.print(" rollOffset: ");
-    Serial.print(rollOffset);
-    Serial.print(" potOffsetS2S: ");
-    Serial.print(potOffsetS2S);
-    Serial.print("domeTiltPotOffset: ");
-    Serial.println(domeTiltPotOffset);
+    Serial.println();
 #endif
 
 #ifdef debugRSelectMillis
@@ -185,18 +269,7 @@ void debugRoutines()
     Serial.print(countdown);
 #endif
 
-#ifdef printOutputs
-    Serial.print(F(" Out1: "));
-    Serial.print(abs(Output1));
-    Serial.print(F(" Out2: "));
-    Serial.print(abs(Output2));
-    Serial.print(F(" Out3: "));
-    Serial.print(abs(Output3));
-    Serial.print(F(" Out4: "));
-    Serial.println(abs(Output4));
-#endif
-
-#ifdef printSoundPin
+#ifdef printSoundPin && AudioHardware == JoeWired
     Serial.print(F(" Pin1: "));
     Serial.print(digitalRead(soundpin1));
     Serial.print(F(" Pin2: "));
@@ -218,10 +291,8 @@ void debugRoutines()
 #endif
 
 #ifdef debugFlywheelSpin
-    Serial.print(F(" ch5: "));
-    Serial.print(recFromRemote.ch5);
-    Serial.print(F(" ch5PWM: "));
-    Serial.print(ch5PWM);
+    Serial.print(F(" Joy: "));
+    Serial.print(flywheelStickPtr->GetMappedValue());
     Serial.print(F(" flywheelRotation: "));
     Serial.println(flywheelRotation);
 #endif

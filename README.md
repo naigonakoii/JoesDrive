@@ -4,7 +4,9 @@ Modifications to Joe's Drive, including the code changes to make the flywheel MK
 This will conttain all the code for my Joe's drive setup. I started pretty early and have some custom stuff. My layout is as follows:
 
 ## Hardware setup
-The following goes over the current hardware I am actively using in my drive and remote.
+The drive now has support for varying hardware setups that Joe originally supported. I am using the MK2 Headtilt with Bluetooth single remote, but I now have support for the MK3 head tilt, and the dual feather remotes.
+
+MK3 and Feather will be enabled by default
 
 ### Arduino Mega
 The Arduino Mega 2650 is the main brains of the drive, and it is responsible for handling the remote functions and reading the IMU sub-board from the serial terminals.
@@ -56,6 +58,7 @@ Dome Modes | Adds extra dome modes in addition to just normal and servo, includi
 Ease Applicator | Refactor of the main drive methods to use the new IEaseApplicator instances. This prevents a lot of duplication of code, and allows for easier tuning of the ease controls.
 Dome Automation | This is a new mode that allows the head to be controlled automatically when driving. In this mode, the right joystick up/down is for drive, and the left joystick left/right is to steer. Other two directions are disabled. The head will tilt and move randomly with pre-defined Animations.
 Analog Input Refactor | This is the refactoring to make the pots and analog joysticks work off the new AnalogInHandler class.
+MK3 Head Tilt | Code changes that were required to make the drive work with the MK3 head.
 
 ## Visual Studio Code
 As a big proponent of Visual Studio Code and someone that finds the Arduino IDE quite lacking, I have moved all my Arduino development to Visual Studio Code.
