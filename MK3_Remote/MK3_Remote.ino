@@ -195,7 +195,7 @@ int Joy3X, Joy3Xa, Joy3Xb;
 int Joy4X, Joy4Xa, Joy4Xb;
 int Joy1XCenter, Joy1YCenter, Joy2XCenter, Joy2YCenter, Joy3XCenter, Joy4XCenter;
 byte updateScreen = 1;
-byte wireless, bodyWireless;
+byte wireless;
 
 //int rectime[20];
 //byte rectimeloc;
@@ -210,6 +210,8 @@ byte startup = 1;
 uint8_t lastBodyStatus = 1000;
 uint8_t lastDriveMode = BodyMode::UnknownSpeed;
 uint8_t lastDirection = Direction::UnknownDirection;
+double lastDomeVoltage = 0.0;
+double lastBodyVoltage = 0.0;
 
 bool displayJoystickCalibration = false;
 
@@ -478,10 +480,6 @@ void recData()
                 //Serial.println(millis() - lastrecdata);
                 lastrecdata = millis();
                 lastrecDataMillis = millis();
-                if(bodyWireless == 0)
-                {
-                    bodyWireless = 1;
-                }
             }
             SEND = true;
         }
@@ -495,17 +493,8 @@ void recData()
             else
             {
                 recFromBody = *(recBodyData*)radio.DATA; 
-                recFromDome.bodyBatt = recFromBody.bodyBatt;
                 lastrecdata = millis();
                 lastrecDataMillis = millis();
-                if(recFromDome.domeBatt != 99.99)
-                {
-                    recFromDome.domeBatt = 99.99;
-                }
-                if(bodyWireless == 1)
-                {
-                    bodyWireless = 0;
-                }
             }
             SEND = true;
         }
@@ -520,6 +509,8 @@ bool needsScreenUpdate()
         || lastBodyStatus != recFromBody.bodyStatus
         || lastDriveMode != recFromBody.bodyMode
         || lastDirection != recFromBody.bodyDirection
+        || lastDomeVoltage != recFromDome.domeBatt
+        || lastBodyVoltage != recFromBody.bodyBatt
         || updateScreen == 1
         || displayJoystickCalibration);
 }
@@ -552,6 +543,8 @@ void Screen()
     lastDriveMode = recFromBody.bodyMode;
     lastDirection = recFromBody.bodyDirection;
     lastBodyStatus = recFromBody.bodyStatus;
+    lastDomeVoltage = recFromDome.domeBatt;
+    lastBodyVoltage = recFromBody.bodyBatt;
 }
 
 void infoScreen()
@@ -611,16 +604,16 @@ void infoScreen()
     }
 
     oled.print(F("Body: ")); 
-    if(wireless == 1 && recFromDome.bodyBatt != 99.99)
+    if(wireless == 1 && recFromBody.bodyBatt != 99.99)
     {
-        oled.print(recFromDome.bodyBatt); oled.println(F("v                         "));
+        oled.print(recFromBody.bodyBatt); oled.println(F("v                         "));
     }
     else
     {
         oled.println(F("Disconnected                      "));
     }
     oled.print(F("Dome: ")); 
-    if(wireless == 1 && recFromDome.domeBatt != 99.99)
+    if(wireless == 1 && recFromDome.domeBatt != 99.99 && recFromDome.domeBatt != 0.0)
     {
         oled.print(recFromDome.domeBatt); oled.println("v                         ");
     }
