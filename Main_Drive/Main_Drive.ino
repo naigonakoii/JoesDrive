@@ -30,6 +30,7 @@
 #include "DriveSetup.h"
 #include "Enums.h"
 #include "JoeSerialAudio.h"
+#include "Pins.h"
 #include "Structs.h"
 
 //
