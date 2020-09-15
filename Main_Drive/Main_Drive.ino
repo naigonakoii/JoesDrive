@@ -513,7 +513,8 @@ void loop()
         sounds();
         readVin();
 
-        calibration();
+        bodyCalib();
+        domeCalib();
         debugRoutines();
 
         movement();
@@ -1052,9 +1053,9 @@ void soundsNEC()
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Calibration
+// Calibration methods
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void calibration()
+void bodyCalib()
 {
     #if HeadTiltVersion == MK2_Dome
     int domeTiltFR = (int)domeTiltPotHandler.GetMappedValue();
@@ -1062,42 +1063,7 @@ void calibration()
     int domeTiltFR = 0;
     #endif
 
-
-    // --------------------------------------------------------------------------------
-    // Joystick Calibration
-    // --------------------------------------------------------------------------------
-    if (sendToRemote.bodyStatus == BodyStatus::SaveJoystickValues)
-    {
-        // Assume remote has saved after one cycle and go back to normal.
-        sendToRemote.bodyStatus = BodyStatus::NormalOperation;
-    }
-    else if (sendToRemote.bodyStatus == BodyStatus::JoystickCalibration)
-    {
-        if (button8Handler.GetState() == ButtonState::Pressed
-        && button7Handler.GetState() == ButtonState::NotPressed)
-        {
-            // Joystick was in calibration and now clicked to save.
-            sendToRemote.bodyStatus = BodyStatus::SaveJoystickValues;
-        }
-        else if (button7Handler.GetState() == ButtonState::Pressed
-            && button7Handler.GetState() == ButtonState::NotPressed)
-        {
-            // User clicked the cancel button, so just cancel calibration.
-            sendToRemote.bodyStatus = BodyStatus::NormalOperation;
-        }
-    }
-    else if  (sendToRemote.bodyStatus == BodyStatus::NormalOperation
-        && button8Handler.GetState() == ButtonState::Pressed
-        && button7Handler.GetState() == ButtonState::Pressed)
-    {
-        // Tell the remote to enter Joystick calibration.
-        sendToRemote.bodyStatus = BodyStatus::JoystickCalibration;
-    }
-
-    // --------------------------------------------------------------------------------
-    // Body Calibration
-    // --------------------------------------------------------------------------------
-    else if (sendToRemote.bodyStatus == BodyStatus::NormalOperation
+    if (sendToRemote.bodyStatus == BodyStatus::NormalOperation
         && button8Handler.GetState() == ButtonState::Held
         && button7Handler.GetState() == ButtonState::NotPressed)
     {
@@ -1118,11 +1084,14 @@ void calibration()
     {
         sendToRemote.bodyStatus = BodyStatus::NormalOperation;
     }
+}
 
-    // --------------------------------------------------------------------------------
-    // Dome Calibration
-    // --------------------------------------------------------------------------------
-    else if (sendToRemote.bodyStatus == BodyStatus::NormalOperation
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Dome calibration
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void domeCalib()
+{
+    if (sendToRemote.bodyStatus == BodyStatus::NormalOperation
         && button1Handler.GetState() == ButtonState::Held)
     {
         sendToRemote.bodyStatus = BodyStatus::DomeCalibration;
@@ -1147,10 +1116,7 @@ void calibration()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void movement()
 {
-    if (recFromRemote.motorEnable == 0
-        && drive.IsConnected
-        && imu.ProMiniConnected()
-        && sendToRemote.bodyStatus == BodyStatus::NormalOperation)
+    if (recFromRemote.motorEnable == 0 && drive.IsConnected && imu.ProMiniConnected())
     {
         unsigned long currentMillis = millis();
 

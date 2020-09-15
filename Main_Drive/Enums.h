@@ -76,8 +76,6 @@ enum BodyStatus : uint8_t
     NormalOperation = 0,
     BodyCalibration = 1,
     DomeCalibration = 2,
-    JoystickCalibration = 3,
-    SaveJoystickValues = 4,
 };
 
 //

@@ -55,8 +55,6 @@ enum BodyStatus : uint8_t
     NormalOperation = 0,
     BodyCalibration = 1,
     DomeCalibration = 2,
-    JoystickCalibration = 3,
-    SaveJoystickValues = 4,
 };
 
 enum BodyMode : uint8_t
@@ -236,16 +234,62 @@ void loop()
 
 void timeJoystickCalibration()
 {
-    oled.clear();
-    oled.setFont(Callibri15);
-    oled.println(F("========================="));
-    oled.println(F("   Joystick Calibration"));
-    oled.println(F("========================="));
-    delay(4000);
-    oled.clear();
-    oled.println(F("1. Release joysticks      "));
-    oled.println(F("2. Press right button     "));
-    oled.print(F("                    "));
+    unsigned long currentMillisCenter = millis();
+
+    if (sendToBody.but8 == 0 && sendToBody.but7 == 0 && sendToBody.motorEnable == 1 && joystickCalibState == 0)
+    {
+        joystickCalibMillis = millis();
+        joystickCalibState = 1;
+    }
+
+    if (joystickCalibState == 1 && currentMillisCenter - joystickCalibMillis >= 3000)
+    {
+        oled.clear();
+        oled.setFont(Callibri15);
+        oled.println(F("========================="));
+        oled.println(F("   Joystick Calibration"));
+        oled.println(F("========================="));
+        delay(4000);
+        oled.clear();
+        oled.println(F("1. Release joysticks      "));
+        oled.println(F("2. Release all buttons "));
+        oled.print(F("                    "));
+
+        while (
+            digitalRead(lBut1) == 0
+            || digitalRead(lBut2) == 0
+            || digitalRead(lBut3) == 0
+            || digitalRead(rBut1) == 0
+            || digitalRead(rBut2) == 0
+            || digitalRead(rBut3) == 0)
+        {
+        }
+
+        oled.clear();
+        oled.println(F("1. Release joysticks          "));
+        oled.println(F("2. Press any button         "));
+        oled.print(F("                    "));
+
+        while (
+            digitalRead(lBut1) == 1
+            && digitalRead(lBut2) == 1
+            && digitalRead(lBut3) == 1
+            && digitalRead(rBut1) == 1
+            && digitalRead(rBut2) == 1
+            && digitalRead(rBut3) == 1
+            && digitalRead(enablePin) == 1)
+        {
+        }
+
+        if (digitalRead(enablePin == 1))
+        {
+            setJoystickCenter();
+            joystickCalibState = 0;
+        }
+
+        oled.clear();
+        printScreen = 1;
+    }
 }
 
 //==================================  Set joystick centers  ====================================
@@ -435,15 +479,6 @@ void checkBodyStatus()
     else if (recFromBody.bodyStatus == BodyStatus::DomeCalibration)
     {
         domeCenterCalibration();
-    }
-    else if (recFromBody.bodyStatus == BodyStatus::JoystickCalibration)
-    {
-        timeJoystickCalibration();
-    }
-    else if (recFromBody.bodyStatus == BodyStatus::SaveJoystickValues)
-    {
-        setJoystickCenter();
-        joystickCalibState = 0;
     }
 }
 

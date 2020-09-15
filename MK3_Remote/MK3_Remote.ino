@@ -93,8 +93,6 @@ enum BodyStatus : uint8_t
     NormalOperation = 0,
     BodyCalibration = 1,
     DomeCalibration = 2,
-    JoystickCalibration = 3,
-    SaveJoystickValues = 4,
 };
 
 enum BodyMode : uint8_t
@@ -214,6 +212,8 @@ uint8_t lastDriveMode = BodyMode::UnknownSpeed;
 uint8_t lastDirection = Direction::UnknownDirection;
 double lastDomeVoltage = 0.0;
 double lastBodyVoltage = 0.0;
+
+bool displayJoystickCalibration = false;
 
 void setup()
 {
@@ -354,6 +354,11 @@ void readInputs()
 
     sendToBody.Joy3X = Joy3X; //spin Flywheel
     sendToBody.Joy4X = Joy4X;
+
+    if (sendToBody.motorEnable == 1 && sendToBody.but8 == 0 && sendToBody.but7 == 0)
+    {
+        displayJoystickCalibration = true;
+    }
 }
 
 void centerChannels()
@@ -506,7 +511,8 @@ bool needsScreenUpdate()
         || lastDirection != recFromBody.bodyDirection
         || lastDomeVoltage != recFromDome.domeBatt
         || lastBodyVoltage != recFromBody.bodyBatt
-        || updateScreen == 1);
+        || updateScreen == 1
+        || displayJoystickCalibration);
 }
 
 void Screen()
@@ -516,13 +522,10 @@ void Screen()
         return;
     }
 
-    if (recFromBody.bodyStatus == BodyStatus::JoystickCalibration)
+    if (displayJoystickCalibration)
     {
         timeJoystickCalibration();
-    }
-    else if (recFromBody.bodyStatus == BodyStatus::SaveJoystickValues)
-    {
-        setJoystickCenter();
+        displayJoystickCalibration = false;
     }
     else if(recFromBody.bodyStatus == BodyStatus::BodyCalibration)
     {
@@ -654,8 +657,42 @@ void timeJoystickCalibration()
     delay(4000);
     oled.clear();
     oled.println(F("1. Release joysticks      "));
-    oled.println(F("2. Press right button     "));
+    oled.println(F("2. Release all buttons "));
     oled.print(F("                    "));
+
+    while (
+        digitalRead(lBut1PIN) == 0
+        || digitalRead(lBut2PIN) == 0
+        || digitalRead(lBut3PIN) == 0
+        || digitalRead(rBut1PIN) == 0
+        || digitalRead(rBut2PIN) == 0
+        || digitalRead(rBut3PIN) == 0)
+    {
+    }
+
+    oled.clear();
+    oled.println(F("1. Release joysticks          "));
+    oled.println(F("2. Press any button         "));
+    oled.print(F("                    "));
+
+    while (
+        digitalRead(lBut1PIN) == 1
+        && digitalRead(lBut2PIN) == 1
+        && digitalRead(lBut3PIN) == 1
+        && digitalRead(rBut1PIN) == 1
+        && digitalRead(rBut2PIN) == 1
+        && digitalRead(rBut3PIN) == 1
+        && digitalRead(enablePIN) == 1)
+    {
+    }
+
+    if (digitalRead(enablePIN == 1))
+    {
+        setJoystickCenter();
+    }
+
+    oled.clear();
+    updateScreen = 1;
 }
 
 void resetMenu()
