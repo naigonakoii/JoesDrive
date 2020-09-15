@@ -1065,7 +1065,8 @@ void bodyCalib()
 
     if (sendToRemote.bodyStatus == BodyStatus::NormalOperation
         && button8Handler.GetState() == ButtonState::Held
-        && button7Handler.GetState() == ButtonState::NotPressed)
+        && button7Handler.GetState() == ButtonState::NotPressed
+        && recFromRemote.motorEnable == 1)
     {
         sendToRemote.bodyStatus = BodyStatus::BodyCalibration;
     }

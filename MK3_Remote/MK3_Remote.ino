@@ -355,7 +355,10 @@ void readInputs()
     sendToBody.Joy3X = Joy3X; //spin Flywheel
     sendToBody.Joy4X = Joy4X;
 
-    if (sendToBody.motorEnable == 1 && sendToBody.but8 == 0 && sendToBody.but7 == 0)
+    if (sendToBody.motorEnable == 1
+        && sendToBody.but8 == 1
+        && sendToBody.but4 == 0
+        && sendToBody.but6 == 0)
     {
         displayJoystickCalibration = true;
     }

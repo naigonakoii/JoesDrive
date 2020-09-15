@@ -586,7 +586,10 @@ void readInputs()
         sendToBody.Joy3X = constrain(map(ch5a, 140, ch5Center, 512, 257), 0, 512);
     }
 
-    if (sendToBody.but8 == 0 && sendToBody.but7 == 0)
+    if (sendToBody.motorEnable == 1
+        && sendToBody.but8 == 1
+        && sendToBody.but4 == 0
+        && sendToBody.but6 == 0)
     {
         timeJoystickCalibration();
     }
