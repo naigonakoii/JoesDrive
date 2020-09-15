@@ -151,6 +151,7 @@ char tempChars[numChars];
 boolean newData = false;
 
 long joystickCalibMillis;
+int joystickCalibState;
 
 void setup()
 {
@@ -442,6 +443,7 @@ void checkBodyStatus()
     else if (recFromBody.bodyStatus == BodyStatus::SaveJoystickValues)
     {
         setJoystickCenter();
+        joystickCalibState = 0;
     }
 }
 
@@ -547,5 +549,14 @@ void readInputs()
     else if (ch5a < ch5Center)
     {
         sendToBody.Joy3X = constrain(map(ch5a, 140, ch5Center, 512, 257), 0, 512);
+    }
+
+    if (sendToBody.but8 == 0 && sendToBody.but7 == 0)
+    {
+        timeJoystickCalibration();
+    }
+    else if (sendToBody.but8 == 1 || sendToBody.but7 == 1 || sendToBody.motorEnable == 0)
+    {
+        joystickCalibState = 0;
     }
 }
