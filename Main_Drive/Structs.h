@@ -157,17 +157,6 @@ struct AutoDisableState
     bool isAutoDisabled = true;
 };
 
-//
-// Joe's Serial Audio Player
-//
-struct SerialAudioParams
-{
-    int currentSound;
-    int currentMusic;
-    bool isPlaying;
-    bool isMusicPlaying;
-};
-
 struct PIDVals
 {
     double input;

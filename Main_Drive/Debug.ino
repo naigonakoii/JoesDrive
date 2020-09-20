@@ -39,12 +39,16 @@
 
 #include "ImuProMini.h"
 #include "Offsets.h"
-
+#if AudioHardware == JoeSerial
+#include "JoeSerialAudio.h"
+#endif
 
 using Naigon::BB_8::ImuProMini;
 using Naigon::BB_8::Offsets;
+#if AudioHardware == JoeSerial
+using Naigon::BB_8::JoeSerialAudio;
+#endif
 using Naigon::IO::AnalogInHandler;
-
 
 extern AnalogInHandler *driveStickPtr;
 extern AnalogInHandler *sideToSideStickPtr;
@@ -64,7 +68,9 @@ extern SEND_DATA_STRUCTURE_REMOTE sendToRemote;
 
 extern ImuProMini imu;
 extern Offsets offsets;
-
+#if AudioHardware == JoeSerial
+extern JoeSerialAudio audio;
+#endif
 extern PIDVals s2sTiltVals;
 extern PIDVals s2sServoVals;
 extern PIDVals driveVals;
@@ -183,10 +189,11 @@ void debugRoutines()
 #endif
 
 #ifdef debugPSI
-    //Serial.print(F(" readPinState: "));
-    //Serial.print(readPinState);
-    //Serial.print(F(" fadeVal: "));
-    //Serial.print(fadeVal);
+    Serial.print(F("psiVal: "));
+    Serial.print(sendToRemote.psi);
+    Serial.print(F(", isPlaying: "));
+    Serial.print(audio.IsPlaying());
+    Serial.println();
 #endif
 
 #ifdef printbodyBatt

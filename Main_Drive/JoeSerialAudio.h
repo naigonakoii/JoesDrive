@@ -1,28 +1,94 @@
+// ====================================================================================================================
+// This work is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License. To view a
+// copy of this license, visit http://creativecommons.org/licenses/by-nc/4.0/ or send a letter to
+// Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
+// ====================================================================================================================
+
+// ====================================================================================================================
+//             JoeSerialAudio
+//             Wrapper for Joe's serial audio playing via the Adafruit soundboard.
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//             Scott DeBoer
+//             19 Sept 2020
+// ====================================================================================================================
+
 #ifndef __JoeSerialAudio_H_
 #define __JoeSerialAudio_H_
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Joe's Serial Sound Player settings
-//
-// Change these values to match the audio settings that you have uploaded to your adafruit player.
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#define numberOfVoice   50        // This is the number of 'voice' sound files NOT INCLUDING Music and such
-                                  // BB-9E has 33 of these.
-#define numberOfMusic   6         // This is the number of 'music' files
-// Below are used for the multipress button sounds. Pressing button 1 on the left or button 3 on the right once plays a
-// speech track at random, pressing 2-6 times will play quickVoice1-5. 
-#define quickVoice1     6
-#define quickVoice2     8
-#define quickVoice3     20
-#define quickVoice4     22
-#define quickVoice5     1
-// Below are used for the multipress button sounds. Pressing button 2 on the left once plays a sound at random, pressing
-// 2-6 times will play quickMusic1-5. 
-#define quickMusic1     33
-#define quickMusic2     34
-#define quickMusic3     35
-#define quickMusic4     36
-#define quickMusic5     38
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#include "Arduino.h"
+#include "AudioConstants.h"
+
+class Adafruit_Soundboard;
+
+namespace Naigon::BB_8
+{
+
+class JoeSerialAudio
+{
+public:
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Constructs a new instance of the JoeSerialAudio class.
+    //
+    // @param   sfx
+    //          Pointer to an initialized Adafruit soundboard object.
+    //
+    // @param   actPin
+    //          Pin of the arduino that connects to the ACT pin on the soundboard.
+    ///////////////////////////////////////////////////////////////////////////////////
+    JoeSerialAudio(Adafruit_Soundboard *sfx, uint16_t actPin);
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Call once per loop iteration.
+    ///////////////////////////////////////////////////////////////////////////////////
+    void UpdateIteration();
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Determins if any sound is currently playing.
+    //
+    // @ret     true if a sound is playing, otherwise false.
+    ///////////////////////////////////////////////////////////////////////////////////
+    bool IsPlaying() const;
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Determins if a music sound is currently playing.
+    //
+    // @ret     true if a music sound is currently being played, otherwise false;
+    ///////////////////////////////////////////////////////////////////////////////////
+    bool IsMusicPlaying() const;
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Play a sound in order serial soundboard.
+    ///////////////////////////////////////////////////////////////////////////////////
+    void PlayNextSound();
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Play a random sound.
+    ///////////////////////////////////////////////////////////////////////////////////
+    void PlayRandomSound();
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Play the next music track.
+    ///////////////////////////////////////////////////////////////////////////////////
+    void PlayMusic();
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // @summary Stop a currently playing music. No op if no music is being played.
+    ///////////////////////////////////////////////////////////////////////////////////
+    void StopMusic();
+
+private:
+    void Play(uint8_t num);
+
+    Adafruit_Soundboard *_sfx;
+    uint16_t _actPin;
+    int _currentSound;
+    int _currentMusic;
+    bool _isPlaying;
+    bool _isMusicPlaying;
+    unsigned long _startedPlayingMillis;
+
+};
+
+} // namespace Naigon::BB_8
 
 #endif // __JoeSerialAudio_H_

@@ -26,6 +26,7 @@
 
 #include "Arduino.h"
 
+#include "AudioConstants.h"
 #include "Constants.h"
 #include "DriveSetup.h"
 #include "Enums.h"
@@ -82,6 +83,7 @@
 
 #if AudioHardware == JoeSerial
 #include <Adafruit_Soundboard.h>
+#include "JoeSerialAudio.h"
 #endif
 
 //
@@ -135,7 +137,9 @@ using Naigon::Animations::ScriptedAnimation;
 using Naigon::BB_8::ImuProMini;
 using Naigon::BB_8::MotorPWM;
 using Naigon::BB_8::Offsets;
-
+#if AudioHardware == JoeSerial
+using Naigon::BB_8::JoeSerialAudio;
+#endif
 //
 // MK3 Head Tilt related
 //
@@ -290,7 +294,7 @@ Adafruit_Soundboard sfx = Adafruit_Soundboard(&Serial3, NULL, SFX_RST);
 #elif IMUSerialPort == 3
 Adafruit_Soundboard sfx = Adafruit_Soundboard(&Serial2, NULL, SFX_RST);
 #endif
-SerialAudioParams audio;
+JoeSerialAudio audio(&sfx, ACTpin);
 #endif
 
 SoundTypes forcedSoundType = SoundTypes::NotPlaying;
@@ -420,11 +424,6 @@ void setup()
     sfx.reset();
     delay(500);
     sfx.playTrack((uint8_t)0);
-
-    // Initialize to -1 since method is pre-increment which will make it start at zero.
-    audio.currentMusic = -1;
-    audio.currentSound = -1;
-    audio.isMusicPlaying = false;
 
     #elif AudioHardware == NECWired
 
@@ -929,24 +928,13 @@ void sounds()
 
 #if AudioHardware == JoeSerial
 
-void psiVal(bool isAudioPlaying)
+void psiVal()
 {
     #ifndef disablePSIflash
-    sendToRemote.psi = isAudioPlaying && !audio.isMusicPlaying
+    sendToRemote.psi = audio.IsPlaying() && !audio.IsMusicPlaying()
         ? constrain(analogRead(fadePin), 0, 255)
         : 0;
     #endif
-}
-
-void writeSerialSound(int num)
-{
-    if (!sfx.playTrack(num))
-    {
-        // If the track failed to play, assume we need to stop an existing one.
-        sfx.stop();
-        delay(2);
-        sfx.playTrack(num);
-    }
 }
 
 void soundsJoeSerial()
@@ -955,51 +943,32 @@ void soundsJoeSerial()
     // Naigon - this is the "sounds()" method from Joe's MK3 drive for serial audio, with slight revision to work with
     // my custom button layout.
     //
-    bool quit = false;
-    bool isPlaying = digitalRead(ACTpin) == HIGH;
+
+    audio.UpdateIteration();
 
     if(button2Handler.GetState() == ButtonState::Held
         || forcedSoundType != SoundTypes::NotPlaying)
     {
         // Hold left button 1 to play a random voice sound.
-        int voiceNum = random(0, numberOfVoice);
-        writeSerialSound(voiceNum);
+        audio.PlayRandomSound();
     }
     else if(button2Handler.GetState() == ButtonState::Pressed)
     {
         // Press left button 1 to play the voice sounds in order.
-        audio.currentSound = audio.currentSound == numberOfVoice - 1
-            ? 0
-            : audio.currentSound + 1;
-        writeSerialSound(audio.currentSound);
+        audio.PlayNextSound();
     }
     else if(button3Handler.GetState() == ButtonState::Pressed)
     { 
         // Press left button 2 to sequentially play through the "music" tracks
-        audio.currentMusic = audio.currentMusic == numberOfMusic - 1
-            ? 0
-            : audio.currentMusic + 1;
-        writeSerialSound(numberOfVoice + audio.currentMusic);
-        audio.isMusicPlaying = true;
+        audio.PlayMusic();
     }
-    else if(button3Handler.GetState() == ButtonState::Held && audio.isMusicPlaying)
+    else if(button3Handler.GetState() == ButtonState::Held && audio.IsMusicPlaying())
     {
         // Hold left button 2 to stop music.
-        quit = true;
+        audio.StopMusic();
     }
 
-    if(quit && audio.isMusicPlaying)
-    {
-        // Stop playing music per button request.
-        audio.isMusicPlaying = false;
-        sfx.stop();
-    }
-    else if (audio.isMusicPlaying && !isPlaying)
-    {
-        audio.isMusicPlaying = false;
-    }
-
-    psiVal(isPlaying);
+    psiVal();
 }
 
 #elif AudioHardware == NECWired || AudioHardware == NECWireless
