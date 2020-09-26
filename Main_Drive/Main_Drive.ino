@@ -218,7 +218,7 @@ AnalogInHandler domeSpinStickHandler(0, 512, reverseDomeSpin, -MaxDomeSpin, MaxD
 AnalogInHandler domeSpinAutoStickHandler(0, 512, reverseDomeSpin, -MaxDomeSpinAuto, MaxDomeSpinAuto, 15.0f);
 AnalogInHandler domeServoStickHandler(0, 512, reverseDomeSpin, -MaxDomeSpinServo, MaxDomeSpinServo, 15.0f);
 AnalogInHandler domeServoAutoStickHandler(0, 512, reverseDomeSpin, -MaxDomeServoAuto, MaxDomeServoAuto, 15.0f);
-AnalogInHandler flywheelStickHandler(0, 512, reverseFlywheel, -MaxFlywheelDrive, MaxFlywheelDrive, 50.0f);
+AnalogInHandler flywheelStickHandler(0, 512, reverseFlywheel, -MaxFlywheelDrive, MaxFlywheelDrive, 10.0f);
 // Pots
 AnalogInHandler sideToSidePotHandler(0, 1024, reverseS2SPot, -MaxS2SPot, MaxS2SPot, 0.0f);
 AnalogInHandler domeSpinPotHandler(0, 1024, reverseDomeSpinPot, -MaxDomeSpinPot, MaxDomeSpinPot, 0.0f);
@@ -579,12 +579,14 @@ void updateWireless()
     #endif
 
     if (recFromRemote.motorEnable == 0 && drive.IsConnected)
-    { //if motor enable switch is on and BT connected, turn on the motor drivers
+    {
+        //if motor enable switch is on and BT connected, turn on the motor drivers
         autoDisableMotors();
         digitalWrite(enablePinDome, HIGH);
     }
     else if (recFromRemote.motorEnable == 1 || !drive.IsConnected)
-    { //if motor enable switch is off OR BT disconnected, turn off the motor drivers
+    {
+        //if motor enable switch is off OR BT disconnected, turn off the motor drivers
         disableMotors();
         digitalWrite(enablePinDome, LOW);
         // TODO - I think there was a bug here, as in Joe's code this was 0, but from rest of code 0 seems to mean
@@ -1406,8 +1408,6 @@ void domeSpinServo(IEaseApplicator *easeApplicatorPtr, bool isCentering)
 // ------------------------------------------------------------------------------------
 void flywheelSpin(IEaseApplicator *easeApplicatorPtr)
 {
-    // Naigon - Stationary/Wiggle Mode
-    // When in stationary mode, use the drive stick as the flywheel, as the drive is disabled.
     int flywheelStick = (int)flywheelStickPtr->GetMappedValue();
 
     flywheelRotation = constrain(
@@ -1528,7 +1528,8 @@ void autoDisableMotors()
         && !domeTiltStickLRPtr->HasMovement()
         && !domeSpinStickPtr->HasMovement()
         && !flywheelStickPtr->HasMovement()
-        && (!autoDisable.isAutoDisabled))
+        && !autoDisable.isAutoDisabled
+        && !autoDisable.forcedMotorEnable)
     {
         autoDisable.autoDisableMotorsMillis = millis();
         autoDisable.isAutoDisabled = true;
@@ -1541,10 +1542,10 @@ void autoDisableMotors()
         || domeTiltStickLRPtr->HasMovement()
         || domeSpinStickPtr->HasMovement()
         || flywheelStickPtr->HasMovement()
-        || autoDisable.forcedMotorEnable == true)
+        || autoDisable.forcedMotorEnable)
     {
+        enableMotors();
         autoDisable.isAutoDisabled = false;
-        
         autoDisable.autoDisableDoubleCheck = 0;
         drive.AutoDisable = false;
         autoDisable.forcedMotorEnable = false;
