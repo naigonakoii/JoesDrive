@@ -55,7 +55,7 @@ void JoeSerialAudio::PlayMusic()
     _currentMusic = _currentMusic == numberOfMusic - 1
         ? 0
         : _currentMusic + 1;
-    Play(_currentMusic);
+    Play(_currentMusic + numberOfVoice);
     _isMusicPlaying = true;
 }
 
