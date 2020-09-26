@@ -83,6 +83,8 @@ extern int servoLeft, servoRight;
 #endif
 extern int currentDomeSpeed;
 extern int flywheelRotation;
+
+extern AutoDisableState autoDisable;
 // ********************************************************************************************************************
 
 
@@ -302,5 +304,13 @@ void debugRoutines()
     Serial.print(flywheelStickPtr->GetMappedValue());
     Serial.print(F(" flywheelRotation: "));
     Serial.println(flywheelRotation);
+#endif
+
+#ifdef debugAutoDisable
+    Serial.print(F("isAutoDisabled: "));
+    Serial.print(autoDisable.isAutoDisabled);
+    Serial.print(", forcedMotorEnable: ");
+    Serial.print(autoDisable.forcedMotorEnable);
+    Serial.println();
 #endif
 }
