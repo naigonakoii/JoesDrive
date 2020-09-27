@@ -27,6 +27,7 @@ bool JoeSerialAudio::IsMusicPlaying() const
 void JoeSerialAudio::UpdateIteration()
 {
     if (_isPlaying
+        && !_isMusicPlaying
         && (millis() - _startedPlayingMillis) > 600
         && digitalRead(_actPin) == HIGH)
     {
