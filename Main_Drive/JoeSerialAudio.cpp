@@ -27,13 +27,13 @@ bool JoeSerialAudio::IsMusicPlaying() const
 void JoeSerialAudio::UpdateIteration()
 {
     if (_isPlaying
-        && !_isMusicPlaying
         && (millis() - _startedPlayingMillis) > 600
         && digitalRead(_actPin) == HIGH)
     {
         // Because the adafruit soundboard is slow to flip its playing bit to low, a small delay is elapsed before
         // checking if the sound is done playing. This ensures that the sound will be marked as playing immediately.
-        StopMusic();
+        _isPlaying = false;
+        _isMusicPlaying = false;
     }
 }
 
@@ -74,6 +74,8 @@ void JoeSerialAudio::StopMusic()
 
 void JoeSerialAudio::Play(uint8_t num)
 {
+    _isMusicPlaying = false;
+
     if (!_sfx->playTrack(num))
     {
         // If the track failed to play, assume we need to stop an existing one.
