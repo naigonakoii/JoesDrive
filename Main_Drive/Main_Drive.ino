@@ -1233,6 +1233,10 @@ void domeTiltMK2(IEaseApplicator *easeApplicatorPtr)
     int pitchAdjust = sendToRemote.bodyMode != BodyMode::PushToRoll
         ? (imu.FilteredPitch() + offsets.PitchOffset()) * HeadTiltPitchAndRollProportion
         : 0;
+
+    // Naigon - Issue #20: MK3 head tilt adjust seems to be reversed
+    // Reverse the sign depending on the state of the pitch/roll being reversed.
+    pitchAdjust = reversePitch ? pitchAdjust * -1 : pitchAdjust;
     #else
     int pitchAdjust = 0;
     #endif
@@ -1247,7 +1251,7 @@ void domeTiltMK2(IEaseApplicator *easeApplicatorPtr)
     // Joe's code had a bug here; you need to subtract within the constrain, otherwise driving can cause this value to go
     // outside the bounds and really bad things happen like the drive locking and losing the head.
     int joystickDome = constrain(
-        ch3Val - (int)speedDomeTilt - pitchAdjust,
+        ch3Val - (int)speedDomeTilt + pitchAdjust,
         -MaxDomeTiltAngle,
         MaxDomeTiltAngle); // Reading the stick for angle -40 to 40
 
@@ -1272,6 +1276,11 @@ void domeTiltMK3(IEaseApplicator *easeApplicatorFRPtr, IEaseApplicator *easeAppl
     int rollAdjust = sendToRemote.bodyMode != BodyMode::PushToRoll
         ? (imu.FilteredRoll() + offsets.RollOffset()) * HeadTiltPitchAndRollProportion
         : 0;
+
+    // Naigon - Issue #20: MK3 head tilt adjust seems to be reversed
+    // Reverse the sign depending on the state of the pitch/roll being reversed.
+    pitchAdjust = reversePitch ? pitchAdjust * -1 : pitchAdjust;
+    rollAdjust = reverseRoll ? rollAdjust * -1 : rollAdjust;
     #else
     int pitchAdjust = 0;
     int rollAdjust = 0;
