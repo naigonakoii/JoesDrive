@@ -65,7 +65,7 @@ void ImuProMini::UpdateIteration(float pitch, float roll, int imuLoop)
     if (_isFirstPitchAndRoll)
     {
         // Naigon - Head Tilt Stabilization
-        // Initialize the first time to the current value to prevent anomilies at startup.
+        // Initialize the first time to the current value to prevent anomalies at startup.
         for (int i = 0; i < PitchAndRollFilterCount; i++)
         {
             _pitchPrev[i] = _pitch;
