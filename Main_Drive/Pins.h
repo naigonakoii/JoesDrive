@@ -74,7 +74,6 @@
 #define drivePWM2 13          // PWM Pin for movement, swap the pin numbers on this axis if axis is reversed
 #define s2sPWM1 6             // PWM Pin for movement, swap the pin numbers on this axis if axis is reversed
 #define s2sPWM2 7             // PWM Pin for movement, swap the pin numbers on this axis if axis is reversed
-#define maxS2STilt 20         // max tilt using the joystick; max is 25
 #define domeSpinPWM1 10       // PWM Pin for movement, swap the pin numbers on this axis if axis is reversed
 #define domeSpinPWM2 11       // PWM Pin for movement, swap the pin numbers on this axis if axis is reversed
 #define flywheelSpinPWM1 8    // PWM Pin for movement, swap the pin numbers on this axis if axis is reversed 
