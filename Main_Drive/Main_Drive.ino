@@ -32,6 +32,7 @@
 #include "Enums.h"
 #include "JoeSerialAudio.h"
 #include "Pins.h"
+#include "Reverse.h"
 #include "Structs.h"
 
 //
@@ -1307,7 +1308,6 @@ void domeTiltMK3(IEaseApplicator *easeApplicatorFRPtr, IEaseApplicator *easeAppl
         && (joyX > 2.0 ||  joyX < -2.0))
     {
         joyY = 2.0;
-        joyX = 2.0;
     }
     else if (joyY > 2.0 || joyY < -2.0)
     {

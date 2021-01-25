@@ -18,6 +18,7 @@
 
 #include "Arduino.h"
 #include "Constants.h"
+#include "Reverse.h"
 
 namespace Naigon::BB_8
 {
