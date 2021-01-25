@@ -4,7 +4,7 @@ setlocal
 set firmwarePath="bin\%1"
 echo %firmwarePath%
 
-for /f "tokens=1* delims==" %%I in ('wmic path win32_pnpentity get caption  /format:list ^| find "COM6"') do (
+for /f "tokens=1* delims==" %%I in ('wmic path win32_pnpentity get caption  /format:list ^| find "COM5"') do (
     ::call :resetCOM "%%~J"
     set currentCOM=%%~J
 )
