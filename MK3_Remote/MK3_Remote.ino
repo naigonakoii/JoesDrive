@@ -607,9 +607,10 @@ void infoScreen()
     }
 
     oled.print(F("Body: ")); 
-    if(wireless == 1 && recFromBody.bodyBatt != 99.99)
+    if(wireless == 1 && recFromBody.bodyBatt != 99.99 && recFromBody.bodyBatt >= 1.0)
     {
-        oled.print(recFromBody.bodyBatt); oled.println(F("v                         "));
+        oled.print(recFromBody.bodyBatt);
+        oled.println(F("v                         "));
     }
     else
     {
