@@ -1303,9 +1303,7 @@ void domeTiltMK3(IEaseApplicator *easeApplicatorFRPtr, IEaseApplicator *easeAppl
     // amount, the left and right will blow by their end stops. This is the code the ensures the Y moves a bit the
     // first time.
     //
-    if(!drive.HasDomeMoved
-        && joyY <= 2.0 && joyY >= -2.0
-        && (joyX > 2.0 ||  joyX < -2.0))
+    if(!drive.HasDomeMoved && joyY <= 2.0 && joyY >= -2.0)
     {
         joyY = 2.0;
     }
