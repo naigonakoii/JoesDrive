@@ -251,7 +251,7 @@ void recRemote()
             #endif
 
             SendRemote.sendData();
-            delay(5);
+            delay(2);
         }
     }
 
@@ -274,13 +274,13 @@ void recBody()
         memcpy(bodybuf, &sendToRemote, sizeof(sendToRemote));
 
         radio.send(REMOTE_ADDRESS, bodybuf, sizeof(sendToRemote));
-        delay(5);
+        delay(1);
 
         // Copy out the psi value directly from the remote values.
         sendToDome.psi = recFromBody.psi;
         memcpy(bodybuf, &sendToDome, sizeof(sendToDome));
         radio.send(DOME_ADDRESS, bodybuf, sizeof(sendToDome));
-        delay(5);
+        delay(1);
     }
     lastSent = millis();
 }

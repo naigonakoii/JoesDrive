@@ -195,7 +195,7 @@ int Joy3X, Joy3Xa, Joy3Xb;
 int Joy4X, Joy4Xa, Joy4Xb;
 int Joy1XCenter, Joy1YCenter, Joy2XCenter, Joy2YCenter, Joy3XCenter, Joy4XCenter;
 byte updateScreen = 1;
-byte wireless;
+bool isWirelessConnected;
 
 //int rectime[20];
 //byte rectimeloc;
@@ -468,7 +468,7 @@ void SendData()
 
 void recData()
 {
-    if(millis() - lastrecDataMillis >= recDelay && radio.receiveDone())
+    if(radio.receiveDone())
     {
         if(radio.SENDERID == uint8_t(DOME_ADDRESS)) //********** This needs to be fixed for new lib
         {
@@ -607,7 +607,7 @@ void infoScreen()
     }
 
     oled.print(F("Body: ")); 
-    if(wireless == 1 && recFromBody.bodyBatt != 99.99 && recFromBody.bodyBatt >= 1.0)
+    if(isWirelessConnected && recFromBody.bodyBatt != 99.99 && recFromBody.bodyBatt >= 1.0)
     {
         oled.print(recFromBody.bodyBatt);
         oled.println(F("v                         "));
@@ -617,7 +617,7 @@ void infoScreen()
         oled.println(F("Disconnected                      "));
     }
     oled.print(F("Dome: ")); 
-    if(wireless == 1 && recFromDome.domeBatt != 99.99 && recFromDome.domeBatt != 0.0)
+    if(isWirelessConnected && recFromDome.domeBatt != 99.99 && recFromDome.domeBatt != 0.0)
     {
         oled.print(recFromDome.domeBatt); oled.println("v                         ");
     }
@@ -718,17 +718,14 @@ void setJoystickCenter()
 
 void timeout()
 {
-    if(millis() - lastrecdata >= 5000)
+    if(millis() - lastrecdata >= 8000 && isWirelessConnected)
     {
-        if(wireless == 1)
-        {
-            wireless = 0;
-            updateScreen = 1;
-        }
+        isWirelessConnected = false;
+        updateScreen = 1;
     }
-    else if(millis() - lastrecdata <= 1000 && wireless == 0)
+    else if(millis() - lastrecdata <= 5000 && !isWirelessConnected)
     {
-        wireless = 1;
+        isWirelessConnected = true;
         updateScreen = 1;
     }
 }

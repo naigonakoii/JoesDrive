@@ -52,6 +52,7 @@
 #define RFM69_IRQN 4 // Pin 7 is IRQ 4!
 #define RFM69_RST 4
 
+// Naigon - For testing only with a standard feather and standalone RFM69 module.
 //#define RFM69_CS      0
 //#define RFM69_IRQ     1
 //#define RFM69_IRQN    3  // Pin 1 is IRQ 3!
