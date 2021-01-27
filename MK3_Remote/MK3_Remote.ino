@@ -88,6 +88,8 @@ SSD1306AsciiWire oled;
 #define RFM69_IRQN    4  // Pin 7 is IRQ 4!
 #define RFM69_RST     4
 
+#define ScreenUpdateForceRefreshMS 8000.0
+
 enum BodyStatus : uint8_t
 {
     NormalOperation = 0,
@@ -508,12 +510,10 @@ bool needsScreenUpdate()
 {
     // Naigon - Drive-side (Server-side) Refactor
     // Toggle displaying new values based on changes coming from the drive.
-    return ((millis() - lastScreenUpdate) > 15000
+    return ((millis() - lastScreenUpdate) > ScreenUpdateForceRefreshMS
         || lastBodyStatus != recFromBody.bodyStatus
         || lastDriveMode != recFromBody.bodyMode
         || lastDirection != recFromBody.bodyDirection
-        || lastDomeVoltage != recFromDome.domeBatt
-        || lastBodyVoltage != recFromBody.bodyBatt
         || updateScreen == 1
         || displayJoystickCalibration);
 }
@@ -607,7 +607,7 @@ void infoScreen()
     }
 
     oled.print(F("Body: ")); 
-    if(isWirelessConnected && recFromBody.bodyBatt != 99.99 && recFromBody.bodyBatt >= 1.0)
+    if(isWirelessConnected && recFromBody.bodyBatt != 99.99 && recFromBody.bodyBatt != 0.0)
     {
         oled.print(recFromBody.bodyBatt);
         oled.println(F("v                         "));
