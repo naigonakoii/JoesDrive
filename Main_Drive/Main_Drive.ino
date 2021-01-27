@@ -1357,7 +1357,7 @@ void domeTiltMK3(IEaseApplicator *easeApplicatorFRPtr, IEaseApplicator *easeAppl
         servoLeft = joy2Ya;
     }
    
-    leftServo.write(constrain(map(servoLeft, -90, 90, 0, 180),0, 180) + 5, domeSpeed, false); 
+    leftServo.write(constrain(map(servoLeft, -90, 90, 0, 180), 0, 180), domeSpeed, false); 
     rightServo.write(constrain(map(servoRight,-90, 90, 180, 0), 0, 180), domeSpeed, false);
 }
 #endif
