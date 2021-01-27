@@ -112,7 +112,10 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-//
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Naigon's Features
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 // Naigon - DomeTiltFromJoystick
 // Head tilt is not based on the joystick, and is relative to the difference of the max angle
 #define DomeTiltAmount (MaxDomeTiltAngle - 10)
@@ -128,6 +131,39 @@
 // the expense of more jerk.
 // Value should be between 0.0 and 1.0 inclusively.
 #define HeadTiltPitchAndRollProportion 0.9
+
+// Naigon - Configurable Joysticks
+// Constants that define which joystick movements control which action.
+// DO NOT CHANGE _JOY_x values - Change the J values below.
+#define _JOY_1Y 0
+#define _JOY_1X 1
+#define _JOY_2Y 2
+#define _JOY_2X 3
+#define _JOY_3X 4
+#define _JOY_4X 5
+#define _JOY_NOT_USED 6
+// Change these values to match the control experience you desire; define them only to one of the 6 _JOY_x values
+// above.
+#if HeadTiltVersion == MK3_Dome
+#define J_Drive _JOY_1Y
+#define J_Side _JOY_1X
+#define J_AutomationSide _JOY_2X
+#define J_Head_LR _JOY_2X
+#define J_Head_FR _JOY_2Y
+#define J_Head_Spin _JOY_3X
+#define J_Flywheel _JOY_4X
+#define J_StationaryFlywheel _JOY_1Y
+#else
+#define J_Drive _JOY_1Y
+#define J_Side _JOY_1X
+#define J_AutomationSide _JOY_2X
+#define J_Head_LR _JOY_NOT_USED
+#define J_Head_FR _JOY_2Y
+#define J_Head_Spin _JOY_2X
+#define J_Flywheel _JOY_3X
+#define J_StationaryFlywheel _JOY_1Y
+#endif
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

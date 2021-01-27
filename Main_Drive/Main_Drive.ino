@@ -620,6 +620,17 @@ void updateInputHandlers()
 
     int dr, s, dt, ds, fl, lr;
 
+    // Naigon - Configurable Joysticks
+    // Map the actual inputs to an array that can be looked up using the defined constants.
+    int joyStickVals[7];
+    joyStickVals[_JOY_1Y] = recFromRemote.Joy1Y;
+    joyStickVals[_JOY_1X] = recFromRemote.Joy1X;
+    joyStickVals[_JOY_2Y] = recFromRemote.Joy2Y;
+    joyStickVals[_JOY_2X] = recFromRemote.Joy2X;
+    joyStickVals[_JOY_3X] = recFromRemote.Joy3X;
+    joyStickVals[_JOY_4X] = recFromRemote.Joy4X;
+    joyStickVals[_JOY_NOT_USED] = 255;
+
     if (sendToRemote.bodyMode == BodyMode::PushToRoll)
     {
         // Naigon - Safe Joystick Button Toggle: Refactored here due to Analog Joystick Refactor
@@ -628,21 +639,12 @@ void updateInputHandlers()
     }
     else
     {
-        #if HeadTiltVersion == MK3_Dome
-        dr = drive.IsStationary ? 255 : recFromRemote.Joy1Y;
-        s = animation.IsAutomation ? recFromRemote.Joy2X : recFromRemote.Joy1X;
-        dt = animation.IsAutomation ? 255 : recFromRemote.Joy2Y;
-        lr = animation.IsAutomation ? 255 : recFromRemote.Joy2X;
-        ds = animation.IsAutomation ? 255 : recFromRemote.Joy4X;
-        fl = drive.IsStationary ? recFromRemote.Joy1X : recFromRemote.Joy3X;
-        #else
-        dr = drive.IsStationary ? 255 : recFromRemote.Joy1Y;
-        s = animation.IsAutomation ? recFromRemote.Joy2X : recFromRemote.Joy1X;
-        dt = animation.IsAutomation ? 255 : recFromRemote.Joy2Y;
-        lr = 255;
-        ds = animation.IsAutomation ? 255 : recFromRemote.Joy2X;
-        fl = drive.IsStationary ? recFromRemote.Joy1X : recFromRemote.Joy3X;
-        #endif
+        dr = drive.IsStationary ? 255 : joyStickVals[J_Drive];
+        s = animation.IsAutomation ? joyStickVals[J_AutomationSide] : joyStickVals[J_Side];
+        dt = animation.IsAutomation ? 255 : joyStickVals[J_Head_FR];
+        lr = animation.IsAutomation ? 255 : joyStickVals[J_Head_LR];
+        ds = animation.IsAutomation ? 255 : joyStickVals[J_Head_Spin];
+        fl = drive.IsStationary ? joyStickVals[J_StationaryFlywheel] : joyStickVals[J_Flywheel];
     }
 
     // Joysticks

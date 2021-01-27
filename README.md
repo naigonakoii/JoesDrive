@@ -59,6 +59,7 @@ Ease Applicator | Refactor of the main drive methods to use the new IEaseApplica
 Dome Automation | This is a new mode that allows the head to be controlled automatically when driving. In this mode, the right joystick up/down is for drive, and the left joystick left/right is to steer. Other two directions are disabled. The head will tilt and move randomly with pre-defined Animations.
 Analog Input Refactor | This is the refactoring to make the pots and analog joysticks work off the new AnalogInHandler class.
 MK3 Head Tilt | Code changes that were required to make the drive work with the MK3 head.
+Configurable Joysticks | Allows the end user to specify which joystick movements control which motor operations. There are new values in Constants.h that can be updated easily to change the behavior. Note: When looking at the remote from the front, Joy1 is on the R, Joy2 is on the L, Joy3 is on the back behind Joy2, Joy4 is on the back behind Joy1. X means left-right and Y means up-down on the sticks.
 
 ## Visual Studio Code
 As a big proponent of Visual Studio Code and someone that finds the Arduino IDE quite lacking, I have moved all my Arduino development to Visual Studio Code.
