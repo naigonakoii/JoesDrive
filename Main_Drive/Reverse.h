@@ -25,6 +25,8 @@
 #define reverseDomeTiltPot  false
 #define reverseDomeSpinPot  false
 #define reverseS2SPot       false
+#define reverseAutoDome     true
+
 // Naigon - Needed to prevent build breaks, but completely unused with MK2.
 #define reverseDomeTiltLR   false
 
@@ -41,6 +43,8 @@
 #define reverseDomeTiltPot  true
 #define reverseDomeSpinPot  false
 #define reverseS2SPot       true
+#define reverseAutoDomeX    false
+#define reverseAutoDomeY    false
 
 #endif
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

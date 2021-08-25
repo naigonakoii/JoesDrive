@@ -1237,9 +1237,8 @@ void domeTiltMK2(IEaseApplicator *easeApplicatorPtr)
         ? (imu.FilteredPitch() + offsets.PitchOffset()) * HeadTiltPitchAndRollProportion
         : 0;
 
-    // Naigon - Issue #20: MK3 head tilt adjust seems to be reversed
-    // Reverse the sign depending on the state of the pitch/roll being reversed.
-    pitchAdjust = reversePitch ? pitchAdjust * -1 : pitchAdjust;
+    // Naigon - reverse the dome tilt based on the constant
+    pitchAdjust = reverseAutoDome ? pitchAdjust * -1 : pitchAdjust;
     #else
     int pitchAdjust = 0;
     #endif
@@ -1280,10 +1279,9 @@ void domeTiltMK3(IEaseApplicator *easeApplicatorFRPtr, IEaseApplicator *easeAppl
         ? (imu.FilteredRoll() + offsets.RollOffset()) * HeadTiltPitchAndRollProportion
         : 0;
 
-    // Naigon - Issue #20: MK3 head tilt adjust seems to be reversed
-    // Reverse the sign depending on the state of the pitch/roll being reversed.
-    pitchAdjust = reversePitch ? pitchAdjust * -1 : pitchAdjust;
-    rollAdjust = reverseRoll ? rollAdjust * -1 : rollAdjust;
+    // Naigon - use the new reverse values to flip the sign if needed
+    pitchAdjust = reverseAutoDomeY ? pitchAdjust * -1 : pitchAdjust;
+    rollAdjust = reverseAutoDomeX ? rollAdjust * -1 : rollAdjust;
     #else
     int pitchAdjust = 0;
     int rollAdjust = 0;
