@@ -1,6 +1,5 @@
 {
     "board": "adafruit:avr:feather32u4",
-    "configuration": "",
     "port": "com6",
     "sketch": "MK3_Remote.ino",
     "output": "bin",
