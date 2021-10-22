@@ -470,7 +470,7 @@ void SendData()
 
 void recData()
 {
-    if(radio.receiveDone())
+    if(millis() - lastrecDataMillis >= recDelay && radio.receiveDone())
     {
         if(radio.SENDERID == uint8_t(DOME_ADDRESS)) //********** This needs to be fixed for new lib
         {
