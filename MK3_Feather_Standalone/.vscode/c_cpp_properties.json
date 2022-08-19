@@ -27,12 +27,12 @@
                 "${workspaceFolder}",
                 "C:/Program Files (x86)/Arduino/hardware/arduino/avr/**",
                 "C:/Program Files (x86)/Arduino/tools/**",
-                "C:/Users/Admin/AppData/Local/Arduino15/packages/adafruit/hardware/avr/1.4.13/**",
-                "C:/Users/Admin/AppData/Local/Arduino15/packages/adafruit/tools/**",
-                "C:\\Users\\Admin\\AppData\\Local\\Arduino15\\packages\\adafruit\\hardware\\avr\\1.4.13\\**",
+                "C:/Users/hpkev/AppData/Local/Arduino15/packages/adafruit/hardware/avr/1.4.13/**",
+                "C:/Users/hpkev/AppData/Local/Arduino15/packages/adafruit/tools/**",
+                "C:\\Users\\hpkev\\AppData\\Local\\Arduino15\\packages\\adafruit\\hardware\\avr\\1.4.13\\**",
                 "C:\\Program Files (x86)\\Arduino\\libraries\\**",
                 "D:\\My Documents\\Arduino\\libraries\\**",
-                "C:\\Users\\Admin\\AppData\\Local\\Arduino15\\packages\\adafruit\\tools\\**"
+                "C:\\Users\\hpkev\\AppData\\Local\\Arduino15\\packages\\adafruit\\tools\\**"
             ],
             "forcedInclude": [
                 "C:/Program Files (x86)/Arduino/hardware/arduino/avr/cores/arduino/Arduino.h"

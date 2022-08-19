@@ -1,0 +1,5 @@
+{
+    "port": "COM4",
+    "board": "adafruit:avr:feather32u4",
+    "sketch": "MK3_Remote\\MK3_Remote.ino"
+}

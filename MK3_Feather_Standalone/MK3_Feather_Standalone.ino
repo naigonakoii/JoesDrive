@@ -278,6 +278,7 @@ void recBody()
 
         // Copy out the psi value directly from the remote values.
         sendToDome.psi = recFromBody.psi;
+        sendToDome.button4 = recFromRemote.but4; // HV - Hack to make the dome light animations work
         memcpy(bodybuf, &sendToDome, sizeof(sendToDome));
         radio.send(DOME_ADDRESS, bodybuf, sizeof(sendToDome));
         delay(1);
