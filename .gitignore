@@ -1,4 +1,5 @@
 bin/
+build/
 Main_Drive/*.hex
 
 # Prerequisites
