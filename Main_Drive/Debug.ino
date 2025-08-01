@@ -99,9 +99,9 @@ extern AutoDisableState autoDisable;
 //   I     - PID input value
 //   S     - PID setpoint value
 //   O     - PID output value
-//   Pot   - revalant potentiometer output
-//   Joy   - revalant joystick current value
-//   E     - revalant ease current value
+//   Pot   - relevant potentiometer output
+//   Joy   - relevant joystick current value
+//   E     - relevant ease current value
 // ------------------------------------------------------------------------------------
 void debugRoutines()
 {
@@ -109,7 +109,7 @@ void debugRoutines()
     // Uncomment " #Define " in Constants.h
     //
 
-#ifdef debugDrive
+    #ifdef debugDrive
     Serial.print(F(" Joy: "));
     Serial.print(driveStickPtr->GetMappedValue());
     Serial.print(F(", S3: "));
@@ -118,9 +118,9 @@ void debugRoutines()
     Serial.print(driveVals.input);
     Serial.print(F(", O3: "));
     Serial.println(driveVals.output);
-#endif
+    #endif
 
-#ifdef debugS2S
+    #ifdef debugS2S
     Serial.print(F("Joy: "));
     Serial.print(sideToSideStickPtr->GetMappedValue());
     Serial.print(F(", R: "));
@@ -137,9 +137,9 @@ void debugRoutines()
     Serial.print(s2sTiltVals.setpoint);
     Serial.print(F(", O1: "));
     Serial.println(s2sTiltVals.output);
-#endif
+    #endif
 
-#ifdef debugDomeTilt
+    #ifdef debugDomeTilt
     Serial.print(F(" JoyY: "));
     Serial.print(domeTiltStickPtr->GetMappedValue());
     Serial.print(F(", JoyX: "));
@@ -153,57 +153,57 @@ void debugRoutines()
     Serial.print(offsets.PitchOffset());
 
     #if HeadTiltVersion == MK3_Dome
-    Serial.print(F(", R"));
-    Serial.print(imu.Roll());
-    Serial.print(F(", fR"));
-    Serial.print(imu.FilteredRoll());
-    Serial.print(F(", oR"));
-    Serial.print(offsets.RollOffset());
+        Serial.print(F(", R"));
+        Serial.print(imu.Roll());
+        Serial.print(F(", fR"));
+        Serial.print(imu.FilteredRoll());
+        Serial.print(F(", oR"));
+        Serial.print(offsets.RollOffset());
     #endif
 
     #if HeadTiltVersion == MK2_Dome
-    Serial.print(F(" I4 :"));
-    Serial.print(domeTiltVals.input);
-    Serial.print(F(" S4 :"));
-    Serial.print(domeTiltVals.setpoint);
-    Serial.print(F(" O4 :"));
-    Serial.println(domeTiltVals.output);
+        Serial.print(F(" I4 :"));
+        Serial.print(domeTiltVals.input);
+        Serial.print(F(" S4 :"));
+        Serial.print(domeTiltVals.setpoint);
+        Serial.print(F(" O4 :"));
+        Serial.println(domeTiltVals.output);
     #else
-    Serial.print(F(", sL"));
-    Serial.print(servoLeft);
-    Serial.print(F(", sR"));
-    Serial.print(servoRight);
+        Serial.print(F(", sL"));
+        Serial.print(servoLeft);
+        Serial.print(F(", sR"));
+        Serial.print(servoRight);
     #endif
     Serial.println();
-#endif
+    #endif
 
-#ifdef debugdomeRotation
+    #ifdef debugdomeRotation
     // NOTE: This only debugs with non-server dome spin modes per Joe's original code. I will look at improveing it later.
     Serial.print(F(" pot: "));
     Serial.print(domeSpinPotHandler.GetMappedValue());
     Serial.print(F(", out: "));
     Serial.println(currentDomeSpeed);
-#endif
+    #endif
 
-#ifdef debugSound && SoundHardware == NaigonWired
+    #ifdef debugSound && SoundHardware == NaigonWired
     Serial.print(F(" playing sound: "));
     Serial.println(soundPlayer->SoundTypeCurrentlyPlaying());
-#endif
+    #endif
 
-#ifdef debugPSI
+    #ifdef debugPSI
     Serial.print(F("psiVal: "));
     Serial.print(sendToRemote.psi);
     Serial.print(F(", isPlaying: "));
     Serial.print(audio.IsPlaying());
     Serial.println();
-#endif
+    #endif
 
-#ifdef printbodyBatt
+    #ifdef printbodyBatt
     Serial.print(F(" Vin: "));
     Serial.println(sendToRemote.bodyBatt);
-#endif
+    #endif
 
-#ifdef printYPR
+    #ifdef printYPR
     //Serial.print(F(" Yaw: "));
     //Serial.print(yaw);
     Serial.print(F(" R: "));
@@ -220,16 +220,16 @@ void debugRoutines()
     Serial.println(imu.FilteredPitch());
     Serial.print(F(", oP: "));
     Serial.println(offsets.PitchOffset());
-#endif
+    #endif
 
-#ifdef printDome
+    #ifdef printDome
     //Serial.print(F(" Dome Yaw: "));
     //Serial.print(recFromDome.domeYaw);
     //Serial.print(F(" Dome Batt: "));
     //Serial.println(recFromDome.domeBatt);
-#endif
+    #endif
 
-#ifdef printRemote
+    #ifdef printRemote
     Serial.print(F("  Remote: "));
     Serial.print(recFromRemote.Joy1Y);
     Serial.print(" , ");
@@ -261,9 +261,9 @@ void debugRoutines()
     Serial.print(F(" , "));
     Serial.print(recFromRemote.motorEnable);
     Serial.println();
-#endif
+    #endif
 
-#ifdef debugRSelectMillis
+    #ifdef debugRSelectMillis
     //Serial.print(" currentMillisBodyCalib: ");
     //Serial.print(currentMillisBodyCalib);
     Serial.print(" setCalibMillis: ");
@@ -276,9 +276,9 @@ void debugRoutines()
     Serial.print(sendToRemote.bodyStatus);
     Serial.print(" countdown: ");
     Serial.print(countdown);
-#endif
+    #endif
 
-#ifdef printSoundPin && AudioHardware == JoeWired
+    #ifdef printSoundPin && AudioHardware == JoeWired
     Serial.print(F(" Pin1: "));
     Serial.print(digitalRead(soundpin1));
     Serial.print(F(" Pin2: "));
@@ -297,20 +297,26 @@ void debugRoutines()
     Serial.print(digitalRead(readpin));
     Serial.print(F(" randSoundPin: "));
     Serial.println(randSoundPin);
-#endif
+    #endif
 
-#ifdef debugFlywheelSpin
+    #ifdef debugFlywheelSpin
     Serial.print(F(" Joy: "));
     Serial.print(flywheelStickPtr->GetMappedValue());
     Serial.print(F(" flywheelRotation: "));
     Serial.println(flywheelRotation);
-#endif
+    #endif
 
-#ifdef debugAutoDisable
+    #ifdef debugAutoDisable
     Serial.print(F("isAutoDisabled: "));
     Serial.print(autoDisable.isAutoDisabled);
     Serial.print(", forcedMotorEnable: ");
     Serial.print(autoDisable.forcedMotorEnable);
     Serial.println();
-#endif
+    #endif
+
+    #ifdef debugCalibration
+    Serial.print(F("bodyStatus: "));
+    Serial.print(sendToRemote.bodyStatus);
+    Serial.println();
+    #endif
 }
