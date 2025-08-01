@@ -488,11 +488,11 @@ void setup()
 //     ================================================================================================================
 void loop()
 {
-    RecIMU.receiveData();
-
     #if RemoteHardware == FeatherPair
     featherRemotes.UpdateIteration(&RecRemote);
     #endif
+
+    RecIMU.receiveData();
 
     if (millis() - lastImuMillis >= 2)
     {
