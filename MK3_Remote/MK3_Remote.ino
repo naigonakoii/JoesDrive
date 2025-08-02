@@ -59,7 +59,11 @@
 #define I2C_ADDRESS 0x3C
 SSD1306AsciiWire oled;
 
-#include <RFM69.h>    //get it here: https://www.github.com/lowpowerlab/rfm69
+// Naigon - I've updated the dependency to at least v1.5.2 now, as I needed the canSend()
+// function which was not present in the earlier v1.4.1 that Joe required.
+//
+// GitHub location: https://www.github.com/lowpowerlab/rfm69
+#include <RFM69.h>
 #include <SPI.h>
 
 //*********************************************************************************************
