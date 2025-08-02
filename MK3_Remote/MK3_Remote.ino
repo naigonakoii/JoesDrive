@@ -123,7 +123,7 @@ enum Direction : uint8_t
     Reverse = 2,
 };
 
-struct SEND_DATA_STRUCTURE
+typedef struct SEND_DATA_STRUCTURE
 {
     int Joy1Y; //right joystick up/down
     int Joy1X; //right joystick left/right
@@ -153,7 +153,8 @@ struct SEND_DATA_STRUCTURE
     // but8 is for select only
     uint8_t but8 = 1; //right button 3 (right select)
     uint8_t motorEnable = 1;
-} sendToBody;
+} sendBodyData;
+sendBodyData sendToBody;
 
 byte packet[sizeof(sendToBody)];
 
@@ -175,6 +176,8 @@ typedef struct RECEIVE_DATA_STRUCTURE_BODY
 recBodyData recFromBody;
 
 RFM69 radio = RFM69(RFM69_CS, RFM69_IRQ, IS_RFM69HCW, RFM69_IRQN);
+
+BodyMode prevBodyMode;
 
 //
 // Naigon
@@ -587,6 +590,16 @@ void infoScreen()
     oled.setFont(Callibri15);
         
     BodyMode bodyM = (BodyMode)recFromBody.bodyMode;
+
+    if (bodyM == BodyMode::UnknownSpeed)
+    {
+        bodyM = prevBodyMode;
+    }
+    else
+    {
+        prevBodyMode = bodyM;
+    }
+
     if (bodyM == BodyMode::Slow || bodyM == BodyMode::Servo)
     {
         oled.println(F("Slw                                "));
