@@ -44,6 +44,9 @@ EasyTransfer SendBody;
 // Uncomment this to debug the values coming from the remote across the RMF69 channel.
 //#define DebugRemote
 
+// Naigon
+// Uncomment this to debug the values received from the body
+//#define DebugBody
 
 //*********************************************************************************************
 // *********** IMPORTANT SETTINGS - YOU MUST CHANGE/CONFIGURE TO FIT YOUR HARDWARE ************
@@ -73,8 +76,6 @@ RH_Serial driver(Serial1);
 RHReliableDatagram manager(driver, BODY_ADDRESS);
 
 uint8_t remfrom;
-uint8_t rembuf[RH_RF69_MAX_MESSAGE_LEN];
-uint8_t rembuflen = sizeof(rembuf);
 uint8_t bodyfrom;
 unsigned long lastLoop, lastSent;
 
@@ -90,7 +91,7 @@ typedef struct RECEIVE_DATA_STRUCTURE_REMOTE
     // Naigon - this now cycles through the combined drive mode and dome mode.
     uint8_t but1 = 1; //left select
     // but2 from Joe is audio
-    // Naigon - button 2 press plays a happy/neutral sound. Holding plays a longer/sader sound
+    // Naigon - button 2 press plays a happy/neutral sound. Holding plays a longer/sadder sound
     uint8_t but2 = 1; //left button 1
     // but3 from Joe is audio
     // Naigon - button 3 press starts music, and cycles tracks. Holding stops music.
@@ -146,8 +147,6 @@ uint8_t bodybuf[sizeof(recFromBody)];
 uint8_t bodybuflen = sizeof(recFromBody);
 
 uint8_t from;
-uint8_t buf[RH_RF69_MAX_MESSAGE_LEN];
-uint8_t buflen = sizeof(buf);
 
 void setup()
 {
@@ -155,6 +154,7 @@ void setup()
     Serial.begin(115200);
     Serial1.begin(57600);
     driver.serial().begin(57600);
+
     if (!manager.init())
     {
         Serial.println("init failed");
@@ -187,8 +187,9 @@ void loop()
         recRemote();
     } 
 
-    if(millis() - lastSent >= 80)
+    if(millis() - lastSent >= 100)
     {
+        lastSent = millis();
         recBody();
     }
 }
@@ -251,7 +252,7 @@ void recRemote()
             #endif
 
             SendRemote.sendData();
-            delay(2);
+            delay(1);
         }
     }
 
@@ -271,10 +272,17 @@ void recBody()
         sendToRemote.bodyMode = recFromBody.bodyMode;
         sendToRemote.bodyStatus = recFromBody.bodyStatus;
         sendToRemote.bodyDirection = recFromBody.bodyDirection;
-        memcpy(bodybuf, &sendToRemote, sizeof(sendToRemote));
+        sendToRemote.domeBatt = recFromBody.domeBatt;
 
+        #ifdef DebugBody
+        Serial.print(F("bodyStatus: "));
+        Serial.print(sendToRemote.bodyStatus);
+        Serial.println();
+        #endif
+
+        memcpy(bodybuf, &sendToRemote, sizeof(sendToRemote));
         radio.send(REMOTE_ADDRESS, bodybuf, sizeof(sendToRemote));
-        delay(1);
+        delay(10);
 
         // Copy out the psi value directly from the remote values.
         sendToDome.psi = recFromBody.psi;

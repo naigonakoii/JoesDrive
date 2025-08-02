@@ -49,6 +49,9 @@
 // Naigon - Uncomment this line to debug the values the remote is sending across the wire.
 // #define debug
 
+// Naigon - Uncomment this line to debug the values remote received from the body feather
+#define DebugRecBody
+
 #include <EEPROMex.h>
 #include "Arduino.h"
 #include <Wire.h>
@@ -88,7 +91,7 @@ SSD1306AsciiWire oled;
 #define RFM69_IRQN    4  // Pin 7 is IRQ 4!
 #define RFM69_RST     4
 
-#define ScreenUpdateForceRefreshMS 8000.0
+#define ScreenUpdateForceRefreshMS 2000
 
 enum BodyStatus : uint8_t
 {
@@ -132,7 +135,7 @@ struct SEND_DATA_STRUCTURE
     // Naigon - this now cycles through the combined drive mode and dome mode.
     uint8_t but1 = 1; //left select
     // but2 from Joe is audio
-    // Naigon - button 2 press plays a happy/neutral sound. Holding plays a longer/sader sound
+    // Naigon - button 2 press plays a happy/neutral sound. Holding plays a longer/sadder sound
     uint8_t but2 = 1; //left button 1
     // but3 from Joe is audio
     // Naigon - button 3 press starts music, and cycles tracks. Holding stops music.
@@ -205,7 +208,7 @@ const int eepromSet = 890;
 float measuredvbat;
 unsigned long lastScreenUpdate; 
 unsigned long lastrecdata = 1000; 
-unsigned long lastReading, lastLoopMillis, lastrecDataMillis, lastSend;
+unsigned long lastReading, lastLoopMillis, lastRadioMillis, lastSend;
 
 byte startup = 1;
 
@@ -220,13 +223,13 @@ bool displayJoystickCalibration = false;
 void setup()
 {
     oled.begin(&Adafruit128x64, I2C_ADDRESS);
-    Wire.setClock(400000L);
+    Wire.setClock(100000L);
     oled.setFont(Callibri15);
     oled.println(F("==========================="));
     oled.println(F("            Joe's Drive       "));
     oled.println(F("        Naigon Edition"));
     oled.println(F("==========================="));
-    Serial.begin(115200);
+    Serial.begin(SERIAL_BAUD);
   
     pinMode (lJoySelectPIN, INPUT_PULLUP); 
     pinMode (rJoySelectPIN, INPUT_PULLUP); 
@@ -284,19 +287,20 @@ void setup()
 void loop()
 {
     recData();
+    
+    if (millis() - lastRadioMillis >= 50)
+    {
+        lastRadioMillis = millis();
+        readInputs();
+        sendData();
+    }
 
     if(millis() - lastLoopMillis >= 20)
     {
         lastLoopMillis = millis(); 
-        readInputs();
         measureVoltage();
         Screen();
         timeout();
-    }
-
-    if(millis() - lastSend >= sendDelay || SEND)
-    {
-        SendData();
     }
 }
 
@@ -454,24 +458,34 @@ void centerChannels()
     Joy4X = constrain(Joy4Xb, 0, 512);
   }
 
-void SendData()
+void sendData()
 {
-    if(millis() > 2000 && millis() - lastSend >= sendDelay)
+    if(SEND || (millis() - lastSend >= sendDelay))
     {
+        if (!radio.canSend())
+        {
+            Serial.println(F("Cannot send, skip."));
+            return;
+        }
+
         memcpy(packet, &sendToBody, sizeof(sendToBody)); //Copy data from "sendToBody" array to "send_buf" byte array 
         radio.send(BODY_ADDRESS, packet, sizeof(packet)); //target node Id, message as string or byte array, message length
-        delay(5); 
         lastSend = millis();
+        SEND = false;
+
         #ifdef debug
-          debugRoutine(); 
+        debugRoutine();
         #endif
     }
 }
 
 void recData()
 {
-    if(millis() - lastrecDataMillis >= recDelay && radio.receiveDone())
+    if(radio.receiveDone())
     {
+        #ifdef DebugRecBody
+        Serial.print(F("Packet received"));
+        #endif
         if(radio.SENDERID == uint8_t(DOME_ADDRESS)) //********** This needs to be fixed for new lib
         {
             if(radio.DATALEN != sizeof(recFromDome))
@@ -484,12 +498,14 @@ void recData()
                 recFromDome = *(recDomeData*)radio.DATA;
                 //Serial.println(millis() - lastrecdata);
                 lastrecdata = millis();
-                lastrecDataMillis = millis();
             }
             SEND = true;
         }
         else if(radio.SENDERID == uint8_t(BODY_ADDRESS)) //********** This needs to be fixed for new lib
         {
+            #ifdef DebugRecBody
+            Serial.println(F("Received packet from body"));
+            #endif
             if(radio.DATALEN != sizeof(recFromBody))
             {
                 Serial.print("Invalid BODY payload received, not matching Payload struct! Should Be:");
@@ -497,9 +513,23 @@ void recData()
             }
             else
             {
-                recFromBody = *(recBodyData*)radio.DATA; 
+                recFromBody.bodyBatt = ((recBodyData*)radio.DATA)->bodyBatt;
+                recFromBody.bodyDirection = ((recBodyData*)radio.DATA)->bodyDirection;
+                recFromBody.bodyMode = ((recBodyData*)radio.DATA)->bodyMode;
+                recFromBody.bodyStatus = ((recBodyData*)radio.DATA)->bodyStatus;
+
+                #ifdef DebugRecBody
+                Serial.print(F("Batt: "));
+                Serial.print(recFromBody.bodyBatt);
+                Serial.print(F(", direct: "));
+                Serial.print(recFromBody.bodyDirection);
+                Serial.print(F(", mode: "));
+                Serial.print(recFromBody.bodyMode);
+                Serial.print(F(", status: "));
+                Serial.print(recFromBody.bodyStatus);
+                Serial.println();
+                #endif
                 lastrecdata = millis();
-                lastrecDataMillis = millis();
             }
             SEND = true;
         }
@@ -538,7 +568,7 @@ void Screen()
     {
         domeCenterCalibration();
     }
-    else if(recFromBody.bodyStatus == BodyStatus::NormalOperation)
+    else
     {
         infoScreen();
     }
@@ -730,7 +760,7 @@ void timeout()
     }
 }
 
-void debugRoutine()
+void debugRemote()
 {
     Serial.print(sendToBody.Joy1Y); Serial.print(", ");
     Serial.print(sendToBody.Joy1X); Serial.print(", ");
@@ -747,5 +777,14 @@ void debugRoutine()
     Serial.print(sendToBody.but7); Serial.print(", ");
     Serial.print(sendToBody.but8); Serial.print(", ");
     Serial.print(sendToBody.motorEnable);
+    Serial.println();
+}
+
+void debugRecBody()
+{
+    Serial.print(F("bodyStatus: "));
+    Serial.print(recFromBody.bodyStatus);
+    Serial.print(F(", bodyMode: "));
+    Serial.print(recFromBody.bodyMode);
     Serial.println();
 }
